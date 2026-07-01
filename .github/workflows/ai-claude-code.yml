@@ -11,7 +11,7 @@ on:
 env:
   THING: ai/claude-code
   IMAGE: claude-code
-  PRIMARY: minimal           # this variant owns unsuffixed tags (latest, <version>)
+  PRIMARY: node-alpine-minimal   # this variant owns unsuffixed tags (latest, <version>)
 
 jobs:
   # Auto-discover variants from images/ subdirs → no hardcoded matrix.

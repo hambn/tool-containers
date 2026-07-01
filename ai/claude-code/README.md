@@ -13,13 +13,13 @@
 
 Pull from any registry: `ghcr.io/hambn/claude-code` · `docker.io/hambn/claude-code` · `quay.io/hambn/claude-code`. Variants are named by what's inside, not the base.
 
-| Variant | Contains | Base | Tags |
-|---------|----------|------|------|
-| `minimal` (default) | Claude Code + git/ripgrep | `node:22-alpine` | `latest`, `<version>`, `<version>-<date>` |
+| Variant | Contains | Base | Install | Tags |
+|---------|----------|------|---------|-------|
+| `node-alpine-minimal` (default) | Claude Code + git/ripgrep | `node:22-alpine` | npm | `latest`, `<version>`, `<version>-<date>` |
+| `node-alpine-full` | + ssh, curl, python, build tools, jq | `node:22-alpine` | npm | `node-alpine-full`, `<version>-node-alpine-full` |
+| `alpine-minimal` | Claude Code native binary, **no Node.js** | `alpine:3.21` | native binary | `alpine-minimal`, `<version>-alpine-minimal` |
 
-`<version>` is the pinned npm release (e.g. `1.2.3`, immutable). `<version>-<date>` is a traceable rebuild. Every image also gets a `sha-<gitsha>` tag.
-
-<!-- test scope: single alpine variant to validate the pipeline end-to-end. standard/full return once green. -->
+`<version>` is the pinned release (e.g. `1.2.3`, immutable). `<version>-<date>` is a traceable rebuild. Every image also gets a `sha-<gitsha>` tag. `alpine-minimal` is smallest (~362 MB, no Node runtime); `node-alpine-full` is the batteries-included toolchain (~1 GB).
 
 
 ## Use cases
@@ -32,7 +32,9 @@ Pull from any registry: `ghcr.io/hambn/claude-code` · `docker.io/hambn/claude-c
 ## File map
 
 - **images/** — one Dockerfile per variant
-  - [`minimal/Dockerfile`](./images/minimal/Dockerfile) — claude + git/ripgrep (alpine), default
+  - [`node-alpine-minimal/Dockerfile`](./images/node-alpine-minimal/Dockerfile) — npm claude + git/ripgrep (Node Alpine), default
+  - [`node-alpine-full/Dockerfile`](./images/node-alpine-full/Dockerfile) — npm claude + ssh/curl/python/build tools/jq (Node Alpine)
+  - [`alpine-minimal/Dockerfile`](./images/alpine-minimal/Dockerfile) — native claude binary, no Node.js (bare Alpine)
 - **deployment/** — one subdir per platform
   - [`docker/`](./deployment/docker/) — [`run.sh`](./deployment/docker/run.sh), [`airgapped.run.sh`](./deployment/docker/airgapped.run.sh)
   - [`docker-compose/`](./deployment/docker-compose/) — [`docker-compose.yml`](./deployment/docker-compose/docker-compose.yml), [`airgapped.docker-compose.yml`](./deployment/docker-compose/airgapped.docker-compose.yml)
