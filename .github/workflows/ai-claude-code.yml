@@ -8,6 +8,11 @@ name: ai/claude-code
 #
 # Stages: plan → build (one job per variant, pushed to GHCR by digest)
 #              → push (one job per registry, tags every variant from those digests).
+#
+# Tags (deterministic — same tool version + same base image = same tag, no new tags on rerun):
+#   latest                                  → primary variant only
+#   <variant>                               → newest of each variant
+#   <variant>-<claude-version>-<base-sha>   → immutable, content-addressed
 on:
   push:
     branches: [main]
@@ -19,11 +24,12 @@ on:
 env:
   THING: ai/claude-code
   IMAGE: claude-code
-  PRIMARY: node-alpine-minimal  # this variant owns unsuffixed tags (latest, <version>)
+  PRIMARY: node-alpine-minimal  # this variant owns the `latest` tag
   PKG: "@anthropic-ai/claude-code"
 
 jobs:
-  # Single planning job: discover variants + resolve version + decide what to build.
+  # Single planning job: discover variants, resolve claude-code version + each variant's base
+  # image digest, and decide what to build.
   #   push → changed variants (workflow change → all); dispatch → all;
   #   schedule → all if new claude-code release, else only variants whose base drifted.
   plan:
@@ -33,8 +39,7 @@ jobs:
       variants: ${{ steps.p.outputs.variants }}
       build: ${{ steps.p.outputs.build }}
       version: ${{ steps.p.outputs.version }}
-      date: ${{ steps.p.outputs.date }}
-      bases: ${{ steps.p.outputs.bases }}
+      basedigests: ${{ steps.p.outputs.basedigests }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 2 }
@@ -51,10 +56,12 @@ jobs:
           set -euo pipefail
           img="ghcr.io/${{ github.repository_owner }}/$IMAGE"
 
-          # Resolve a Dockerfile FROM to a concrete ref (substitutes ${ARG} defaults).
+          # Resolve a variant's *final* base image (last FROM → runtime stage of a multi-stage build)
+          # to a concrete ref, substituting ${ARG} defaults.
+          # ponytail: assumes the last FROM names a real image, not a prior build stage.
           resolve_base() {
             df="$THING/images/$1/Dockerfile"
-            ref=$(grep -m1 -iE '^FROM ' "$df" | awk '{print $2}')
+            ref=$(grep -iE '^FROM ' "$df" | tail -1 | awk '{print $2}')
             while echo "$ref" | grep -q '\${'; do
               var=$(echo "$ref" | sed -E 's/.*\$\{([A-Za-z_][A-Za-z0-9_]*)\}.*/\1/')
               def=$(grep -m1 -E "^ARG $var=" "$df" | cut -d= -f2)
@@ -67,9 +74,11 @@ jobs:
           all=$(ls -d "$THING"/images/*/ | xargs -n1 basename)
           version=$(npm view "$PKG" version)
 
-          bases='{}'
+          # variant -> current base image digest (drives the version tag + drift detection).
+          bd='{}'
           for v in $all; do
-            bases=$(echo "$bases" | jq --arg k "$v" --arg val "$(resolve_base "$v")" '. + {($k):$val}')
+            d=$(docker buildx imagetools inspect "$(resolve_base "$v")" --format '{{.Manifest.Digest}}')
+            bd=$(echo "$bd" | jq --arg k "$v" --arg val "$d" '. + {($k):$val}')
           done
 
           selected=""
@@ -97,8 +106,7 @@ jobs:
                 echo "claude-code: $old_ver -> $version"; selected="$all"
               else
                 for v in $all; do
-                  cur=$(docker buildx imagetools inspect "$(resolve_base "$v")" \
-                    --format '{{.Manifest.Digest}}' 2>/dev/null || echo err)
+                  cur=$(echo "$bd" | jq -r --arg k "$v" '.[$k]')
                   old=$(docker buildx imagetools inspect "$img:$(tag_of "$v")" \
                     --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' 2>/dev/null || echo missing)
                   if [ "$cur" != "$old" ]; then echo "$v base: $old -> $cur"; selected="$selected $v"; fi
@@ -110,9 +118,8 @@ jobs:
           echo "will build: $variants"
           {
             echo "variants=$variants"
-            echo "bases=$(echo "$bases" | jq -c .)"
+            echo "basedigests=$(echo "$bd" | jq -c .)"
             echo "version=$version"
-            echo "date=$(date -u +%Y%m%d)"
             if [ "$variants" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
           } >> "$GITHUB_OUTPUT"
 
@@ -135,13 +142,6 @@ jobs:
       - uses: docker/login-action@v3
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
-      - name: Resolve base digest
-        id: base
-        env: { BASES: "${{ needs.plan.outputs.bases }}" }
-        run: |
-          base=$(echo "$BASES" | jq -r --arg k "${{ matrix.variant }}" '.[$k]')
-          echo "digest=$(docker buildx imagetools inspect "$base" --format '{{.Manifest.Digest}}')" >> "$GITHUB_OUTPUT"
-
       - name: Build & push by digest
         id: build
         uses: docker/build-push-action@v6
@@ -152,7 +152,7 @@ jobs:
           build-args: CLAUDE_CODE_VERSION=${{ needs.plan.outputs.version }}
           labels: |
             io.tool-containers.claude-version=${{ needs.plan.outputs.version }}
-            io.tool-containers.base-digest=${{ steps.base.outputs.digest }}
+            io.tool-containers.base-digest=${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
@@ -202,17 +202,12 @@ jobs:
         uses: docker/login-action@v3
         with: { username: "${{ secrets.DOCKERHUB_USERNAME }}", password: "${{ secrets.DOCKERHUB_TOKEN }}" }
       # ponytail: Quay — add 'quay' to the matrix, a login step, and a TARGET case to re-enable.
-      # - name: Login Quay
-      #   if: matrix.registry == 'quay'
-      #   uses: docker/login-action@v3
-      #   with: { registry: quay.io, username: "${{ secrets.QUAY_USERNAME }}", password: "${{ secrets.QUAY_TOKEN }}" }
 
       - name: Tag all variants → ${{ matrix.registry }}
         env:
           VARIANTS: ${{ needs.plan.outputs.variants }}
           VERSION: ${{ needs.plan.outputs.version }}
-          DATE: ${{ needs.plan.outputs.date }}
-          SHA: ${{ github.sha }}
+          BASEDIGESTS: ${{ needs.plan.outputs.basedigests }}
           DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           set -euo pipefail
@@ -221,12 +216,16 @@ jobs:
             ghcr)     target="ghcr.io/${{ github.repository_owner }}/$IMAGE" ;;
             dockerhub) target="docker.io/$DH_USER/$IMAGE" ;;
           esac
-          short="${SHA:0:7}"
 
           for v in $(echo "$VARIANTS" | jq -r '.[]'); do
             digest=$(cat "/tmp/digests/$v")
-            if [ "$v" = "$PRIMARY" ]; then suffix=""; chan="latest"; else suffix="-$v"; chan="$v"; fi
-            tags="$chan $VERSION$suffix $VERSION-$DATE$suffix sha-$short$suffix"
+            base=$(echo "$BASEDIGESTS" | jq -r --arg k "$v" '.[$k]')
+            basesha=${base#sha256:}; basesha=${basesha:0:12}
+
+            # static tags + immutable version tag
+            tags="$v $v-$VERSION-$basesha"
+            [ "$v" = "$PRIMARY" ] && tags="latest $tags"
+
             args=""
             for t in $tags; do args="$args --tag $target:$t"; done
             echo "$v -> $target ($tags)"
