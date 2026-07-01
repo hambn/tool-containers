@@ -49,6 +49,7 @@ jobs:
           for v in $all; do
             bases=$(echo "$bases" | jq --arg k "$v" --arg val "$(resolve_base "$v")" '. + {($k):$val}')
           done
+          echo "DEBUG all=[$all] bases=$bases"
           echo "all=$(printf '%s\n' $all | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
           echo "bases=$(echo "$bases" | jq -c .)" >> "$GITHUB_OUTPUT"
           echo "version=$(npm view "$PKG" version)" >> "$GITHUB_OUTPUT"
@@ -162,7 +163,10 @@ jobs:
             echo "variants=$ALL" >> "$GITHUB_OUTPUT"; exit 0
           fi
           a="${A:-[]}"; b="${B:-[]}"; c="${C:-[]}"
-          echo "variants=$(jq -cn --argjson a "$a" --argjson b "$b" --argjson c "$c" '($a+$b+$c)|unique')" >> "$GITHUB_OUTPUT"
+          echo "DEBUG changed=[$A] tool=[$B] base=[$C]"
+          out=$(jq -cn --argjson a "$a" --argjson b "$b" --argjson c "$c" '($a+$b+$c)|unique')
+          echo "DEBUG merged=$out"
+          echo "variants=$out" >> "$GITHUB_OUTPUT"
 
   build:
     needs: [discover, merge]
