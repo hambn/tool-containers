@@ -5,6 +5,9 @@ name: ai/claude-code
 #   2. push to images/<variant>/  → builds only the changed variants
 #   3. new claude-code release     → scheduled tool check rebuilds all
 #   4. base image digest drift     → scheduled base check rebuilds affected variants
+#
+# Stages: plan → build (one job per variant, pushed to GHCR by digest)
+#              → push (one job per registry, tags every variant from those digests).
 on:
   push:
     branches: [main]
@@ -21,15 +24,11 @@ env:
 
 jobs:
   # Single planning job: discover variants + resolve version + decide what to build.
-  #   push     → variants whose images/<variant>/ changed (workflow change → all)
-  #   dispatch → all
-  #   schedule → all if a new claude-code release; else only variants whose base drifted
-  # Outputs feed the build matrix; `build` is the on/off gate (avoids JSON-compare in `if`).
+  #   push → changed variants (workflow change → all); dispatch → all;
+  #   schedule → all if new claude-code release, else only variants whose base drifted.
   plan:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read            # read labels off published images (update check)
+    permissions: { contents: read, packages: read }
     outputs:
       variants: ${{ steps.p.outputs.variants }}
       build: ${{ steps.p.outputs.build }}
@@ -38,7 +37,7 @@ jobs:
       bases: ${{ steps.p.outputs.bases }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }   # need previous commit to diff on push
+        with: { fetch-depth: 2 }
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
@@ -68,7 +67,6 @@ jobs:
           all=$(ls -d "$THING"/images/*/ | xargs -n1 basename)
           version=$(npm view "$PKG" version)
 
-          # variant -> base ref map (also used by the build job to bake the base-digest label).
           bases='{}'
           for v in $all; do
             bases=$(echo "$bases" | jq --arg k "$v" --arg val "$(resolve_base "$v")" '. + {($k):$val}')
@@ -118,108 +116,116 @@ jobs:
             if [ "$variants" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
           } >> "$GITHUB_OUTPUT"
 
-  # One job instance per (registry, variant): each logs in and pushes to its own registry.
-  # Add a registry = add it to the matrix + a login step below.
+  # STAGE: build — one job per variant. Builds amd64 and pushes to GHCR *by digest* (no tags).
+  # The digest is handed to the push stage as an artifact.
   build:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write           # GHCR push
+    permissions: { contents: read, packages: write }
     strategy:
-      fail-fast: false          # one variant/registry failing must not cancel the others
+      fail-fast: false
       matrix:
-        registry: [ghcr, dockerhub]
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       # ponytail: amd64 only — Node/npm SIGILL (exit 132) under QEMU arm64 emulation.
       #           Add arm64 via native ubuntu-24.04-arm runners + manifest merge when needed.
-      # ponytail: each registry rebuilds from the shared per-variant gha cache (cache hit ≈ free),
-      #           the price of keeping registries in isolated jobs.
-
-      - name: Registry image ref
-        id: img
-        env:
-          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          case "${{ matrix.registry }}" in
-            ghcr)     echo "ref=ghcr.io/${{ github.repository_owner }}/$IMAGE" >> "$GITHUB_OUTPUT" ;;
-            dockerhub) echo "ref=docker.io/$DH_USER/$IMAGE" >> "$GITHUB_OUTPUT" ;;
-          esac
-
-      - name: Login GHCR
-        if: matrix.registry == 'ghcr'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login Docker Hub
-        if: matrix.registry == 'dockerhub'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # ponytail: Quay disabled for now — add 'quay' to the matrix + a login step to re-enable.
-      # - name: Login Quay
-      #   if: matrix.registry == 'quay'
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: quay.io
-      #     username: ${{ secrets.QUAY_USERNAME }}
-      #     password: ${{ secrets.QUAY_TOKEN }}
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
       - name: Resolve base digest
         id: base
-        env:
-          BASES: ${{ needs.plan.outputs.bases }}
+        env: { BASES: "${{ needs.plan.outputs.bases }}" }
         run: |
           base=$(echo "$BASES" | jq -r --arg k "${{ matrix.variant }}" '.[$k]')
           echo "digest=$(docker buildx imagetools inspect "$base" --format '{{.Manifest.Digest}}')" >> "$GITHUB_OUTPUT"
 
-      # primary → latest/<version>; others → <variant>/<version>-<variant>.
-      # claude-version + base-digest labels feed the scheduled update check.
-      - name: Tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.img.outputs.ref }}
-          flavor: |
-            latest=false
-            suffix=${{ matrix.variant == env.PRIMARY && '' || format('-{0}', matrix.variant) }}
-          tags: |
-            type=raw,value=latest,enable=${{ matrix.variant == env.PRIMARY }}
-            type=raw,value=${{ matrix.variant }},enable=${{ matrix.variant != env.PRIMARY }}
-            type=raw,value=${{ needs.plan.outputs.version }}
-            type=raw,value=${{ needs.plan.outputs.version }}-${{ needs.plan.outputs.date }}
-            type=sha,prefix=sha-
-          labels: |
-            io.tool-containers.claude-version=${{ needs.plan.outputs.version }}
-            io.tool-containers.base-digest=${{ steps.base.outputs.digest }}
-
-      - name: Build & push ${{ matrix.variant }} → ${{ matrix.registry }}
+      - name: Build & push by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
-          provenance: false     # keep a plain image manifest so label reads (update check) work
+          provenance: false     # plain image manifest so label reads (update check) work
           build-args: CLAUDE_CODE_VERSION=${{ needs.plan.outputs.version }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          push: true
+          labels: |
+            io.tool-containers.claude-version=${{ needs.plan.outputs.version }}
+            io.tool-containers.base-digest=${{ steps.base.outputs.digest }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
 
-      # Scan once, on the GHCR push.
       - name: Trivy scan
-        if: matrix.registry == 'ghcr'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ steps.img.outputs.ref }}:${{ needs.plan.outputs.version }}${{ matrix.variant == env.PRIMARY && '' || format('-{0}', matrix.variant) }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
           severity: HIGH,CRITICAL
           exit-code: "0"        # report only; flip to "1" to fail on findings
+
+      - name: Save digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" > "/tmp/digests/${{ matrix.variant }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.variant }}
+          path: /tmp/digests/${{ matrix.variant }}
+          if-no-files-found: error
+
+  # STAGE: push — one job per registry. Tags every built variant onto this registry from its
+  # GHCR digest (imagetools copies blobs cross-registry, no rebuild). Add a registry = add a
+  # matrix entry + its login step.
+  push:
+    needs: [plan, build]
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        registry: [ghcr, dockerhub]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with: { pattern: digest-*, merge-multiple: true, path: /tmp/digests }
+
+      - name: Login GHCR (source)          # always: source images live in GHCR
+        uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Login Docker Hub
+        if: matrix.registry == 'dockerhub'
+        uses: docker/login-action@v3
+        with: { username: "${{ secrets.DOCKERHUB_USERNAME }}", password: "${{ secrets.DOCKERHUB_TOKEN }}" }
+      # ponytail: Quay — add 'quay' to the matrix, a login step, and a TARGET case to re-enable.
+      # - name: Login Quay
+      #   if: matrix.registry == 'quay'
+      #   uses: docker/login-action@v3
+      #   with: { registry: quay.io, username: "${{ secrets.QUAY_USERNAME }}", password: "${{ secrets.QUAY_TOKEN }}" }
+
+      - name: Tag all variants → ${{ matrix.registry }}
+        env:
+          VARIANTS: ${{ needs.plan.outputs.variants }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          DATE: ${{ needs.plan.outputs.date }}
+          SHA: ${{ github.sha }}
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          src="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          case "${{ matrix.registry }}" in
+            ghcr)     target="ghcr.io/${{ github.repository_owner }}/$IMAGE" ;;
+            dockerhub) target="docker.io/$DH_USER/$IMAGE" ;;
+          esac
+          short="${SHA:0:7}"
+
+          for v in $(echo "$VARIANTS" | jq -r '.[]'); do
+            digest=$(cat "/tmp/digests/$v")
+            if [ "$v" = "$PRIMARY" ]; then suffix=""; chan="latest"; else suffix="-$v"; chan="$v"; fi
+            tags="$chan $VERSION$suffix $VERSION-$DATE$suffix sha-$short$suffix"
+            args=""
+            for t in $tags; do args="$args --tag $target:$t"; done
+            echo "$v -> $target ($tags)"
+            docker buildx imagetools create $args "$src@$digest"
+          done
