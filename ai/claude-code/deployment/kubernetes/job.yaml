@@ -1,0 +1,27 @@
+# One-shot Claude Code run. Create the secret first:
+#   kubectl create secret generic claude-code --from-literal=ANTHROPIC_API_KEY=sk-...
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: claude-code
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: claude
+          image: ghcr.io/hambn/claude-code:latest
+          args: ["-p", "review the workspace"]
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code
+                  key: ANTHROPIC_API_KEY
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          emptyDir: {}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: claude-code
+description: Claude Code CLI as a one-shot Job
+type: application
+version: 0.1.0
+appVersion: latest

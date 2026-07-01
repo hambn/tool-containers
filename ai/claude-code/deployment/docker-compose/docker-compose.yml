@@ -1,0 +1,19 @@
+# docker compose run --rm claude
+name: claude-code
+
+services:
+  claude:
+    image: ghcr.io/hambn/claude-code:latest
+    container_name: claude-code
+    hostname: claude-code
+    networks: [claude-code]
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+
+networks:
+  claude-code:
+    name: claude-code

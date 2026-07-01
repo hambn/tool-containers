@@ -1,0 +1,23 @@
+# Offline: build from the repo's Dockerfile instead of pulling a registry image.
+# Run from repo root so the build context resolves:
+#   docker compose -f ai/claude-code/deployment/docker-compose/airgapped.docker-compose.yml run --rm claude
+name: claude-code
+
+services:
+  claude:
+    build:
+      context: ../../images/standard
+    image: claude-code:airgapped
+    container_name: claude-code
+    hostname: claude-code
+    networks: [claude-code]
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+
+networks:
+  claude-code:
+    name: claude-code

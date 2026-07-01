@@ -1,0 +1,10 @@
+image:
+  repository: ghcr.io/hambn/claude-code
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Claude Code args.
+args: ["-p", "review the workspace"]
+
+# Name of an existing Secret holding key ANTHROPIC_API_KEY.
+apiKeySecret: claude-code

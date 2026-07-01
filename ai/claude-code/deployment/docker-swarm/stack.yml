@@ -1,0 +1,34 @@
+# Docker Swarm stack. Create the secret, then deploy:
+#   printf '%s' "$ANTHROPIC_API_KEY" | docker secret create claude_code_api_key -
+#   docker stack deploy -c stack.yml claude-code
+# Swarm runs services long-lived; Claude Code reads the key from the mounted secret file.
+version: "3.8"
+
+services:
+  claude:
+    image: ghcr.io/hambn/claude-code:latest
+    hostname: claude-code
+    environment:
+      # Claude Code reads the key from the file the secret is mounted at.
+      ANTHROPIC_API_KEY_FILE: /run/secrets/claude_code_api_key
+    secrets:
+      - claude_code_api_key
+    networks:
+      - claude-code
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+secrets:
+  claude_code_api_key:
+    external: true
+
+networks:
+  claude-code:
+    driver: overlay
+    name: claude-code
