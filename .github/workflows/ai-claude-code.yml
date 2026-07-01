@@ -1,12 +1,17 @@
 name: ai/claude-code
 
+# Build triggers (never a blind daily rebuild):
+#   1. workflow_dispatch          → manual, builds all variants
+#   2. push to images/<variant>/  → builds only the changed variants
+#   3. new claude-code release     → tool-update job (scheduled) rebuilds all
+#   4. base image digest drift     → base-update job (scheduled) rebuilds affected variants
 on:
   push:
     branches: [main]
     paths: ["ai/claude-code/**", ".github/workflows/ai-claude-code.yml"]
   schedule:
-    - cron: "0 4 * * *"        # daily: rebuild only if claude-code or a base image changed
-  workflow_dispatch:            # manual: always rebuild everything
+    - cron: "0 4 * * *"        # detection only — builds nothing unless an update is found
+  workflow_dispatch:
 
 env:
   THING: ai/claude-code
@@ -15,52 +20,20 @@ env:
   PKG: "@anthropic-ai/claude-code"
 
 jobs:
-  # Decide which variants to build:
-  #   push     → only variants whose images/<variant>/ changed (workflow change → all)
-  #   dispatch → all
-  #   schedule → all only if claude-code has a new version OR a base image digest drifted;
-  #              otherwise nothing (empty matrix → build job skipped).
-  plan:
+  # Parse everything once: variant list, each variant's resolved base ref, upstream version.
+  discover:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read            # read labels off published images
     outputs:
-      variants: ${{ steps.pick.outputs.variants }}
-      version: ${{ steps.ver.outputs.version }}
-      date: ${{ steps.ver.outputs.date }}
+      all: ${{ steps.d.outputs.all }}
+      bases: ${{ steps.d.outputs.bases }}
+      version: ${{ steps.d.outputs.version }}
+      date: ${{ steps.d.outputs.date }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2        # need the previous commit to diff on push
-
-      - name: Resolve upstream version
-        id: ver
-        run: |
-          echo "version=$(npm view "$PKG" version)" >> "$GITHUB_OUTPUT"
-          echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-buildx-action@v3   # imagetools inspect (update check)
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pick variants
-        id: pick
-        env:
-          EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
-          SHA: ${{ github.sha }}
-          VERSION: ${{ steps.ver.outputs.version }}
+      - id: d
         run: |
           set -euo pipefail
-          img="ghcr.io/${{ github.repository_owner }}/$IMAGE"
-          all=$(ls -d "$THING"/images/*/ | xargs -n1 basename)
-
-          # Resolve a Dockerfile's FROM to a concrete ref (substitutes ${ARG} defaults).
+          # Resolve a Dockerfile FROM to a concrete ref (substitutes ${ARG} defaults).
           resolve_base() {
             df="$THING/images/$1/Dockerfile"
             ref=$(grep -m1 -iE '^FROM ' "$df" | awk '{print $2}')
@@ -71,49 +44,129 @@ jobs:
             done
             echo "$ref"
           }
-          tag_of() { [ "$1" = "$PRIMARY" ] && echo latest || echo "$1"; }
+          all=$(ls -d "$THING"/images/*/ | xargs -n1 basename)
+          bases='{}'
+          for v in $all; do
+            bases=$(echo "$bases" | jq --arg k "$v" --arg val "$(resolve_base "$v")" '. + {($k):$val}')
+          done
+          echo "all=$(printf '%s\n' $all | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+          echo "bases=$(echo "$bases" | jq -c .)" >> "$GITHUB_OUTPUT"
+          echo "version=$(npm view "$PKG" version)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
-          selected=""
-          case "$EVENT" in
-            push)
-              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-                selected="$all"
-              else
-                changed=$(git diff --name-only "$BEFORE" "$SHA" 2>/dev/null || echo __ALL__)
-                if [ "$changed" = __ALL__ ] || printf '%s\n' "$changed" | grep -q '^\.github/workflows/'; then
-                  selected="$all"                       # workflow/shared change → rebuild all
-                else
-                  for v in $all; do
-                    printf '%s\n' "$changed" | grep -q "^$THING/images/$v/" && selected="$selected $v" || true
-                  done
-                fi
-              fi ;;
-            workflow_dispatch)
-              selected="$all" ;;
-            schedule)
-              # ponytail: fail-safe — any inspect error falls through to "rebuild", never skips silently.
-              old_ver=$(docker buildx imagetools inspect "$img:latest" \
-                --format '{{ index .Image.Config.Labels "io.tool-containers.claude-version" }}' 2>/dev/null || echo none)
-              if [ "$old_ver" != "$VERSION" ]; then
-                echo "claude-code: $old_ver -> $VERSION"; selected="$all"
-              else
-                for v in $all; do
-                  cur=$(docker buildx imagetools inspect "$(resolve_base "$v")" \
-                    --format '{{.Manifest.Digest}}' 2>/dev/null || echo err)
-                  old=$(docker buildx imagetools inspect "$img:$(tag_of "$v")" \
-                    --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' 2>/dev/null || echo missing)
-                  if [ "$cur" != "$old" ]; then echo "$v base: $old -> $cur"; selected="$selected $v"; fi
-                done
-              fi ;;
-          esac
+  # Trigger 2: push → only variants whose images/<variant>/ changed (workflow change → all).
+  changed:
+    if: github.event_name == 'push'
+    needs: discover
+    runs-on: ubuntu-latest
+    outputs:
+      variants: ${{ steps.c.outputs.variants }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - id: c
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          ALL: ${{ needs.discover.outputs.all }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "variants=$ALL" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          diff=$(git diff --name-only "$BEFORE" "$SHA" 2>/dev/null || echo __ALL__)
+          if [ "$diff" = __ALL__ ] || printf '%s\n' "$diff" | grep -q '^\.github/workflows/'; then
+            echo "variants=$ALL" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sel=""
+          for v in $(echo "$ALL" | jq -r '.[]'); do
+            printf '%s\n' "$diff" | grep -q "^$THING/images/$v/" && sel="$sel $v" || true
+          done
+          echo "variants=$(printf '%s\n' $sel | sed '/^$/d' | jq -R . | jq -cs 'unique')" >> "$GITHUB_OUTPUT"
 
-          json=$(printf '%s\n' $selected | sed '/^$/d' | jq -R . | jq -cs 'unique')
-          echo "variants=$json" >> "$GITHUB_OUTPUT"
-          echo "will build: $json"
+  # Trigger 3: scheduled — new claude-code version vs the version baked on :latest → rebuild all.
+  tool-update:
+    if: github.event_name == 'schedule'
+    needs: discover
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: read }
+    outputs:
+      variants: ${{ steps.t.outputs.variants }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - id: t
+        env:
+          VERSION: ${{ needs.discover.outputs.version }}
+          ALL: ${{ needs.discover.outputs.all }}
+        run: |
+          set -euo pipefail
+          img="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          # ponytail: fail-safe — inspect error → treat as changed, rebuild. Never skip silently.
+          old=$(docker buildx imagetools inspect "$img:latest" \
+            --format '{{ index .Image.Config.Labels "io.tool-containers.claude-version" }}' 2>/dev/null || echo none)
+          if [ "$old" != "$VERSION" ]; then
+            echo "claude-code: $old -> $VERSION"; echo "variants=$ALL" >> "$GITHUB_OUTPUT"
+          else
+            echo "claude-code up to date ($VERSION)"; echo "variants=[]" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Trigger 4: scheduled — base image digest drift vs the digest baked on each variant → rebuild those.
+  base-update:
+    if: github.event_name == 'schedule'
+    needs: discover
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: read }
+    outputs:
+      variants: ${{ steps.b.outputs.variants }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - id: b
+        env:
+          BASES: ${{ needs.discover.outputs.bases }}
+        run: |
+          set -euo pipefail
+          img="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          drift=""
+          for v in $(echo "$BASES" | jq -r 'keys[]'); do
+            base=$(echo "$BASES" | jq -r --arg k "$v" '.[$k]')
+            cur=$(docker buildx imagetools inspect "$base" --format '{{.Manifest.Digest}}' 2>/dev/null || echo err)
+            tag=$([ "$v" = "$PRIMARY" ] && echo latest || echo "$v")
+            old=$(docker buildx imagetools inspect "$img:$tag" \
+              --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' 2>/dev/null || echo missing)
+            if [ "$cur" != "$old" ]; then echo "$v base: $old -> $cur"; drift="$drift $v"; fi
+          done
+          echo "variants=$(printf '%s\n' $drift | sed '/^$/d' | jq -R . | jq -cs 'unique')" >> "$GITHUB_OUTPUT"
+
+  # Union the trigger outputs into the final build matrix (dispatch → all).
+  merge:
+    needs: [discover, changed, tool-update, base-update]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      variants: ${{ steps.m.outputs.variants }}
+    steps:
+      - id: m
+        env:
+          EVENT: ${{ github.event_name }}
+          ALL: ${{ needs.discover.outputs.all }}
+          A: ${{ needs.changed.outputs.variants }}
+          B: ${{ needs.tool-update.outputs.variants }}
+          C: ${{ needs.base-update.outputs.variants }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ]; then
+            echo "variants=$ALL" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          a="${A:-[]}"; b="${B:-[]}"; c="${C:-[]}"
+          echo "variants=$(jq -cn --argjson a "$a" --argjson b "$b" --argjson c "$c" '($a+$b+$c)|unique')" >> "$GITHUB_OUTPUT"
 
   build:
-    needs: plan
-    if: needs.plan.outputs.variants != '[]'
+    needs: [discover, merge]
+    if: needs.merge.outputs.variants != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -121,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false          # one variant failing must not cancel the others
       matrix:
-        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+        variant: ${{ fromJSON(needs.merge.outputs.variants) }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -130,15 +183,11 @@ jobs:
 
       - name: Resolve base digest
         id: base
+        env:
+          BASES: ${{ needs.discover.outputs.bases }}
         run: |
-          df="$THING/images/${{ matrix.variant }}/Dockerfile"
-          ref=$(grep -m1 -iE '^FROM ' "$df" | awk '{print $2}')
-          while echo "$ref" | grep -q '\${'; do
-            var=$(echo "$ref" | sed -E 's/.*\$\{([A-Za-z_][A-Za-z0-9_]*)\}.*/\1/')
-            def=$(grep -m1 -E "^ARG $var=" "$df" | cut -d= -f2)
-            ref=$(echo "$ref" | sed "s#\${$var}#$def#g")
-          done
-          echo "digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')" >> "$GITHUB_OUTPUT"
+          base=$(echo "$BASES" | jq -r --arg k "${{ matrix.variant }}" '.[$k]')
+          echo "digest=$(docker buildx imagetools inspect "$base" --format '{{.Manifest.Digest}}')" >> "$GITHUB_OUTPUT"
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -162,7 +211,7 @@ jobs:
       #     password: ${{ secrets.QUAY_TOKEN }}
 
       # primary → latest/<version>; others → <variant>/<version>-<variant>.
-      # claude-version + base-digest labels feed the scheduled update check.
+      # claude-version + base-digest labels feed the scheduled update-check jobs.
       - name: Tags
         id: meta
         uses: docker/metadata-action@v5
@@ -177,11 +226,11 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ matrix.variant == env.PRIMARY }}
             type=raw,value=${{ matrix.variant }},enable=${{ matrix.variant != env.PRIMARY }}
-            type=raw,value=${{ needs.plan.outputs.version }}
-            type=raw,value=${{ needs.plan.outputs.version }}-${{ needs.plan.outputs.date }}
+            type=raw,value=${{ needs.discover.outputs.version }}
+            type=raw,value=${{ needs.discover.outputs.version }}-${{ needs.discover.outputs.date }}
             type=sha,prefix=sha-
           labels: |
-            io.tool-containers.claude-version=${{ needs.plan.outputs.version }}
+            io.tool-containers.claude-version=${{ needs.discover.outputs.version }}
             io.tool-containers.base-digest=${{ steps.base.outputs.digest }}
 
       - name: Build & push ${{ matrix.variant }}
@@ -190,7 +239,7 @@ jobs:
           context: ${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
           provenance: false     # keep a plain image manifest so label reads (update check) work
-          build-args: CLAUDE_CODE_VERSION=${{ needs.plan.outputs.version }}
+          build-args: CLAUDE_CODE_VERSION=${{ needs.discover.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           push: true
@@ -200,6 +249,6 @@ jobs:
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}:${{ needs.plan.outputs.version }}${{ matrix.variant == env.PRIMARY && '' || format('-{0}', matrix.variant) }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}:${{ needs.discover.outputs.version }}${{ matrix.variant == env.PRIMARY && '' || format('-{0}', matrix.variant) }}
           severity: HIGH,CRITICAL
           exit-code: "0"        # report only; flip to "1" to fail on findings
