@@ -6,6 +6,7 @@ Plain `docker run` usage. Serves the T3 Code web GUI at `http://localhost:3773`.
 |------|-----|
 | `run.sh` | normal run, pulls image from registry |
 | `airgapped.run.sh` | offline host: load image from a `.tar` first, no pull |
+| `dind.run.sh` | `node-slim-agents-dind` tag with an inner Docker engine, `--privileged` |
 
 Mounts the current dir at `/workspace` and publishes port `3773`. Auth the agent you want
 (`ANTHROPIC_API_KEY` for Claude, `OPENAI_API_KEY` for Codex) or log in from the UI.
