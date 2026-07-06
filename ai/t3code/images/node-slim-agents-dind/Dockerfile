@@ -34,6 +34,10 @@ RUN apt-get update \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
+# Force Codex to authenticate with OPENAI_API_KEY (env) instead of interactive ChatGPT login.
+RUN mkdir -p /root/.codex \
+    && printf 'preferred_auth_method = "apikey"\n' > /root/.codex/config.toml
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

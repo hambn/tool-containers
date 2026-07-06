@@ -1,6 +1,8 @@
 # node-slim-agents: T3 Code + the npm coding agents it drives (Claude Code, Codex, OpenCode),
-# pre-installed so the GUI works out of the box. Auth each agent from inside the T3 Code UI
-# (or log into the agent CLI in the container); no API-key env needed.
+# pre-installed so the GUI works out of the box. Auth is stateless via env keys — ANTHROPIC_API_KEY
+# for Claude, OPENAI_API_KEY for Codex — no login and no mounted auth dirs, so the container stays
+# fully isolated. A baked ~/.codex/config.toml forces Codex to api-key mode so it uses the env key
+# instead of trying ChatGPT login.
 # ponytail: Cursor's agent is a curl installer, not npm — left out; add it if you use Cursor.
 ARG NODE_VERSION=22
 FROM node:${NODE_VERSION}-slim
@@ -30,6 +32,11 @@ RUN apt-get update \
         opencode-ai \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
+
+# Force Codex to authenticate with OPENAI_API_KEY (env) instead of interactive ChatGPT login.
+RUN mkdir -p /home/node/.codex \
+    && printf 'preferred_auth_method = "apikey"\n' > /home/node/.codex/config.toml \
+    && chown -R node:node /home/node/.codex
 
 USER node
 WORKDIR /workspace
