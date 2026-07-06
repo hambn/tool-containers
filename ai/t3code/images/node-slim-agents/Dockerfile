@@ -8,17 +8,19 @@ FROM node:${NODE_VERSION}-slim
 ARG T3_VERSION=latest
 
 # A real toolchain the agents shell out to: git/ssh for VCS, python + build-essential for
-# native builds and running generated code, plus the everyday CLI kit (jq, ripgrep, fd, curl,
-# wget, unzip, less, vim, tmux, ...).
+# native builds and running generated code, network + inspection tools for debugging, plus the
+# everyday CLI kit (jq, ripgrep, fd, curl, wget, unzip, less, vim, tmux, ...).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git ca-certificates curl wget \
-        openssh-client \
+        openssh-client rsync \
         ripgrep fd-find \
         python3 python3-pip python3-venv \
-        build-essential pkg-config \
+        build-essential pkg-config make \
         jq unzip zip xz-utils \
         less vim nano tmux \
+        iputils-ping iproute2 dnsutils net-tools netcat-openbsd socat \
+        tree htop file gnupg sqlite3 \
         bubblewrap \
         ca-certificates procps \
     && npm install -g \

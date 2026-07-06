@@ -15,12 +15,14 @@ ARG T3_VERSION=latest
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git ca-certificates curl wget \
-        openssh-client \
+        openssh-client rsync \
         ripgrep fd-find \
         python3 python3-pip python3-venv \
-        build-essential pkg-config \
+        build-essential pkg-config make \
         jq unzip zip xz-utils \
         less vim nano tmux procps \
+        iputils-ping iproute2 dnsutils net-tools netcat-openbsd socat \
+        tree htop file gnupg sqlite3 \
         bubblewrap \
         docker.io \
         iptables uidmap \
