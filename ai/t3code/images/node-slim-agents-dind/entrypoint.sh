@@ -16,5 +16,5 @@ else
     || echo "entrypoint: WARNING dockerd not ready — run with --privileged? continuing without Docker" >&2
 fi
 
-# --hostname=0.0.0.0: t3 binds 127.0.0.1 by default; open it up for the published port.
-exec t3 --hostname=0.0.0.0 "$@"
+# `serve` = headless mode; --host=0.0.0.0 binds all interfaces (default 127.0.0.1).
+exec t3 serve --host=0.0.0.0 --port=3773 "$@"

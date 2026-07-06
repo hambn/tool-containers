@@ -30,6 +30,6 @@ RUN apt-get update \
 
 USER node
 WORKDIR /workspace
-# --hostname=0.0.0.0: t3 binds 127.0.0.1 by default; open it up for the published port.
+# `serve` = headless mode; --host=0.0.0.0 binds all interfaces (default 127.0.0.1).
 EXPOSE 3773
-ENTRYPOINT ["t3", "--hostname=0.0.0.0"]
+ENTRYPOINT ["t3", "serve", "--host=0.0.0.0", "--port=3773"]

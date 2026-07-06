@@ -22,8 +22,8 @@ RUN apt-get update \
 USER node
 WORKDIR /workspace
 
-# Web GUI + WebSocket server on 3773. t3 defaults to binding 127.0.0.1 (and ignores a HOST env),
-# so --hostname=0.0.0.0 is required for the published port to be reachable from the host / a
-# reverse proxy. Extra args appended at `docker run` land after this.
+# Web GUI + WebSocket server on 3773. `serve` is the headless mode (no browser auto-open, prints
+# pairing details); --host=0.0.0.0 binds all interfaces (default is 127.0.0.1) so the published
+# port is reachable from the host / a reverse proxy. Extra args at `docker run` land after this.
 EXPOSE 3773
-ENTRYPOINT ["t3", "--hostname=0.0.0.0"]
+ENTRYPOINT ["t3", "serve", "--host=0.0.0.0", "--port=3773"]
