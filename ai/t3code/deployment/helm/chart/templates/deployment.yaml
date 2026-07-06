@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-t3code
+  labels: { app: {{ .Release.Name }}-t3code }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ .Release.Name }}-t3code }
+  template:
+    metadata:
+      labels: { app: {{ .Release.Name }}-t3code }
+    spec:
+      containers:
+        - name: t3
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3773
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.apiKeySecret }}
+                  key: ANTHROPIC_API_KEY
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-t3code
+spec:
+  selector: { app: {{ .Release.Name }}-t3code }
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 3773

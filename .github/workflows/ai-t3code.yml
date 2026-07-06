@@ -1,0 +1,233 @@
+name: ai/t3code
+
+# Build triggers (never a blind daily rebuild):
+#   1. workflow_dispatch          → manual, builds all variants
+#   2. push to images/<variant>/  → builds only the changed variants
+#   3. new t3 release              → scheduled tool check rebuilds all
+#   4. base image digest drift     → scheduled base check rebuilds affected variants
+#
+# Stages: plan → build (one job per variant, pushed to GHCR by digest)
+#              → push (one job per registry, tags every variant from those digests).
+#
+# Tags (deterministic — same tool version + same base image = same tag, no new tags on rerun):
+#   latest                             → primary variant only
+#   <variant>                          → newest of each variant
+#   <variant>-<t3-version>-<base-sha>  → immutable, content-addressed
+on:
+  push:
+    branches: [main]
+    paths: ["ai/t3code/**", ".github/workflows/ai-t3code.yml"]
+  schedule:
+    - cron: "0 4 * * *"        # detection only — builds nothing unless an update is found
+  workflow_dispatch:
+
+env:
+  THING: ai/t3code
+  IMAGE: t3code
+  PRIMARY: node-slim-standard  # this variant owns the `latest` tag
+  PKG: "t3"
+
+jobs:
+  # Single planning job: discover variants, resolve t3 version + each variant's base image
+  # digest, and decide what to build.
+  #   push → changed variants (workflow change → all); dispatch → all;
+  #   schedule → all if new t3 release, else only variants whose base drifted.
+  plan:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: read }
+    outputs:
+      variants: ${{ steps.p.outputs.variants }}
+      build: ${{ steps.p.outputs.build }}
+      version: ${{ steps.p.outputs.version }}
+      basedigests: ${{ steps.p.outputs.basedigests }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+
+      - id: p
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          img="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+
+          # Resolve a variant's *final* base image (last FROM → runtime stage of a multi-stage build)
+          # to a concrete ref, substituting ${ARG} defaults.
+          # ponytail: assumes the last FROM names a real image, not a prior build stage.
+          resolve_base() {
+            df="$THING/images/$1/Dockerfile"
+            ref=$(grep -iE '^FROM ' "$df" | tail -1 | awk '{print $2}')
+            while echo "$ref" | grep -q '\${'; do
+              var=$(echo "$ref" | sed -E 's/.*\$\{([A-Za-z_][A-Za-z0-9_]*)\}.*/\1/')
+              def=$(grep -m1 -E "^ARG $var=" "$df" | cut -d= -f2)
+              ref=$(echo "$ref" | sed "s#\${$var}#$def#g")
+            done
+            echo "$ref"
+          }
+          tag_of() { [ "$1" = "$PRIMARY" ] && echo latest || echo "$1"; }
+
+          all=$(ls -d "$THING"/images/*/ | xargs -n1 basename)
+          version=$(npm view "$PKG" version)
+
+          # variant -> current base image digest (drives the version tag + drift detection).
+          bd='{}'
+          for v in $all; do
+            d=$(docker buildx imagetools inspect "$(resolve_base "$v")" --format '{{.Manifest.Digest}}')
+            bd=$(echo "$bd" | jq --arg k "$v" --arg val "$d" '. + {($k):$val}')
+          done
+
+          selected=""
+          case "$EVENT" in
+            workflow_dispatch)
+              selected="$all" ;;
+            push)
+              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+                selected="$all"
+              else
+                diff=$(git diff --name-only "$BEFORE" "$SHA" 2>/dev/null || echo __ALL__)
+                if [ "$diff" = __ALL__ ] || printf '%s\n' "$diff" | grep -q '^\.github/workflows/'; then
+                  selected="$all"
+                else
+                  for v in $all; do
+                    printf '%s\n' "$diff" | grep -q "^$THING/images/$v/" && selected="$selected $v" || true
+                  done
+                fi
+              fi ;;
+            schedule)
+              # ponytail: fail-safe — any inspect error falls through to "rebuild", never skips silently.
+              old_ver=$(docker buildx imagetools inspect "$img:latest" \
+                --format '{{ index .Image.Config.Labels "io.tool-containers.t3-version" }}' 2>/dev/null || echo none)
+              if [ "$old_ver" != "$version" ]; then
+                echo "t3: $old_ver -> $version"; selected="$all"
+              else
+                for v in $all; do
+                  cur=$(echo "$bd" | jq -r --arg k "$v" '.[$k]')
+                  old=$(docker buildx imagetools inspect "$img:$(tag_of "$v")" \
+                    --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' 2>/dev/null || echo missing)
+                  if [ "$cur" != "$old" ]; then echo "$v base: $old -> $cur"; selected="$selected $v"; fi
+                done
+              fi ;;
+          esac
+
+          variants=$(printf '%s\n' $selected | sed '/^$/d' | jq -R . | jq -cs 'unique')
+          echo "will build: $variants"
+          {
+            echo "variants=$variants"
+            echo "basedigests=$(echo "$bd" | jq -c .)"
+            echo "version=$version"
+            if [ "$variants" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
+          } >> "$GITHUB_OUTPUT"
+
+  # STAGE: build — one job per variant. Builds amd64 and pushes to GHCR *by digest* (no tags).
+  # The digest is handed to the push stage as an artifact.
+  build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # ponytail: amd64 only — Node/npm SIGILL (exit 132) under QEMU arm64 emulation.
+      #           Add arm64 via native ubuntu-24.04-arm runners + manifest merge when needed.
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+
+      - name: Build & push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.THING }}/images/${{ matrix.variant }}
+          platforms: linux/amd64
+          provenance: false     # plain image manifest so label reads (update check) work
+          build-args: T3_VERSION=${{ needs.plan.outputs.version }}
+          labels: |
+            io.tool-containers.t3-version=${{ needs.plan.outputs.version }}
+            io.tool-containers.base-digest=${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"        # report only; flip to "1" to fail on findings
+
+      - name: Save digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" > "/tmp/digests/${{ matrix.variant }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.variant }}
+          path: /tmp/digests/${{ matrix.variant }}
+          if-no-files-found: error
+
+  # STAGE: push — one job per registry. Tags every built variant onto this registry from its
+  # GHCR digest (imagetools copies blobs cross-registry, no rebuild). Add a registry = add a
+  # matrix entry + its login step.
+  push:
+    needs: [plan, build]
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        registry: [ghcr, dockerhub]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with: { pattern: digest-*, merge-multiple: true, path: /tmp/digests }
+
+      # Each push job logs into only its own registry. The source images live in GHCR and are
+      # public, so the Docker Hub job reads them anonymously — no cross-registry login needed.
+      - name: Login GHCR
+        if: matrix.registry == 'ghcr'
+        uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Login Docker Hub
+        if: matrix.registry == 'dockerhub'
+        uses: docker/login-action@v3
+        with: { username: "${{ secrets.DOCKERHUB_USERNAME }}", password: "${{ secrets.DOCKERHUB_TOKEN }}" }
+      # ponytail: Quay — add 'quay' to the matrix, a login step, and a TARGET case to re-enable.
+
+      - name: Tag all variants → ${{ matrix.registry }}
+        env:
+          VARIANTS: ${{ needs.plan.outputs.variants }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          BASEDIGESTS: ${{ needs.plan.outputs.basedigests }}
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          src="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          case "${{ matrix.registry }}" in
+            ghcr)     target="ghcr.io/${{ github.repository_owner }}/$IMAGE" ;;
+            dockerhub) target="docker.io/$DH_USER/$IMAGE" ;;
+          esac
+
+          for v in $(echo "$VARIANTS" | jq -r '.[]'); do
+            digest=$(cat "/tmp/digests/$v")
+            base=$(echo "$BASEDIGESTS" | jq -r --arg k "$v" '.[$k]')
+            basesha=${base#sha256:}; basesha=${basesha:0:12}
+
+            # static tags + immutable version tag
+            tags="$v $v-$VERSION-$basesha"
+            [ "$v" = "$PRIMARY" ] && tags="latest $tags"
+
+            args=""
+            for t in $tags; do args="$args --tag $target:$t"; done
+            echo "$v -> $target ($tags)"
+            docker buildx imagetools create $args "$src@$digest"
+          done

@@ -1,0 +1,10 @@
+image:
+  repository: ghcr.io/hambn/t3code
+  tag: node-slim-agents
+  pullPolicy: IfNotPresent
+
+service:
+  port: 3773
+
+# Name of an existing Secret holding key ANTHROPIC_API_KEY (agent auth).
+apiKeySecret: t3code

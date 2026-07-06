@@ -1,0 +1,20 @@
+# docker compose up  → open http://localhost:3773
+name: t3code
+
+services:
+  t3:
+    image: ghcr.io/hambn/t3code:node-slim-agents
+    container_name: t3code
+    hostname: t3code
+    networks: [t3code]
+    environment:
+      # Auth the agent you want. ANTHROPIC_API_KEY for Claude, OPENAI_API_KEY for Codex.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
+    ports:
+      - "3773:3773"
+    volumes:
+      - ./:/workspace
+
+networks:
+  t3code:
+    name: t3code

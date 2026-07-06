@@ -1,0 +1,23 @@
+# Offline: build from the repo's Dockerfile instead of pulling a registry image.
+# Run from repo root so the build context resolves:
+#   docker compose -f ai/t3code/deployment/docker-compose/airgapped.docker-compose.yml up
+name: t3code
+
+services:
+  t3:
+    build:
+      context: ../../images/node-slim-agents
+    image: t3code:airgapped
+    container_name: t3code
+    hostname: t3code
+    networks: [t3code]
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
+    ports:
+      - "3773:3773"
+    volumes:
+      - ./:/workspace
+
+networks:
+  t3code:
+    name: t3code

@@ -1,0 +1,43 @@
+# T3 Code web GUI as a long-running Deployment + Service. Create the secret first:
+#   kubectl create secret generic t3code --from-literal=ANTHROPIC_API_KEY=sk-...
+# Reach the UI: kubectl port-forward svc/t3code 3773:3773  → http://localhost:3773
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: t3code
+  labels: { app: t3code }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: t3code }
+  template:
+    metadata:
+      labels: { app: t3code }
+    spec:
+      containers:
+        - name: t3
+          image: ghcr.io/hambn/t3code:node-slim-agents
+          ports:
+            - containerPort: 3773
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: t3code
+                  key: ANTHROPIC_API_KEY
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: t3code
+spec:
+  selector: { app: t3code }
+  ports:
+    - port: 3773
+      targetPort: 3773
