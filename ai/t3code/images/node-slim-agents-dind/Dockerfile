@@ -39,10 +39,11 @@ RUN apt-get update \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
-# Codex: force api-key auth so it uses OPENAI_API_KEY / the auth file, never ChatGPT login.
+# Codex reads auth + config from CODEX_HOME. The entrypoint fills it from env at startup, but only
+# if empty — mount this dir to persist a `codex login` or supply your own config.toml (e.g. a
+# custom base_url for OpenRouter), and the mounted files win.
 ENV CODEX_HOME=/root/.codex
-RUN mkdir -p "$CODEX_HOME" \
-    && printf 'preferred_auth_method = "apikey"\n' > "$CODEX_HOME/config.toml"
+RUN mkdir -p "$CODEX_HOME"
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

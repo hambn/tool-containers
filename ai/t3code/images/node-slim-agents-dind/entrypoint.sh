@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Boot dockerd (unless a host socket is already mounted), materialize agent auth from env, then
-# hand off to T3 Code.
+# Boot dockerd (unless a host socket is already mounted), prepare Codex auth/config from env
+# (non-destructive — mounted login/config wins), then hand off to T3 Code.
 set -euo pipefail
 
 if [ -S /var/run/docker.sock ]; then
@@ -17,13 +17,22 @@ else
     || echo "entrypoint: WARNING dockerd not ready — run with --privileged? continuing without Docker" >&2
 fi
 
-# Codex reads its key from ${CODEX_HOME}/auth.json. Write it from OPENAI_API_KEY so Codex
-# authenticates without an interactive `codex login` or a persisted volume (ephemeral file).
-if [ -n "${OPENAI_API_KEY:-}" ]; then
-  install -d -m 700 "${CODEX_HOME:-$HOME/.codex}"
+codex_dir="${CODEX_HOME:-$HOME/.codex}"
+install -d -m 700 "$codex_dir"
+
+# API key: write auth.json from OPENAI_API_KEY (skipped if a login/auth.json is already mounted).
+if [ ! -f "$codex_dir/auth.json" ] && [ -n "${OPENAI_API_KEY:-}" ]; then
   printf '{"OPENAI_API_KEY":"%s","tokens":null,"last_refresh":null}\n' "$OPENAI_API_KEY" \
-    > "${CODEX_HOME:-$HOME/.codex}/auth.json"
-  chmod 600 "${CODEX_HOME:-$HOME/.codex}/auth.json"
+    > "$codex_dir/auth.json"
+  chmod 600 "$codex_dir/auth.json"
+fi
+
+# Custom endpoint (e.g. OpenRouter): point Codex's openai provider at OPENAI_BASE_URL. wire_api=chat
+# because non-OpenAI gateways serve /chat/completions, not OpenAI's /responses API. Skipped if you
+# mount your own config.toml.
+if [ -n "${OPENAI_BASE_URL:-}" ] && [ ! -f "$codex_dir/config.toml" ]; then
+  printf '[model_providers.openai]\nbase_url = "%s"\nwire_api = "chat"\n' "$OPENAI_BASE_URL" \
+    > "$codex_dir/config.toml"
 fi
 
 # `serve` = headless mode; --host=0.0.0.0 binds all interfaces (default 127.0.0.1).

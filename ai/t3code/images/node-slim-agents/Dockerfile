@@ -1,8 +1,7 @@
 # node-slim-agents: T3 Code + the npm coding agents it drives (Claude Code, Codex, OpenCode),
-# pre-installed so the GUI works out of the box. Auth is stateless via env keys — ANTHROPIC_API_KEY
-# for Claude, OPENAI_API_KEY for Codex — no login and no mounted auth dirs, so the container stays
-# fully isolated. The entrypoint materializes the Codex api-key auth file from the env var at
-# startup (ephemeral, wiped on container removal).
+# pre-installed so the GUI works out of the box. Auth is flexible: env keys (ANTHROPIC_API_KEY for
+# Claude, OPENAI_API_KEY for Codex) work with zero state, or mount CODEX_HOME to persist a
+# `codex login` / a custom config.toml (e.g. OpenRouter base_url). See entrypoint.sh.
 # ponytail: Cursor's agent is a curl installer, not npm — left out; add it if you use Cursor.
 ARG NODE_VERSION=22
 FROM node:${NODE_VERSION}-slim
@@ -38,11 +37,11 @@ RUN apt-get update \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
-# Codex: force api-key auth so it uses OPENAI_API_KEY / the auth file, never ChatGPT login.
+# Codex reads auth + config from CODEX_HOME. The entrypoint fills it from env at startup, but only
+# if empty — mount this dir to persist a `codex login` or supply your own config.toml (e.g. a
+# custom base_url for OpenRouter), and the mounted files win.
 ENV CODEX_HOME=/home/node/.codex
-RUN mkdir -p "$CODEX_HOME" \
-    && printf 'preferred_auth_method = "apikey"\n' > "$CODEX_HOME/config.toml" \
-    && chown -R node:node "$CODEX_HOME"
+RUN mkdir -p "$CODEX_HOME" && chown node:node "$CODEX_HOME"
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
