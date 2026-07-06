@@ -19,6 +19,7 @@ RUN apt-get update \
         build-essential pkg-config \
         jq unzip zip xz-utils \
         less vim nano tmux \
+        bubblewrap \
         ca-certificates procps \
     && npm install -g \
         t3@${T3_VERSION} \
