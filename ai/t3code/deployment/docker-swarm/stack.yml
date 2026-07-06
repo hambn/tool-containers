@@ -1,18 +1,12 @@
-# Docker Swarm stack. Create the secret, then deploy:
-#   printf '%s' "$ANTHROPIC_API_KEY" | docker secret create t3code_api_key -
+# Docker Swarm stack. Deploy:
 #   docker stack deploy -c stack.yml t3code
-# Long-lived web GUI published on port 3773; agents read their key from the mounted secret file.
+# Long-lived web GUI published on port 3773; auth the agent from the T3 Code UI.
 version: "3.8"
 
 services:
   t3:
     image: ghcr.io/hambn/t3code:node-slim-agents
     hostname: t3code
-    environment:
-      # Claude Code reads the key from the file the secret is mounted at.
-      ANTHROPIC_API_KEY_FILE: /run/secrets/t3code_api_key
-    secrets:
-      - t3code_api_key
     ports:
       - "3773:3773"
     networks:
@@ -25,10 +19,6 @@ services:
         limits:
           cpus: "2.0"
           memory: 2G
-
-secrets:
-  t3code_api_key:
-    external: true
 
 networks:
   t3code:

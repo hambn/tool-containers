@@ -1,9 +1,9 @@
 # kubernetes
 
 Raw manifests. Long-running Deployment + Service serving the T3 Code web GUI.
+Auth the agent from the T3 Code UI.
 
 ```sh
-kubectl create secret generic t3code --from-literal=ANTHROPIC_API_KEY=sk-...
 kubectl apply -f deployment.yaml
 kubectl port-forward svc/t3code 3773:3773   # then http://localhost:3773
 ```

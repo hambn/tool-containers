@@ -38,7 +38,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 VOLUME /var/lib/docker
 
 WORKDIR /workspace
-ENV HOST=0.0.0.0 \
-    PORT=3773
 EXPOSE 3773
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

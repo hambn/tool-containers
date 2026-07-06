@@ -22,10 +22,8 @@ RUN apt-get update \
 USER node
 WORKDIR /workspace
 
-# Web GUI + WebSocket server. HOST/PORT bind it to all interfaces so the published port
-# is reachable from the host (server defaults to 127.0.0.1:3773).
-# ponytail: env, not a flag — flag names are unstable this early; HOST/PORT are read via config.
-ENV HOST=0.0.0.0 \
-    PORT=3773
+# Web GUI + WebSocket server on 3773. t3 defaults to binding 127.0.0.1 (and ignores a HOST env),
+# so --hostname=0.0.0.0 is required for the published port to be reachable from the host / a
+# reverse proxy. Extra args appended at `docker run` land after this.
 EXPOSE 3773
-ENTRYPOINT ["t3"]
+ENTRYPOINT ["t3", "--hostname=0.0.0.0"]

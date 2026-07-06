@@ -1,4 +1,5 @@
 # docker compose up  → open http://localhost:3773
+# Auth the agent from inside the T3 Code UI — no API key env needed.
 name: t3code
 
 services:
@@ -7,9 +8,6 @@ services:
     container_name: t3code
     hostname: t3code
     networks: [t3code]
-    environment:
-      # Auth the agent you want. ANTHROPIC_API_KEY for Claude, OPENAI_API_KEY for Codex.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
     ports:
       - "3773:3773"
     volumes:

@@ -11,8 +11,6 @@ services:
     container_name: t3code
     hostname: t3code
     networks: [t3code]
-    environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
     ports:
       - "3773:3773"
     volumes:

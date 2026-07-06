@@ -1,6 +1,6 @@
 # node-slim-agents: T3 Code + the npm coding agents it drives (Claude Code, Codex, OpenCode),
-# pre-installed so the GUI works out of the box. Still needs each agent authed — pass its API key
-# env (ANTHROPIC_API_KEY / OPENAI_API_KEY) or mount its auth dir, then log in from the UI.
+# pre-installed so the GUI works out of the box. Auth each agent from inside the T3 Code UI
+# (or log into the agent CLI in the container); no API-key env needed.
 # ponytail: Cursor's agent is a curl installer, not npm — left out; add it if you use Cursor.
 ARG NODE_VERSION=22
 FROM node:${NODE_VERSION}-slim
@@ -30,7 +30,6 @@ RUN apt-get update \
 
 USER node
 WORKDIR /workspace
-ENV HOST=0.0.0.0 \
-    PORT=3773
+# --hostname=0.0.0.0: t3 binds 127.0.0.1 by default; open it up for the published port.
 EXPOSE 3773
-ENTRYPOINT ["t3"]
+ENTRYPOINT ["t3", "--hostname=0.0.0.0"]

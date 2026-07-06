@@ -1,6 +1,6 @@
 # docker-compose
 
-Serves the T3 Code web GUI at `http://localhost:3773`.
+Serves the T3 Code web GUI at `http://localhost:3773`. Auth the agent from the UI.
 
 | File | Use |
 |------|-----|
@@ -8,11 +8,11 @@ Serves the T3 Code web GUI at `http://localhost:3773`.
 | `airgapped.docker-compose.yml` | offline: builds locally from `images/node-slim-agents`, no registry pull |
 
 ```sh
-ANTHROPIC_API_KEY=sk-... docker compose up
+docker compose up
 ```
 
 Airgapped variant builds the image on the host instead of pulling:
 
 ```sh
-ANTHROPIC_API_KEY=sk-... docker compose -f airgapped.docker-compose.yml up
+docker compose -f airgapped.docker-compose.yml up
 ```
