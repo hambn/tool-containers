@@ -1,6 +1,6 @@
 # node-slim-agents-dind: node-slim-agents + a full Docker engine (docker-in-docker) so an agent
-# can build and run containers from inside this container. Ships dockerd + the docker CLI + compose
-# + buildx; the entrypoint boots dockerd before starting T3 Code.
+# can build and run containers from inside this container. Ships dockerd + the docker CLI;
+# the entrypoint boots dockerd before starting T3 Code.
 # ponytail: DinD needs a privileged container (`docker run --privileged`). Without it dockerd won't
 #           start and the agent just gets no Docker — everything else still works. Runs as root
 #           because dockerd requires it; this variant is for trusted, isolated hosts only.
@@ -9,7 +9,9 @@ FROM node:${NODE_VERSION}-slim
 
 ARG T3_VERSION=latest
 
-# Same toolchain as node-slim-agents, plus docker.io (dockerd + CLI), compose + buildx plugins.
+# Same toolchain as node-slim-agents, plus docker.io — Debian's dockerd + docker CLI.
+# ponytail: compose/buildx aren't packaged in bookworm; docker build/run is enough. Add the
+#           plugins from download.docker.com if the agent needs `docker compose`.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git ca-certificates curl wget \
@@ -19,7 +21,7 @@ RUN apt-get update \
         build-essential pkg-config \
         jq unzip zip xz-utils \
         less vim nano tmux procps \
-        docker.io docker-compose-v2 docker-buildx \
+        docker.io \
         iptables uidmap \
     && npm install -g \
         t3@${T3_VERSION} \
