@@ -14,12 +14,14 @@ if [ ! -f "$codex_dir/auth.json" ] && [ -n "${OPENAI_API_KEY:-}" ]; then
   chmod 600 "$codex_dir/auth.json"
 fi
 
-# Custom endpoint (e.g. OpenRouter): point Codex's openai provider at OPENAI_BASE_URL. wire_api=chat
-# because non-OpenAI gateways serve /chat/completions, not OpenAI's /responses API. Skipped if you
-# mount your own config.toml.
+# Custom endpoint (e.g. OpenRouter): point Codex's openai provider at OPENAI_BASE_URL. Codex now
+# only speaks its Responses API (wire_api "chat" was removed in codex 0.142), so the gateway must be
+# responses-compatible; set OPENAI_WIRE_API to override. Skipped if you mount your own config.toml.
 if [ -n "${OPENAI_BASE_URL:-}" ] && [ ! -f "$codex_dir/config.toml" ]; then
-  printf '[model_providers.openai]\nbase_url = "%s"\nwire_api = "chat"\n' "$OPENAI_BASE_URL" \
-    > "$codex_dir/config.toml"
+  {
+    printf '[model_providers.openai]\nbase_url = "%s"\n' "$OPENAI_BASE_URL"
+    [ -n "${OPENAI_WIRE_API:-}" ] && printf 'wire_api = "%s"\n' "$OPENAI_WIRE_API"
+  } > "$codex_dir/config.toml"
 fi
 
 # Claude Code / OpenCode read their key straight from env (ANTHROPIC_API_KEY / OPENAI_API_KEY).
