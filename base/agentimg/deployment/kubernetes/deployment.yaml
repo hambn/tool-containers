@@ -1,0 +1,33 @@
+# kubectl apply -f deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentimg
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agentimg
+  template:
+    metadata:
+      labels:
+        app: agentimg
+    spec:
+      containers:
+        - name: agentimg
+          image: ghcr.io/hambn/agentimg:latest
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          emptyDir: {}

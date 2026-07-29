@@ -1,0 +1,6 @@
+apiVersion: v2
+name: agentimg
+description: General-purpose developer and agent foundation environment
+type: application
+version: 0.1.0
+appVersion: "ubuntu-browser"

@@ -1,0 +1,235 @@
+name: base/agentimg
+
+# Push: build only variants whose image directory changed. Publish stable tags plus
+#        <variant>-<commit-short-sha>.
+# Schedule: build only variants whose external FROM image fingerprint changed. Repoint
+#           stable tags only, so automatic refreshes do not create unbounded tags.
+# Dispatch: build every variant and repoint stable tags only.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "base/agentimg/images/**"
+      - ".github/workflows/base-agentimg.yml"
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+env:
+  THING: base/agentimg
+  IMAGE: agentimg
+  PRIMARY: ubuntu-browser
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: read }
+    outputs:
+      variants: ${{ steps.plan.outputs.variants }}
+      build: ${{ steps.plan.outputs.build }}
+      basefingerprints: ${{ steps.plan.outputs.basefingerprints }}
+      commit_tag: ${{ steps.plan.outputs.commit_tag }}
+      short_sha: ${{ steps.plan.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+
+          resolve_arg_ref() {
+            local dockerfile="$1" ref="$2" var default
+            while grep -q '\${' <<<"$ref"; do
+              var=$(sed -E 's/.*\$\{([A-Za-z_][A-Za-z0-9_]*)\}.*/\1/' <<<"$ref")
+              default=$(grep -m1 -E "^ARG ${var}=" "$dockerfile" | cut -d= -f2-)
+              ref=${ref//\$\{${var}\}/$default}
+            done
+            printf '%s\n' "$ref"
+          }
+
+          # Hash every external FROM digest. This includes the separate headless-browser
+          # stage, not only the final runtime base.
+          base_fingerprint() {
+            local dockerfile="$THING/images/$1/Dockerfile" ref digest
+            while read -r ref; do
+              ref=$(resolve_arg_ref "$dockerfile" "$ref")
+              digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
+              printf '%s@%s\n' "$ref" "$digest"
+            done < <(awk 'toupper($1) == "FROM" { print $2 }' "$dockerfile") |
+              sha256sum | cut -d' ' -f1
+          }
+
+          all=$(find "$THING/images" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          fingerprints='{}'
+          for variant in $all; do
+            fingerprint=$(base_fingerprint "$variant")
+            fingerprints=$(jq \
+              --arg variant "$variant" \
+              --arg fingerprint "$fingerprint" \
+              '. + {($variant): $fingerprint}' <<<"$fingerprints")
+          done
+
+          selected=""
+          commit_tag=false
+          case "$EVENT" in
+            push)
+              commit_tag=true
+              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+                diff=$(git show --pretty='' --name-only "$SHA")
+              else
+                diff=$(git diff --name-only "$BEFORE" "$SHA")
+              fi
+              for variant in $all; do
+                grep -q "^$THING/images/$variant/" <<<"$diff" &&
+                  selected="$selected $variant" || true
+              done
+              ;;
+            schedule)
+              for variant in $all; do
+                current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$fingerprints")
+                previous=$(docker buildx imagetools inspect "$image:$variant" \
+                  --format '{{ index .Image.Config.Labels "io.tool-containers.base-fingerprint" }}' \
+                  2>/dev/null || echo missing)
+                if [ "$current" != "$previous" ]; then
+                  echo "$variant base fingerprint: $previous -> $current"
+                  selected="$selected $variant"
+                fi
+              done
+              ;;
+            workflow_dispatch)
+              selected="$all"
+              ;;
+          esac
+
+          variants=$(printf '%s\n' $selected | sed '/^$/d' | jq -R . | jq -cs 'unique')
+          short_sha=$(cut -c1-12 <<<"$SHA")
+          {
+            echo "variants=$variants"
+            echo "basefingerprints=$(jq -c . <<<"$fingerprints")"
+            echo "commit_tag=$commit_tag"
+            echo "short_sha=$short_sha"
+            if [ "$variants" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
+          } >>"$GITHUB_OUTPUT"
+          echo "Will build: $variants"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # ponytail: amd64 only. Add arm64 through a native runner and manifest merge after
+      # validating every Ubuntu and Alpine package plus the headless browser on arm64.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.THING }}/images/${{ matrix.variant }}
+          platforms: linux/amd64
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            io.tool-containers.variant=${{ matrix.variant }}
+            io.tool-containers.base-fingerprint=${{ fromJSON(needs.plan.outputs.basefingerprints)[matrix.variant] }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      - name: Save digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.variant }}
+          path: /tmp/digests/${{ matrix.variant }}
+          if-no-files-found: error
+
+  push:
+    needs: [plan, build]
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        registry: [ghcr, dockerhub]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: /tmp/digests
+
+      - name: Login GHCR
+        if: matrix.registry == 'ghcr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Login Docker Hub
+        if: matrix.registry == 'dockerhub'
+        uses: docker/login-action@v3
+        with:
+          username: "${{ secrets.DOCKERHUB_USERNAME }}"
+          password: "${{ secrets.DOCKERHUB_TOKEN }}"
+
+      - name: Publish selected tags to ${{ matrix.registry }}
+        env:
+          VARIANTS: ${{ needs.plan.outputs.variants }}
+          COMMIT_TAG: ${{ needs.plan.outputs.commit_tag }}
+          SHORT_SHA: ${{ needs.plan.outputs.short_sha }}
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          source_image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          case "${{ matrix.registry }}" in
+            ghcr) target="$source_image" ;;
+            dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
+          esac
+
+          for variant in $(jq -r '.[]' <<<"$VARIANTS"); do
+            digest=$(cat "/tmp/digests/$variant")
+            tags="$variant"
+            [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
+            [ "$COMMIT_TAG" = true ] && tags="$tags $variant-$SHORT_SHA"
+
+            args=()
+            for tag in $tags; do args+=(--tag "$target:$tag"); done
+            echo "$variant -> $target ($tags)"
+            docker buildx imagetools create "${args[@]}" "$source_image@$digest"
+          done

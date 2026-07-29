@@ -1,0 +1,16 @@
+# docker compose run --rm agentimg
+name: agentimg
+
+services:
+  agentimg:
+    image: ${AGENTIMG_IMAGE:-ghcr.io/hambn/agentimg:latest}
+    command: ["bash"]
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [agentimg]
+
+networks:
+  agentimg:
+    name: agentimg

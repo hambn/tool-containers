@@ -1,0 +1,44 @@
+# ubuntu: broad Ubuntu 24.04 developer/agent foundation without a browser.
+FROM docker.io/library/ubuntu:24.04
+
+SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get -y -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef dist-upgrade && \
+    apt-get install -y --no-install-recommends \
+      atop bsdmainutils btop bubblewrap build-essential ca-certificates curl dbus-user-session \
+      docker-buildx docker-compose-v2 docker.io ffmpeg file gh git golang-go imagemagick \
+      iotop iproute2 iputils-ping jq less libcap2-bin locales locales-all lsof make \
+      man-db manpages manpages-dev mitmproxy ncdu net-tools netcat-openbsd neovim \
+      openssh-client openssh-server pipx psmisc python-is-python3 python3-pip ripgrep \
+      rsync socat sqlite3 sudo systemd systemd-sysv tree ubuntu-dev-tools ubuntu-server \
+      ubuntu-standard unzip util-linux vim wget && \
+    apt-get remove -y pollinate ubuntu-fan && \
+    rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub /usr/sbin/policy-rc.d && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg \
+      -o /usr/share/keyrings/tailscale-archive-keyring.gpg && \
+    curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list \
+      -o /etc/apt/sources.list.d/tailscale.list && \
+    apt-get update && apt-get install -y --no-install-recommends tailscale && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+
+# These daemons are available but opt-in; a derived image or runtime may enable them.
+RUN systemctl disable docker.service containerd.service ssh.service ssh.socket tailscaled.service || true
+
+RUN usermod -l agent -c "agentimg user" ubuntu && \
+    groupmod -n agent ubuntu && \
+    mv /home/ubuntu /home/agent && \
+    usermod -d /home/agent -s /bin/bash agent && \
+    sed -i 's/^ubuntu:/agent:/' /etc/subuid /etc/subgid && \
+    usermod -aG docker,sudo agent && \
+    printf 'agent ALL=(ALL) NOPASSWD:ALL\n' >/etc/sudoers.d/agent && \
+    chmod 0440 /etc/sudoers.d/agent
+
+# systemd needs root as PID 1; interactive deployment recipes override CMD with a shell.
+STOPSIGNAL SIGRTMIN+3
+WORKDIR /workspace
+CMD ["/sbin/init"]
