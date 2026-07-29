@@ -33,13 +33,16 @@ RUN npm install --global --no-fund --no-audit \
 # The official Cursor installer resolves the latest release. CI passes the resolved
 # release identifier so scheduled builds remain reproducible between plan and build.
 RUN if [ "${CURSOR_AGENT_VERSION}" = latest ]; then \
-      curl -fsSL https://cursor.com/install | bash; \
+      curl -fsSL https://cursor.com/install | bash && \
+      cursor_bin=$(readlink -f /root/.local/bin/cursor-agent); \
     else \
-      mkdir -p "/root/.local/share/cursor-agent/versions/${CURSOR_AGENT_VERSION}" && \
+      cursor_dir="/root/.local/share/cursor-agent/versions/${CURSOR_AGENT_VERSION}" && \
+      mkdir -p "$cursor_dir" && \
       curl -fsSL "https://downloads.cursor.com/lab/${CURSOR_AGENT_VERSION}/linux/x64/agent-cli-package.tar.gz" | \
-        tar --strip-components=1 -xzf - -C "/root/.local/share/cursor-agent/versions/${CURSOR_AGENT_VERSION}"; \
+        tar --strip-components=1 -xzf - -C "$cursor_dir" && \
+      cursor_bin="$cursor_dir/cursor-agent"; \
     fi && \
-    cursor_bin=$(readlink -f /root/.local/bin/cursor-agent) && \
+    test -x "$cursor_bin" && \
     install -m 0755 "$cursor_bin" /usr/local/bin/cursor-agent && \
     ln -sf cursor-agent /usr/local/bin/agent && \
     rm -rf /root/.local
