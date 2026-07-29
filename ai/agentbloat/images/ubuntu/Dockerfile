@@ -45,9 +45,10 @@ RUN if [ "${CURSOR_AGENT_VERSION}" = latest ]; then \
     ln -sf cursor-agent /usr/local/bin/agent && \
     rm -rf /root/.local
 
-RUN python3 -m pip install --break-system-packages --no-cache-dir \
+RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
+      --with agent-client-protocol==0.7.1 \
       "acp-agent==${ACP_AGENT_VERSION}" && \
-    rm -rf /root/.cache/pip
+    rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 WORKDIR /workspace
