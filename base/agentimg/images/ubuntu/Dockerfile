@@ -1,6 +1,8 @@
 # ubuntu: broad Ubuntu 24.04 developer/agent foundation without a browser.
 FROM docker.io/library/ubuntu:24.04
 
+ARG GLAB_VERSION=1.109.0
+
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -25,6 +27,15 @@ RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg \
     apt-get update && apt-get install -y --no-install-recommends tailscale && \
     rm -rf /var/lib/apt/lists/* && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+
+RUN glab_archive="glab_${GLAB_VERSION}_linux_amd64.tar.gz" && \
+    curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/${glab_archive}" \
+      -o "/tmp/${glab_archive}" && \
+    curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/checksums.txt" \
+      -o /tmp/glab-checksums.txt && \
+    grep " ${glab_archive}\$" /tmp/glab-checksums.txt | (cd /tmp && sha256sum -c -) && \
+    tar -xzf "/tmp/${glab_archive}" -C /usr/local bin/glab && \
+    rm -f "/tmp/${glab_archive}" /tmp/glab-checksums.txt
 
 # These daemons are available but opt-in; a derived image or runtime may enable them.
 RUN systemctl disable docker.service containerd.service ssh.service ssh.socket tailscaled.service || true

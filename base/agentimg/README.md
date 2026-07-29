@@ -29,9 +29,10 @@ tag. See the repository [registry and tag guidance](../../.agents/references/rep
 ## Included software
 
 All variants provide a broad command-line development environment: Bash, Git, GitHub
-CLI, Go, Python, pip/pipx, uv, compilers, editors, man pages, SSH, Docker/Buildx/Compose,
-Tailscale, Bubblewrap, mitmproxy, database/network/process diagnostics, and image/video
-tools. Ubuntu includes systemd; Alpine maps the service capability to OpenRC.
+and GitLab CLIs, Go, Python, pip/pipx, uv, compilers, editors, man pages, SSH,
+Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy, database/network/process
+diagnostics, and image/video tools. Ubuntu includes systemd; Alpine maps the service
+capability to OpenRC.
 
 The browser variants add headless Chromium. The Ubuntu variant uses the self-contained
 `chromedp/headless-shell` bundle; Alpine uses its native Chromium package.
@@ -104,3 +105,4 @@ CI is defined in [`.github/workflows/base-agentimg.yml`](../../.github/workflows
 - [Ubuntu container image](https://hub.docker.com/_/ubuntu)
 - [Alpine Linux container image](https://hub.docker.com/_/alpine)
 - [chromedp/headless-shell](https://github.com/chromedp/docker-headless-shell)
+- [GitLab CLI](https://gitlab.com/gitlab-org/cli)
