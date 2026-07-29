@@ -4,7 +4,7 @@ name: t3code
 
 services:
   t3:
-    image: ghcr.io/hambn/t3code:node-slim-agents
+    image: ghcr.io/hambn/t3code:ubuntu-browser
     container_name: t3code
     hostname: t3code
     networks: [t3code]

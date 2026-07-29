@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: t3
-          image: ghcr.io/hambn/t3code:node-slim-agents
+          image: ghcr.io/hambn/t3code:ubuntu-browser
           ports:
             - containerPort: 3773
           volumeMounts:

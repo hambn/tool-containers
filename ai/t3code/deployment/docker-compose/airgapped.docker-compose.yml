@@ -6,7 +6,7 @@ name: t3code
 services:
   t3:
     build:
-      context: ../../images/node-slim-agents
+      context: ../../images/ubuntu-browser
     image: t3code:airgapped
     container_name: t3code
     hostname: t3code

@@ -6,4 +6,4 @@ set -euo pipefail
 podman run -it --rm \
   -p 3773:3773 \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/t3code:node-slim-agents "$@"
+  ghcr.io/hambn/t3code:ubuntu-browser "$@"
