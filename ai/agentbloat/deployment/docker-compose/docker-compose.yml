@@ -1,0 +1,16 @@
+# docker compose run --rm agentbloat
+name: agentbloat
+
+services:
+  agentbloat:
+    image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}
+    command: ["bash"]
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [agentbloat]
+
+networks:
+  agentbloat:
+    name: agentbloat

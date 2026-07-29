@@ -1,0 +1,33 @@
+# kubectl apply -f deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentbloat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agentbloat
+  template:
+    metadata:
+      labels:
+        app: agentbloat
+    spec:
+      containers:
+        - name: agentbloat
+          image: ghcr.io/hambn/agentbloat:latest
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          emptyDir: {}

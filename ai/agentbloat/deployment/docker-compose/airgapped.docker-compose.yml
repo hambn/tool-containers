@@ -1,0 +1,19 @@
+# docker compose -f airgapped.docker-compose.yml run --rm agentbloat
+name: agentbloat-airgapped
+
+services:
+  agentbloat:
+    build:
+      context: ../../images/ubuntu-browser
+    image: local/agentbloat:ubuntu-browser
+    pull_policy: never
+    command: ["bash"]
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [agentbloat]
+
+networks:
+  agentbloat:
+    name: agentbloat-airgapped

@@ -1,0 +1,325 @@
+name: ai/agentbloat
+
+# Pushes and manual runs publish moving variant tags only. The hourly schedule checks
+# all agent package versions and the four agentimg base tags; an agent update also adds
+# one primary-image tag per changed CLI, for example claude-code-v1.2.3.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai/agentbloat/**"
+      - ".github/workflows/ai-agentbloat.yml"
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+env:
+  THING: ai/agentbloat
+  IMAGE: agentbloat
+  PRIMARY: ubuntu-browser
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: read }
+    outputs:
+      variants: ${{ steps.plan.outputs.variants }}
+      build: ${{ steps.plan.outputs.build }}
+      basedigests: ${{ steps.plan.outputs.basedigests }}
+      versions: ${{ steps.plan.outputs.versions }}
+      release_tags: ${{ steps.plan.outputs.release_tags }}
+      changed_tools: ${{ steps.plan.outputs.changed_tools }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          variants=(alpine alpine-browser ubuntu ubuntu-browser)
+          tools=(codex claude_code cursor_agent grok opencode github_copilot gemini_cli pi_agent acp_agent)
+
+          package_for() {
+            case "$1" in
+              codex) echo '@openai/codex' ;;
+              claude_code) echo '@anthropic-ai/claude-code' ;;
+              grok) echo '@xai-official/grok' ;;
+              opencode) echo 'opencode-ai' ;;
+              github_copilot) echo '@github/copilot' ;;
+              gemini_cli) echo '@google/gemini-cli' ;;
+              pi_agent) echo '@earendil-works/pi-coding-agent' ;;
+              *) return 1 ;;
+            esac
+          }
+
+          tag_name() {
+            case "$1" in
+              claude_code) echo claude-code ;;
+              cursor_agent) echo cursor-agent ;;
+              github_copilot) echo github-copilot ;;
+              gemini_cli) echo gemini-cli ;;
+              pi_agent) echo pi-agent ;;
+              acp_agent) echo acp-agent ;;
+              *) echo "$1" ;;
+            esac
+          }
+
+          resolve_version() {
+            local key="$1"
+            case "$key" in
+              cursor_agent)
+                curl -fsSL https://cursor.com/install |
+                  sed -n 's#^DOWNLOAD_URL="https://downloads.cursor.com/lab/\([^/]*\)/.*#\1#p' | head -n1
+                ;;
+              acp_agent)
+                curl -fsSL https://pypi.org/pypi/acp-agent/json | jq -er '.info.version'
+                ;;
+              *) npm view "$(package_for "$key")" version ;;
+            esac
+          }
+
+          versions='{}'
+          changed_tools='[]'
+          for key in "${tools[@]}"; do
+            version=$(resolve_version "$key")
+            [ -n "$version" ]
+            versions=$(jq --arg key "$key" --arg version "$version" \
+              '. + {($key): $version}' <<<"$versions")
+          done
+
+          resolve_base() {
+            awk 'toupper($1) == "FROM" { ref=$2 } END { print ref }' \
+              "$THING/images/$1/Dockerfile"
+          }
+
+          basedigests='{}'
+          for variant in "${variants[@]}"; do
+            ref=$(resolve_base "$variant")
+            digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
+            basedigests=$(jq --arg variant "$variant" --arg digest "$digest" \
+              '. + {($variant): $digest}' <<<"$basedigests")
+          done
+
+          selected=()
+          release_tags=false
+          case "$EVENT" in
+            workflow_dispatch)
+              selected=("${variants[@]}")
+              ;;
+            push)
+              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+                selected=("${variants[@]}")
+              else
+                diff=$(git diff --name-only "$BEFORE" "$SHA" 2>/dev/null || true)
+                if grep -q '^\.github/workflows/ai-agentbloat\.yml$' <<<"$diff" || \
+                   grep -q '^ai/agentbloat/\(README.md\|deployment/\)' <<<"$diff"; then
+                  selected=("${variants[@]}")
+                else
+                  for variant in "${variants[@]}"; do
+                    grep -q "^$THING/images/$variant/" <<<"$diff" && selected+=("$variant") || true
+                  done
+                fi
+              fi
+              ;;
+            schedule)
+              for key in "${tools[@]}"; do
+                label=$(tag_name "$key")
+                current=$(jq -r --arg key "$key" '.[$key]' <<<"$versions")
+                old=$(docker buildx imagetools inspect "$image:latest" \
+                  --format "{{ index .Image.Config.Labels \"io.tool-containers.${label}-version\" }}" \
+                  2>/dev/null || echo missing)
+                if [ "$current" != "$old" ]; then
+                  echo "$label: $old -> $current"
+                  changed_tools=$(jq --arg tool "$label" '. + [$tool]' <<<"$changed_tools")
+                fi
+              done
+
+              if [ "$changed_tools" != "[]" ]; then
+                selected=("${variants[@]}")
+                release_tags=true
+              else
+                for variant in "${variants[@]}"; do
+                  current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$basedigests")
+                  old=$(docker buildx imagetools inspect "$image:$variant" \
+                    --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' \
+                    2>/dev/null || echo missing)
+                  if [ "$current" != "$old" ]; then
+                    echo "$variant base: $old -> $current"
+                    selected+=("$variant")
+                  fi
+                done
+              fi
+              ;;
+            *)
+              echo "unsupported event: $EVENT" >&2
+              exit 1
+              ;;
+          esac
+
+          variants_json=$(printf '%s\n' "${selected[@]}" | sed '/^$/d' | jq -R . | jq -cs 'unique')
+          {
+            echo "variants=$variants_json"
+            echo "basedigests=$(jq -c . <<<"$basedigests")"
+            echo "versions=$(jq -c . <<<"$versions")"
+            echo "release_tags=$release_tags"
+            echo "changed_tools=$(jq -c . <<<"$changed_tools")"
+            if [ "$variants_json" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
+          } >>"$GITHUB_OUTPUT"
+          echo "Will build: $variants_json"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # ponytail: amd64 only. Add arm64 through a native runner after validating the
+      # Node native dependencies and Cursor Agent package on arm64.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.THING }}/images/${{ matrix.variant }}
+          platforms: linux/amd64
+          provenance: false
+          build-args: |
+            CODEX_VERSION=${{ fromJSON(needs.plan.outputs.versions).codex }}
+            CLAUDE_CODE_VERSION=${{ fromJSON(needs.plan.outputs.versions).claude_code }}
+            CURSOR_AGENT_VERSION=${{ fromJSON(needs.plan.outputs.versions).cursor_agent }}
+            GROK_VERSION=${{ fromJSON(needs.plan.outputs.versions).grok }}
+            OPENCODE_VERSION=${{ fromJSON(needs.plan.outputs.versions).opencode }}
+            GITHUB_COPILOT_VERSION=${{ fromJSON(needs.plan.outputs.versions).github_copilot }}
+            GEMINI_CLI_VERSION=${{ fromJSON(needs.plan.outputs.versions).gemini_cli }}
+            PI_AGENT_VERSION=${{ fromJSON(needs.plan.outputs.versions).pi_agent }}
+            ACP_AGENT_VERSION=${{ fromJSON(needs.plan.outputs.versions).acp_agent }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            io.tool-containers.variant=${{ matrix.variant }}
+            io.tool-containers.base-digest=${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
+            io.tool-containers.codex-version=${{ fromJSON(needs.plan.outputs.versions).codex }}
+            io.tool-containers.claude-code-version=${{ fromJSON(needs.plan.outputs.versions).claude_code }}
+            io.tool-containers.cursor-agent-version=${{ fromJSON(needs.plan.outputs.versions).cursor_agent }}
+            io.tool-containers.grok-version=${{ fromJSON(needs.plan.outputs.versions).grok }}
+            io.tool-containers.opencode-version=${{ fromJSON(needs.plan.outputs.versions).opencode }}
+            io.tool-containers.github-copilot-version=${{ fromJSON(needs.plan.outputs.versions).github_copilot }}
+            io.tool-containers.gemini-cli-version=${{ fromJSON(needs.plan.outputs.versions).gemini_cli }}
+            io.tool-containers.pi-agent-version=${{ fromJSON(needs.plan.outputs.versions).pi_agent }}
+            io.tool-containers.acp-agent-version=${{ fromJSON(needs.plan.outputs.versions).acp_agent }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      - name: Save digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.variant }}
+          path: /tmp/digests/${{ matrix.variant }}
+          if-no-files-found: error
+
+  push:
+    needs: [plan, build]
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        registry: [ghcr, dockerhub]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: /tmp/digests
+
+      - name: Login GHCR
+        if: matrix.registry == 'ghcr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Login Docker Hub
+        if: matrix.registry == 'dockerhub'
+        uses: docker/login-action@v3
+        with:
+          username: "${{ secrets.DOCKERHUB_USERNAME }}"
+          password: "${{ secrets.DOCKERHUB_TOKEN }}"
+
+      - name: Publish moving tags and agent release tags
+        env:
+          VARIANTS: ${{ needs.plan.outputs.variants }}
+          VERSIONS: ${{ needs.plan.outputs.versions }}
+          RELEASE_TAGS: ${{ needs.plan.outputs.release_tags }}
+          CHANGED_TOOLS: ${{ needs.plan.outputs.changed_tools }}
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          source_image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          case "${{ matrix.registry }}" in
+            ghcr) target="$source_image" ;;
+            dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
+          esac
+
+          for variant in $(jq -r '.[]' <<<"$VARIANTS"); do
+            digest=$(cat "/tmp/digests/$variant")
+            tags="$variant"
+            [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
+
+            # Version tags describe the primary profile only. This prevents a single
+            # unqualified claude-code-vX tag from being overwritten by another variant.
+            if [ "$RELEASE_TAGS" = true ] && [ "$variant" = "$PRIMARY" ]; then
+              for tool in $(jq -r '.[]' <<<"$CHANGED_TOOLS"); do
+                case "$tool" in
+                  claude-code) version=$(jq -r '.claude_code' <<<"$VERSIONS") ;;
+                  cursor-agent) version=$(jq -r '.cursor_agent' <<<"$VERSIONS") ;;
+                  github-copilot) version=$(jq -r '.github_copilot' <<<"$VERSIONS") ;;
+                  gemini-cli) version=$(jq -r '.gemini_cli' <<<"$VERSIONS") ;;
+                  pi-agent) version=$(jq -r '.pi_agent' <<<"$VERSIONS") ;;
+                  acp-agent) version=$(jq -r '.acp_agent' <<<"$VERSIONS") ;;
+                  *) version=$(jq -r --arg key "$tool" '.[$key]' <<<"$VERSIONS") ;;
+                esac
+                tags="$tags $tool-v$version"
+              done
+            fi
+
+            args=()
+            for tag in $tags; do args+=(--tag "$target:$tag"); done
+            echo "$variant -> $target ($tags)"
+            docker buildx imagetools create "${args[@]}" "$source_image@$digest"
+          done

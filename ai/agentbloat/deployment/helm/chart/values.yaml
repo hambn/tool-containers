@@ -1,0 +1,15 @@
+image:
+  repository: ghcr.io/hambn/agentbloat
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 1
+command: ["sleep", "infinity"]
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 4Gi
