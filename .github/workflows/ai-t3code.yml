@@ -233,6 +233,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
 
       - name: Trivy scan
+        # The scan is report-only (exit-code 0). Do not block publication when Trivy
+        # cannot read a remote layer because of a transient registry/HTTP2 reset.
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
