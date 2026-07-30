@@ -1,0 +1,20 @@
+# docker compose -f airgapped.docker-compose.yml run --rm open-code-review review
+name: open-code-review-airgapped
+
+services:
+  open-code-review:
+    build:
+      context: ../../images/ubuntu-browser
+    image: local/open-code-review:ubuntu-browser
+    pull_policy: never
+    entrypoint: ["ocr"]
+    command: ["--help"]
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [open-code-review]
+
+networks:
+  open-code-review:
+    name: open-code-review-airgapped

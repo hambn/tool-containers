@@ -1,0 +1,17 @@
+# docker compose run --rm open-code-review review
+name: open-code-review
+
+services:
+  open-code-review:
+    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}
+    entrypoint: ["ocr"]
+    command: ["--help"]
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [open-code-review]
+
+networks:
+  open-code-review:
+    name: open-code-review
