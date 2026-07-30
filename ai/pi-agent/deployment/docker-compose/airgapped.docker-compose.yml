@@ -1,0 +1,18 @@
+# docker compose -f airgapped.docker-compose.yml run --rm pi-agent
+name: pi-agent-airgapped
+
+services:
+  pi-agent:
+    build:
+      context: ../../images/ubuntu-browser
+    image: local/pi-agent:ubuntu-browser
+    pull_policy: never
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [pi-agent]
+
+networks:
+  pi-agent:
+    name: pi-agent-airgapped

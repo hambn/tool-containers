@@ -1,0 +1,15 @@
+# docker compose run --rm pi-agent
+name: pi-agent
+
+services:
+  pi-agent:
+    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [pi-agent]
+
+networks:
+  pi-agent:
+    name: pi-agent

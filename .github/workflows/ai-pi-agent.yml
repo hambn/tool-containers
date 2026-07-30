@@ -1,0 +1,240 @@
+name: ai/pi-agent
+
+# Moving tags are refreshed for source edits, Pi releases, and agentimg base
+# refreshes. Only a detected Pi release also creates pi-v<version> on primary.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai/pi-agent/**"
+      - ".github/workflows/ai-pi-agent.yml"
+  schedule:
+    - cron: "0 * * * *"
+  workflow_run:
+    workflows: ["base/agentimg"]
+    types: [completed]
+  workflow_dispatch:
+
+env:
+  THING: ai/pi-agent
+  IMAGE: pi-agent
+  PRIMARY: ubuntu-browser
+  PKG: "@earendil-works/pi-coding-agent"
+
+jobs:
+  plan:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: read }
+    outputs:
+      variants: ${{ steps.plan.outputs.variants }}
+      build: ${{ steps.plan.outputs.build }}
+      basedigests: ${{ steps.plan.outputs.basedigests }}
+      pi_version: ${{ steps.plan.outputs.pi_version }}
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          variants=(alpine alpine-browser ubuntu ubuntu-browser)
+          pi_version=$(npm view "$PKG" version)
+
+          resolve_base() {
+            awk 'toupper($1) == "FROM" { ref=$2 } END { print ref }' \
+              "$THING/images/$1/Dockerfile"
+          }
+
+          basedigests='{}'
+          for variant in "${variants[@]}"; do
+            ref=$(resolve_base "$variant")
+            digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
+            basedigests=$(jq --arg variant "$variant" --arg digest "$digest" \
+              '. + {($variant): $digest}' <<<"$basedigests")
+          done
+
+          selected=()
+          release_tag=false
+          case "$EVENT" in
+            workflow_dispatch)
+              selected=("${variants[@]}")
+              ;;
+            push)
+              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+                diff=$(git show --pretty='' --name-only "$SHA")
+              else
+                diff=$(git diff --name-only "$BEFORE" "$SHA")
+              fi
+
+              if grep -q '^\.github/workflows/ai-pi-agent\.yml$' <<<"$diff" || \
+                 grep -q '^ai/pi-agent/\(README\.md\|deployment/\)' <<<"$diff"; then
+                selected=("${variants[@]}")
+              else
+                for variant in "${variants[@]}"; do
+                  grep -q "^$THING/images/$variant/" <<<"$diff" && \
+                    selected+=("$variant") || true
+                done
+              fi
+              ;;
+            schedule|workflow_run)
+              old_pi=$(docker buildx imagetools inspect "$image:latest" \
+                --format '{{ index .Image.Config.Labels "io.tool-containers.pi-agent-version" }}' \
+                2>/dev/null || echo missing)
+              if [ "$pi_version" != "$old_pi" ]; then
+                echo "pi-agent: $old_pi -> $pi_version"
+                selected=("${variants[@]}")
+                release_tag=true
+              else
+                for variant in "${variants[@]}"; do
+                  current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$basedigests")
+                  old=$(docker buildx imagetools inspect "$image:$variant" \
+                    --format '{{ index .Image.Config.Labels "io.tool-containers.agentimg-digest" }}' \
+                    2>/dev/null || echo missing)
+                  if [ "$current" != "$old" ]; then
+                    echo "$variant agentimg base: $old -> $current"
+                    selected+=("$variant")
+                  fi
+                done
+              fi
+              ;;
+            *)
+              echo "unsupported event: $EVENT" >&2
+              exit 1
+              ;;
+          esac
+
+          variants_json=$(printf '%s\n' "${selected[@]}" | sed '/^$/d' | jq -R . | jq -cs 'unique')
+          {
+            echo "variants=$variants_json"
+            echo "basedigests=$(jq -c . <<<"$basedigests")"
+            echo "pi_version=$pi_version"
+            echo "release_tag=$release_tag"
+            if [ "$variants_json" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
+          } >>"$GITHUB_OUTPUT"
+          echo "Will build: $variants_json"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # ponytail: amd64 only. Add arm64 through a native runner after validating
+      # the Pi npm package and the browser-enabled agentimg variants.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.THING }}/images/${{ matrix.variant }}
+          platforms: linux/amd64
+          provenance: false
+          build-args: PI_AGENT_VERSION=${{ needs.plan.outputs.pi_version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            io.tool-containers.variant=${{ matrix.variant }}
+            io.tool-containers.agentimg-digest=${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
+            io.tool-containers.pi-agent-version=${{ needs.plan.outputs.pi_version }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      - name: Save digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.variant }}
+          path: /tmp/digests/${{ matrix.variant }}
+          if-no-files-found: error
+
+  push:
+    needs: [plan, build]
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        registry: [ghcr, dockerhub]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: /tmp/digests
+
+      - name: Login GHCR
+        if: matrix.registry == 'ghcr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Login Docker Hub
+        if: matrix.registry == 'dockerhub'
+        uses: docker/login-action@v3
+        with:
+          username: "${{ secrets.DOCKERHUB_USERNAME }}"
+          password: "${{ secrets.DOCKERHUB_TOKEN }}"
+
+      - name: Publish moving tags and Pi release tag
+        env:
+          VARIANTS: ${{ needs.plan.outputs.variants }}
+          PI_VERSION: ${{ needs.plan.outputs.pi_version }}
+          RELEASE_TAG: ${{ needs.plan.outputs.release_tag }}
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          source_image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          case "${{ matrix.registry }}" in
+            ghcr) target="$source_image" ;;
+            dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
+          esac
+
+          for variant in $(jq -r '.[]' <<<"$VARIANTS"); do
+            digest=$(cat "/tmp/digests/$variant")
+            tags="$variant"
+            [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
+            [ "$RELEASE_TAG" = true ] && [ "$variant" = "$PRIMARY" ] && \
+              tags="$tags pi-v$PI_VERSION"
+
+            args=()
+            for tag in $tags; do args+=(--tag "$target:$tag"); done
+            echo "$variant -> $target ($tags)"
+            docker buildx imagetools create "${args[@]}" "$source_image@$digest"
+          done
