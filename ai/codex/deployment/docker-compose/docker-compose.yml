@@ -1,0 +1,17 @@
+# docker compose run --rm codex
+name: codex
+
+services:
+  codex:
+    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [codex]
+
+networks:
+  codex:
+    name: codex
