@@ -3,6 +3,8 @@ FROM ghcr.io/hambn/agentbloat:alpine-browser
 
 ARG OMNIGENT_VERSION=latest
 
+RUN apk add --no-cache abseil-cpp-dev py3-pybind11-dev python3-dev re2-dev
+
 RUN if [ "${OMNIGENT_VERSION}" = latest ]; then \
       package=omnigent; \
     else \

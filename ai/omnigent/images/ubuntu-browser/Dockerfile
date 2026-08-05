@@ -5,6 +5,10 @@ ARG OMNIGENT_VERSION=latest
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libabsl-dev libre2-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN if [ "${OMNIGENT_VERSION}" = latest ]; then \
       package=omnigent; \
     else \
