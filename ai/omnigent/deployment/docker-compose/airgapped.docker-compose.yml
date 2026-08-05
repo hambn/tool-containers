@@ -1,0 +1,18 @@
+# docker compose -f airgapped.docker-compose.yml run --rm omnigent
+name: omnigent-airgapped
+
+services:
+  omnigent:
+    build:
+      context: ../../images/ubuntu-browser
+    image: local/omnigent:ubuntu-browser
+    pull_policy: never
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [omnigent]
+
+networks:
+  omnigent:
+    name: omnigent-airgapped

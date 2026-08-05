@@ -1,0 +1,15 @@
+# docker compose run --rm omnigent
+name: omnigent
+
+services:
+  omnigent:
+    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}
+    volumes:
+      - ./:/workspace
+    stdin_open: true
+    tty: true
+    networks: [omnigent]
+
+networks:
+  omnigent:
+    name: omnigent
