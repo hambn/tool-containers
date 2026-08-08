@@ -6,15 +6,16 @@ name: claude-code
 services:
   claude:
     build:
-      context: ../../images/standard
+      context: ../../images/ubuntu-browser
     image: claude-code:airgapped
+    pull_policy: never
     container_name: claude-code
     hostname: claude-code
     networks: [claude-code]
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
 

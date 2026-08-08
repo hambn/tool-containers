@@ -3,6 +3,6 @@
 set -euo pipefail
 
 IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}"
-podman run -it --rm \
+podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
   "$IMAGE" bash "$@"

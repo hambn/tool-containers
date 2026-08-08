@@ -4,6 +4,6 @@
 set -euo pipefail
 
 docker run -it --rm \
-  -p 3773:3773 \
+  -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/t3code:ubuntu-browser "$@"

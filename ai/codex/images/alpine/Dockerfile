@@ -1,5 +1,8 @@
 # alpine: OpenAI Codex CLI on the Alpine agentimg foundation without a browser.
-FROM ghcr.io/hambn/agentimg:alpine
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG CODEX_VERSION=latest
 
@@ -11,4 +14,5 @@ RUN npm install --global --no-fund --no-audit \
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 WORKDIR /workspace
+USER agent
 ENTRYPOINT ["codex"]

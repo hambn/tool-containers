@@ -1,5 +1,8 @@
 # ubuntu-browser: Alibaba Open Code Review on the Ubuntu browser-enabled agentimg base.
-FROM ghcr.io/hambn/agentimg:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG OCR_VERSION=latest
 ARG NODE_MAJOR=22
@@ -17,3 +20,5 @@ RUN npm install --global --no-fund --no-audit \
     npm cache clean --force
 
 WORKDIR /workspace
+USER agent
+ENTRYPOINT ["ocr"]

@@ -6,7 +6,7 @@ services:
     image: ${AGENTIMG_IMAGE:-ghcr.io/hambn/agentimg:latest}
     command: ["bash"]
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [agentimg]

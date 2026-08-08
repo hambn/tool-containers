@@ -1,7 +1,9 @@
 # ubuntu-browser: broad Ubuntu 24.04 developer/agent foundation with headless Chromium.
-FROM docker.io/chromedp/headless-shell:stable AS browser
+ARG BROWSER_BASE=docker.io/chromedp/headless-shell:stable
+ARG RUNTIME_BASE=docker.io/library/ubuntu:24.04
+FROM ${BROWSER_BASE} AS browser
 
-FROM docker.io/library/ubuntu:24.04
+FROM ${RUNTIME_BASE}
 
 ARG GLAB_VERSION=1.109.0
 

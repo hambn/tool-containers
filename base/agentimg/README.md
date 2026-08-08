@@ -16,10 +16,10 @@ agents, Exe-specific components, or web servers.
 
 | Variant | Contents | Base | Tags |
 |---------|----------|------|------|
-| `ubuntu-browser` | full toolset, systemd, headless Chromium | Ubuntu 24.04 | `latest`, `ubuntu-browser`, and `ubuntu-browser-<commit-sha>` on source changes |
-| `ubuntu` | full toolset and systemd, no browser | Ubuntu 24.04 | `ubuntu` and `ubuntu-<commit-sha>` on source changes |
-| `alpine-browser` | Alpine-equivalent toolset, OpenRC, Chromium | Alpine 3.21 | `alpine-browser` and `alpine-browser-<commit-sha>` on source changes |
-| `alpine` | Alpine-equivalent toolset and OpenRC, no browser | Alpine 3.21 | `alpine` and `alpine-<commit-sha>` on source changes |
+| `ubuntu-browser` | full toolset, optional systemd, headless Chromium | Ubuntu 24.04 | `latest`, `ubuntu-browser`, and `ubuntu-browser-<12-char-commit-sha>` on source changes |
+| `ubuntu` | full toolset and optional systemd, no browser | Ubuntu 24.04 | `ubuntu` and `ubuntu-<12-char-commit-sha>` on source changes |
+| `alpine-browser` | Alpine-equivalent toolset, OpenRC, Chromium | Alpine 3.21 | `alpine-browser` and `alpine-browser-<12-char-commit-sha>` on source changes |
+| `alpine` | Alpine-equivalent toolset and OpenRC, no browser | Alpine 3.21 | `alpine` and `alpine-<12-char-commit-sha>` on source changes |
 
 Pull from `ghcr.io/hambn/agentimg:<tag>` or `docker.io/hambn/agentimg:<tag>`.
 Only a Git push that changes a variant creates its commit tag. Scheduled base-image
@@ -44,9 +44,10 @@ Deliberately excluded from all variants:
 - nginx, site content, Ghostty terminfo, and other web-server components
 
 Docker, SSH, and Tailscale are installed but not enabled automatically. Derived images
-or privileged runtimes can opt into those daemons. Ubuntu keeps root as its default user
-because systemd must run as PID 1; an unprivileged UID-1000 `agent` user is available.
-Alpine defaults to a shell and also provides the `agent` user.
+or privileged runtimes can opt into those daemons. The Ubuntu foundation defaults to
+root because systemd runs as PID 1; it also provides the unprivileged UID/GID-1000
+`agent` user. Alpine defaults to its root shell and likewise provides `agent`. Derived
+AI images install packages as root and switch to `agent` for their runtime contract.
 
 ## Use cases
 

@@ -1,5 +1,8 @@
 # alpine-browser: Pi coding agent on the Alpine browser-enabled agentimg foundation.
-FROM ghcr.io/hambn/agentimg:alpine-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine-browser
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG PI_AGENT_VERSION=latest
 
@@ -11,4 +14,5 @@ RUN npm install --global --ignore-scripts --no-fund --no-audit \
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 WORKDIR /workspace
+USER agent
 ENTRYPOINT ["pi"]

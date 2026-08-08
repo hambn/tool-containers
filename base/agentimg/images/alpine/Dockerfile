@@ -1,5 +1,6 @@
 # alpine: Alpine 3.21 developer/agent foundation without a browser.
-FROM docker.io/library/alpine:3.21
+ARG RUNTIME_BASE=docker.io/library/alpine:3.21
+FROM ${RUNTIME_BASE}
 
 ARG GLAB_VERSION=1.109.0
 

@@ -1,5 +1,6 @@
 # ubuntu: broad Ubuntu 24.04 developer/agent foundation without a browser.
-FROM docker.io/library/ubuntu:24.04
+ARG RUNTIME_BASE=docker.io/library/ubuntu:24.04
+FROM ${RUNTIME_BASE}
 
 ARG GLAB_VERSION=1.109.0
 

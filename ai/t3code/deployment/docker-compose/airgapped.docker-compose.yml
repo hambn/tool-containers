@@ -8,13 +8,14 @@ services:
     build:
       context: ../../images/ubuntu-browser
     image: t3code:airgapped
+    pull_policy: never
     container_name: t3code
     hostname: t3code
     networks: [t3code]
     ports:
-      - "3773:3773"
+      - "127.0.0.1:3773:3773"
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
 
 networks:
   t3code:

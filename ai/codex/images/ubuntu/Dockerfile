@@ -1,5 +1,8 @@
 # ubuntu: OpenAI Codex CLI on the Ubuntu agentimg foundation without a browser.
-FROM ghcr.io/hambn/agentimg:ubuntu
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG CODEX_VERSION=latest
 ARG NODE_MAJOR=22
@@ -18,4 +21,5 @@ RUN npm install --global --no-fund --no-audit \
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 WORKDIR /workspace
+USER agent
 ENTRYPOINT ["codex"]

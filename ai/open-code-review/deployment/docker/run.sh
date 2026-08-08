@@ -5,4 +5,4 @@ set -euo pipefail
 IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}"
 docker run -it --rm \
   -v "$PWD:/workspace" \
-  "$IMAGE" ocr "$@"
+  "$IMAGE" "$@"

@@ -13,11 +13,41 @@ spec:
     metadata:
       labels: { app: t3code }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: t3
           image: ghcr.io/hambn/t3code:ubuntu-browser
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
           ports:
             - containerPort: 3773
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3773
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3773
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: workspace
               mountPath: /workspace

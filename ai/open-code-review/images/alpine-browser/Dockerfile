@@ -1,5 +1,8 @@
 # alpine-browser: Alibaba Open Code Review on the Alpine browser-enabled agentimg base.
-FROM ghcr.io/hambn/agentimg:alpine-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine-browser
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG OCR_VERSION=latest
 
@@ -10,3 +13,5 @@ RUN npm install --global --no-fund --no-audit \
     npm cache clean --force
 
 WORKDIR /workspace
+USER agent
+ENTRYPOINT ["ocr"]

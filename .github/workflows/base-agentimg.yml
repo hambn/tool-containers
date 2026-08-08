@@ -2,8 +2,8 @@ name: base/agentimg
 
 # Push: build only variants whose image directory changed. Publish stable tags plus
 #        <variant>-<commit-short-sha>.
-# Schedule: build only variants whose external FROM image fingerprint changed. Repoint
-#           stable tags only, so automatic refreshes do not create unbounded tags.
+# Schedule: rebuild all variants weekly so package repositories and external FROM
+#           changes receive security refreshes. Repoint stable tags only.
 # Dispatch: build every variant and repoint stable tags only.
 on:
   push:
@@ -11,9 +11,14 @@ on:
     paths:
       - "base/agentimg/images/**"
       - ".github/workflows/base-agentimg.yml"
+      - ".github/scripts/**"
   schedule:
     - cron: "0 4 * * 1"
   workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.workflow }}
+  cancel-in-progress: false
 
 env:
   THING: base/agentimg
@@ -22,19 +27,22 @@ env:
 
 jobs:
   plan:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions: { contents: read, packages: read }
     outputs:
       variants: ${{ steps.plan.outputs.variants }}
       build: ${{ steps.plan.outputs.build }}
       basefingerprints: ${{ steps.plan.outputs.basefingerprints }}
+      baseimages: ${{ steps.plan.outputs.baseimages }}
       commit_tag: ${{ steps.plan.outputs.commit_tag }}
       short_sha: ${{ steps.plan.outputs.short_sha }}
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
@@ -47,6 +55,7 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          source .github/scripts/registry-inspect.sh
           image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
 
           resolve_arg_ref() {
@@ -73,7 +82,19 @@ jobs:
 
           all=$(find "$THING/images" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
           fingerprints='{}'
+          baseimages='{}'
           for variant in $all; do
+            dockerfile="$THING/images/$variant/Dockerfile"
+            mapfile -t refs < <(awk 'toupper($1) == "FROM" { print $2 }' "$dockerfile")
+            [ "${#refs[@]}" -gt 0 ] || { echo "No FROM in $dockerfile" >&2; exit 1; }
+            runtime_ref=$(resolve_arg_ref "$dockerfile" "${refs[${#refs[@]}-1]}")
+            browser_ref=$(resolve_arg_ref "$dockerfile" "${refs[0]}")
+            runtime_digest=$(docker buildx imagetools inspect "$runtime_ref" --format '{{.Manifest.Digest}}')
+            browser_digest=$(docker buildx imagetools inspect "$browser_ref" --format '{{.Manifest.Digest}}')
+            baseimages=$(jq --arg variant "$variant" \
+              --arg runtime "$runtime_ref@$runtime_digest" \
+              --arg browser "$browser_ref@$browser_digest" \
+              '. + {($variant): {runtime: $runtime, browser: $browser}}' <<<"$baseimages")
             fingerprint=$(base_fingerprint "$variant")
             fingerprints=$(jq \
               --arg variant "$variant" \
@@ -91,22 +112,17 @@ jobs:
               else
                 diff=$(git diff --name-only "$BEFORE" "$SHA")
               fi
-              for variant in $all; do
-                grep -q "^$THING/images/$variant/" <<<"$diff" &&
-                  selected="$selected $variant" || true
-              done
+              if grep -q '^\.github/workflows/base-agentimg\.yml$' <<<"$diff"; then
+                selected="$all"
+              else
+                for variant in $all; do
+                  grep -q "^$THING/images/$variant/" <<<"$diff" &&
+                    selected="$selected $variant" || true
+                done
+              fi
               ;;
             schedule)
-              for variant in $all; do
-                current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$fingerprints")
-                previous=$(docker buildx imagetools inspect "$image:$variant" \
-                  --format '{{ index .Image.Config.Labels "io.tool-containers.base-fingerprint" }}' \
-                  2>/dev/null || echo missing)
-                if [ "$current" != "$previous" ]; then
-                  echo "$variant base fingerprint: $previous -> $current"
-                  selected="$selected $variant"
-                fi
-              done
+              selected="$all"
               ;;
             workflow_dispatch)
               selected="$all"
@@ -118,6 +134,7 @@ jobs:
           {
             echo "variants=$variants"
             echo "basefingerprints=$(jq -c . <<<"$fingerprints")"
+            echo "baseimages=$(jq -c . <<<"$baseimages")"
             echo "commit_tag=$commit_tag"
             echo "short_sha=$short_sha"
             if [ "$variants" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
@@ -128,17 +145,18 @@ jobs:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
-    permissions: { contents: read, packages: write }
+    timeout-minutes: 90
+    permissions: { contents: read, packages: write, id-token: write, attestations: write }
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       # ponytail: amd64 only. Add arm64 through a native runner and manifest merge after
       # validating every Ubuntu and Alpine package plus the headless browser on arm64.
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
@@ -146,32 +164,36 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
-          provenance: false
+          provenance: true
+          sbom: true
+          build-args: |
+            RUNTIME_BASE=${{ fromJSON(needs.plan.outputs.baseimages)[matrix.variant].runtime }}
+            BROWSER_BASE=${{ fromJSON(needs.plan.outputs.baseimages)[matrix.variant].browser }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             io.tool-containers.variant=${{ matrix.variant }}
             io.tool-containers.base-fingerprint=${{ fromJSON(needs.plan.outputs.basefingerprints)[matrix.variant] }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+          cache-from: type=gha,scope=${{ env.IMAGE }}-${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ env.IMAGE }}-${{ matrix.variant }}
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
           severity: HIGH,CRITICAL
-          exit-code: "0"
+          exit-code: "1"
 
       - name: Save digest
         run: |
           mkdir -p /tmp/digests
           echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: digest-${{ matrix.variant }}
           path: /tmp/digests/${{ matrix.variant }}
@@ -181,14 +203,15 @@ jobs:
     needs: [plan, build]
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions: { contents: read, packages: write }
     strategy:
       fail-fast: false
       matrix:
         registry: [ghcr, dockerhub]
     steps:
-      - uses: docker/setup-buildx-action@v3
-      - uses: actions/download-artifact@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: digest-*
           merge-multiple: true
@@ -196,14 +219,14 @@ jobs:
 
       - name: Login GHCR
         if: matrix.registry == 'ghcr'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
           password: "${{ secrets.GITHUB_TOKEN }}"
       - name: Login Docker Hub
         if: matrix.registry == 'dockerhub'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: "${{ secrets.DOCKERHUB_USERNAME }}"
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
@@ -222,11 +245,21 @@ jobs:
             dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
           esac
 
+          check_immutable() {
+            local ref="$1" expected="$2" output status
+            output=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2>&1) && {
+              [ "$output" = "$expected" ] || { echo "Immutable tag collision: $ref" >&2; return 1; }; return 0; }
+            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found|does not exist' <<<"$output" && return 0
+            echo "Registry inspection failed for $ref: $output" >&2; return "$status"
+          }
+
           for variant in $(jq -r '.[]' <<<"$VARIANTS"); do
             digest=$(cat "/tmp/digests/$variant")
             tags="$variant"
             [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
             [ "$COMMIT_TAG" = true ] && tags="$tags $variant-$SHORT_SHA"
+            [ "$COMMIT_TAG" = true ] && \
+              check_immutable "$target:$variant-$SHORT_SHA" "$digest"
 
             args=()
             for tag in $tags; do args+=(--tag "$target:$tag"); done

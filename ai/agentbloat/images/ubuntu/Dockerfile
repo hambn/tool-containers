@@ -1,5 +1,8 @@
 # ubuntu: agentimg Ubuntu foundation with the current agent CLIs, without a browser.
-FROM ghcr.io/hambn/agentimg:ubuntu
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG CODEX_VERSION=latest
 ARG CLAUDE_CODE_VERSION=latest
@@ -9,7 +12,7 @@ ARG OPENCODE_VERSION=latest
 ARG GITHUB_COPILOT_VERSION=latest
 ARG GEMINI_CLI_VERSION=latest
 ARG PI_AGENT_VERSION=latest
-ARG ACP_AGENT_VERSION=latest
+ARG ACP_AGENT_VERSION=0.1.0
 ARG NODE_MAJOR=22
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
@@ -45,11 +48,12 @@ RUN if [ "${CURSOR_AGENT_VERSION}" = latest ]; then \
     ln -sf cursor-agent /usr/local/bin/agent && \
     rm -rf /root/.local
 
-RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
       --with agent-client-protocol==0.7.1 \
       "acp-agent==${ACP_AGENT_VERSION}" && \
     rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 WORKDIR /workspace
-CMD ["/sbin/init"]
+USER agent
+CMD ["/bin/bash"]

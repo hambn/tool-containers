@@ -1,5 +1,8 @@
 # alpine: Omnigent on the Alpine agentbloat foundation without a browser.
-FROM ghcr.io/hambn/agentbloat:alpine
+ARG BASE_IMAGE=ghcr.io/hambn/agentbloat:alpine
+FROM ${BASE_IMAGE}
+
+USER root
 
 ARG OMNIGENT_VERSION=latest
 
@@ -16,4 +19,5 @@ RUN if [ "${OMNIGENT_VERSION}" = latest ]; then \
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 WORKDIR /workspace
+USER agent
 ENTRYPOINT ["omnigent"]

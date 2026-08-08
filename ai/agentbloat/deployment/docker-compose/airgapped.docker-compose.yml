@@ -9,7 +9,7 @@ services:
     pull_policy: never
     command: ["bash"]
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [agentbloat]

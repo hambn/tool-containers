@@ -4,6 +4,10 @@ version: "3.8"
 services:
   agentbloat:
     image: ghcr.io/hambn/agentbloat:latest
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     command: ["sleep", "infinity"]
     networks: [agentbloat]
     volumes:
