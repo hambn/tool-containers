@@ -2,7 +2,7 @@
 
 General-purpose developer and agent foundation images inspired by
 [boldsoftware/exeuntu](https://github.com/boldsoftware/exeuntu), without bundled AI
-agents, Exe-specific components, or web servers.
+agents or Exe-specific components.
 
 ## Contents
 
@@ -29,12 +29,13 @@ tag. See the repository [registry and tag guidance](../../.agents/references/rep
 ## Included software
 
 All variants provide a broad command-line development environment: styled Zsh and Bash,
-Git, GitHub and GitLab CLIs, Go, Python, pip/pipx, uv, kubectl, compilers, editors, man
-pages, SSH, Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy,
-database/network/process diagnostics, and image/video tools. Ubuntu includes systemd;
-Alpine maps the service capability to OpenRC. The terminal profile also includes fzf,
-tmux, autosuggestions, syntax highlighting, Git-aware prompts, persistent history, and
-case-insensitive completion.
+Git and Git LFS, GitHub and GitLab CLIs, the current stable Go toolchain, Python,
+pip/pipx, uv, kubectl, compilers, CMake/Ninja/Autotools, editors, man pages, SSH,
+Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy, nginx, fd, HTTPie, ShellCheck,
+shfmt, database/network/process diagnostics, and image/video tools. Ubuntu includes
+systemd; Alpine maps the service capability to OpenRC. The terminal profile also
+includes fzf, tmux, Ghostty-compatible terminfo, autosuggestions, syntax highlighting,
+Git-aware prompts, persistent history, and case-insensitive completion.
 
 The browser variants add headless Chromium. The Ubuntu variant uses the self-contained
 `chromedp/headless-shell` bundle; Alpine uses its native Chromium package.
@@ -43,22 +44,31 @@ Deliberately excluded from all variants:
 
 - Claude Code, Codex, Pi, and all other AI agents or agent configuration
 - the Exeuntu CLI, Shelley, Exe setup services, branding, labels, and init wrapper
-- nginx, site content, Ghostty terminfo, and other web-server components
+- Exe.dev nginx/site content, LLM gateway integration, and host-specific boot assumptions
 
-Docker, SSH, and Tailscale are installed but not enabled automatically. Derived images
-or privileged runtimes can opt into those daemons. Every variant defaults to the
+Docker, nginx, SSH, and Tailscale are installed but not enabled automatically. Derived
+images or privileged runtimes can opt into those daemons. Every variant defaults to the
 unprivileged UID/GID-1000 `agent` user, `/home/agent`, and a login Zsh in `/workspace`.
+
 Ubuntu systemd remains available when a privileged runtime explicitly selects root and
-`/sbin/init`.
+`/sbin/init`. Its container profile uses `multi-user.target`, console logging, a bounded
+volatile journal, preserved `/tmp`, and lingering support for `agent`. Hardware, boot,
+getty, unattended-update, and host-managed resolver/udev units that do not belong in an
+OCI container are masked. This is systemd support, not an attempt to start systemd from
+the default non-root shell.
 
 kubectl is checksum-verified from the official Kubernetes release service. Its Zsh
 completion is initialized, `~/.kube` is ready for a mounted configuration, and the shell
 provides `k`, `kc`, and `kn` aliases for kubectl, current-context, and namespace changes.
-GitHub Actions resolves current `gh`, `glab`, and stable kubectl releases every day,
-passes their exact versions into the build, and rebuilds all variants when one changes.
-All three downloads are checksum-verified, and each built digest must pass command,
-version, sudo, shell, workspace, Docker CLI/Buildx/Compose, and browser-presence smoke
-checks before any moving tag is published.
+Every build resolves the current `gh`, `glab`, stable Go, zsh-autosuggestions, and stable
+kubectl releases directly from their upstream release services; there are no
+tool-version build arguments or fallback version literals. GitHub Actions rebuilds all
+variants every day.
+Scheduled and manual builds bypass layer caches and refresh base images so those release
+lookups and distribution package installs actually run. The CLI downloads are
+checksum-verified, and each built digest must pass command, passwordless-sudo, shell,
+workspace, Docker CLI/Buildx/Compose, and browser-presence smoke checks before any
+moving tag is published.
 
 Docker CLI, Buildx, Compose, and the daemon binary are installed, but a daemon is not
 started in the default non-root shell. Use an opt-in mounted socket or `DOCKER_HOST` for
@@ -89,9 +99,15 @@ agentimg/
 │   │   └── zshrc
 │   ├── ubuntu/
 │   │   ├── Dockerfile
+│   │   ├── journald-container.conf
+│   │   ├── systemd-container.conf
+│   │   ├── tmpfiles-tmp.conf
 │   │   └── zshrc
 │   └── ubuntu-browser/
 │       ├── Dockerfile
+│       ├── journald-container.conf
+│       ├── systemd-container.conf
+│       ├── tmpfiles-tmp.conf
 │       └── zshrc
 └── deployment/
     ├── docker/
@@ -127,7 +143,9 @@ CI is defined in [`.github/workflows/base-agentimg.yml`](../../.github/workflows
 - [Ubuntu container image](https://hub.docker.com/_/ubuntu)
 - [Alpine Linux container image](https://hub.docker.com/_/alpine)
 - [chromedp/headless-shell](https://github.com/chromedp/docker-headless-shell)
+- [GitHub CLI](https://github.com/cli/cli)
 - [GitLab CLI](https://gitlab.com/gitlab-org/cli)
+- [Go downloads](https://go.dev/dl/)
 - [Kubernetes kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 - [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions)
 - [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting)

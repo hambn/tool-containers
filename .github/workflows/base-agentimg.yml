@@ -2,8 +2,7 @@ name: base/agentimg
 
 # Push: build only variants whose image directory changed. Publish stable tags plus
 #        <variant>-<commit-short-sha>.
-# Schedule: build variants whose external FROM fingerprint changed, or all variants when
-#           gh, glab, or kubectl releases change. Repoint stable tags only.
+# Schedule: rebuild every variant with current upstream tools. Repoint stable tags only.
 # Dispatch: build every variant and repoint stable tags only.
 on:
   push:
@@ -28,7 +27,6 @@ jobs:
       variants: ${{ steps.plan.outputs.variants }}
       build: ${{ steps.plan.outputs.build }}
       basefingerprints: ${{ steps.plan.outputs.basefingerprints }}
-      versions: ${{ steps.plan.outputs.versions }}
       commit_tag: ${{ steps.plan.outputs.commit_tag }}
       short_sha: ${{ steps.plan.outputs.short_sha }}
     steps:
@@ -46,26 +44,8 @@ jobs:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
           SHA: ${{ github.sha }}
-          GH_API_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
-
-          gh_version=$(curl -fsSL \
-            -H "Authorization: Bearer $GH_API_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/cli/cli/releases/latest |
-            jq -er '.tag_name | ltrimstr("v")')
-          glab_version=$(curl -fsSL \
-            'https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases/permalink/latest' |
-            jq -er '.tag_name | ltrimstr("v")')
-          kubectl_version=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
-          [[ "$kubectl_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          versions=$(jq -cn \
-            --arg gh "$gh_version" \
-            --arg glab "$glab_version" \
-            --arg kubectl "$kubectl_version" \
-            '{gh: $gh, glab: $glab, kubectl: $kubectl}')
 
           resolve_arg_ref() {
             local dockerfile="$1" ref="$2" var default
@@ -119,32 +99,7 @@ jobs:
               fi
               ;;
             schedule)
-              tool_changed=false
-              for tool in gh glab kubectl; do
-                current=$(jq -r --arg tool "$tool" '.[$tool]' <<<"$versions")
-                previous=$(docker buildx imagetools inspect "$image:$PRIMARY" \
-                  --format "{{ index .Image.Config.Labels \"io.tool-containers.${tool}-version\" }}" \
-                  2>/dev/null || echo missing)
-                if [ "$current" != "$previous" ]; then
-                  echo "$tool: $previous -> $current"
-                  tool_changed=true
-                fi
-              done
-
-              if [ "$tool_changed" = true ]; then
-                selected="$all"
-              else
-                for variant in $all; do
-                  current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$fingerprints")
-                  previous=$(docker buildx imagetools inspect "$image:$variant" \
-                    --format '{{ index .Image.Config.Labels "io.tool-containers.base-fingerprint" }}' \
-                    2>/dev/null || echo missing)
-                  if [ "$current" != "$previous" ]; then
-                    echo "$variant base fingerprint: $previous -> $current"
-                    selected="$selected $variant"
-                  fi
-                done
-              fi
+              selected="$all"
               ;;
             workflow_dispatch)
               selected="$all"
@@ -156,7 +111,6 @@ jobs:
           {
             echo "variants=$variants"
             echo "basefingerprints=$(jq -c . <<<"$fingerprints")"
-            echo "versions=$versions"
             echo "commit_tag=$commit_tag"
             echo "short_sha=$short_sha"
             if [ "$variants" = "[]" ]; then echo "build=false"; else echo "build=true"; fi
@@ -190,18 +144,13 @@ jobs:
           context: ${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
           provenance: false
-          build-args: |
-            GH_VERSION=${{ fromJSON(needs.plan.outputs.versions).gh }}
-            GLAB_VERSION=${{ fromJSON(needs.plan.outputs.versions).glab }}
-            KUBECTL_VERSION=${{ fromJSON(needs.plan.outputs.versions).kubectl }}
+          pull: true
+          no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             io.tool-containers.variant=${{ matrix.variant }}
             io.tool-containers.base-fingerprint=${{ fromJSON(needs.plan.outputs.basefingerprints)[matrix.variant] }}
-            io.tool-containers.gh-version=${{ fromJSON(needs.plan.outputs.versions).gh }}
-            io.tool-containers.glab-version=${{ fromJSON(needs.plan.outputs.versions).glab }}
-            io.tool-containers.kubectl-version=${{ fromJSON(needs.plan.outputs.versions).kubectl }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
@@ -209,18 +158,16 @@ jobs:
       - name: Smoke-test the non-root shell and installed tools
         env:
           IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
-          GH_VERSION: ${{ fromJSON(needs.plan.outputs.versions).gh }}
-          GLAB_VERSION: ${{ fromJSON(needs.plan.outputs.versions).glab }}
-          KUBECTL_VERSION: ${{ fromJSON(needs.plan.outputs.versions).kubectl }}
         run: |
-          docker run --rm --entrypoint /bin/zsh \
-            --env GH_VERSION --env GLAB_VERSION --env KUBECTL_VERSION \
-            "$IMAGE_REF" -lic '
+          docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lic '
             set -e
             test "$(id -u)" = 1000
             test "$(id -un)" = agent
             test "$HOME" = /home/agent
             test "$SHELL" = /bin/zsh
+            test "$EDITOR" = nvim
+            test "$LANG" = C.UTF-8
+            [[ ":$PATH:" = *":$HOME/.local/bin:"* ]]
             test -w "$HOME"
             test -w /workspace
             test -d "$HOME/.kube"
@@ -229,25 +176,90 @@ jobs:
             test -r /usr/local/share/zsh/site-functions/_kubectl
             alias k >/dev/null
             required_commands=(
-              bash bwrap curl docker ffmpeg fzf gh git glab go jq kubectl make
-              mitmproxy nvim pipx python3 rg ssh sudo tailscale tmux uv zsh
+              autoconf automake bash bwrap cmake curl dig docker envsubst fd ffmpeg fzf gh
+              git git-lfs glab go gpg htop http infocmp jq kubectl make man mitmproxy nginx
+              ninja nvim parallel patch pipx pkg-config ps python3 rg rsync shellcheck shfmt
+              ssh strace sudo tailscale tcpdump tmux traceroute uv whois xz zip zsh
             )
             for tool in $required_commands; do
               command -v "$tool" >/dev/null
             done
             test "$(sudo -n id -u)" = 0
-            [[ "$(gh --version | head -n 1)" = *"$GH_VERSION"* ]]
-            [[ "$(glab --version)" = *"$GLAB_VERSION"* ]]
-            test "$(kubectl version --client=true --output=json |
-              jq -r .clientVersion.gitVersion)" = "$KUBECTL_VERSION"
+            ping -c 1 127.0.0.1
+            gh --version
+            glab --version
+            go version
+            git lfs version
+            test -s /usr/local/share/agentimg/go.version
+            cat /usr/local/share/agentimg/go.version
+            kubectl version --client=true --output=yaml
+            infocmp xterm-ghostty >/dev/null
+            test "$(git config --system --get init.defaultBranch)" = main
+            test -s /usr/local/share/agentimg/zsh-autosuggestions.version
+            cat /usr/local/share/agentimg/zsh-autosuggestions.version
             docker --version
             docker buildx version
             docker compose version
+            if command -v systemctl >/dev/null; then
+              test "$(systemctl --root=/ get-default)" = multi-user.target
+              test -e /var/lib/systemd/linger/agent
+              grep -qx "Storage=volatile" /etc/systemd/journald.conf.d/agentimg-container.conf
+              grep -qx "d /tmp 1777 root root 30d" /etc/tmpfiles.d/tmp.conf
+              test "$(readlink /etc/systemd/system/systemd-resolved.service)" = /dev/null
+            fi
             if [[ -n "${BROWSER_BIN:-}" ]]; then test -x "$BROWSER_BIN"; fi
             smoke_file="/workspace/.agentimg-smoke-$$"
             touch "$smoke_file"
             rm -f "$smoke_file"
           '
+
+      - name: Smoke-test Docker through an external daemon socket
+        env:
+          IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          socket_gid=$(stat -c %g /var/run/docker.sock)
+          docker run --rm --group-add "$socket_gid" \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --entrypoint /bin/zsh "$IMAGE_REF" -lic '
+              set -e
+              docker version
+              docker info --format "{{.ServerVersion}}"
+              docker buildx ls
+            '
+
+      - name: Boot-test the opt-in systemd profile
+        if: startsWith(matrix.variant, 'ubuntu')
+        env:
+          IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          container_id=$(docker run --detach --privileged --cgroupns=private \
+            --user root --tmpfs /run --tmpfs /run/lock \
+            --entrypoint /sbin/init "$IMAGE_REF")
+          cleanup() {
+            docker rm --force "$container_id" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          state=starting
+          for _ in {1..45}; do
+            state=$(docker exec "$container_id" systemctl is-system-running 2>/dev/null || true)
+            case "$state" in
+              running|degraded) break ;;
+            esac
+            sleep 1
+          done
+
+          if [ "$state" != running ]; then
+            docker exec "$container_id" systemctl --failed --no-legend --plain || true
+            docker logs "$container_id" || true
+            exit 1
+          fi
+          test -z "$(docker exec "$container_id" \
+            systemctl --failed --no-legend --plain)"
+          docker exec "$container_id" systemctl is-active --quiet systemd-journald.service
+          docker exec "$container_id" test -e /run/user/1000
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
