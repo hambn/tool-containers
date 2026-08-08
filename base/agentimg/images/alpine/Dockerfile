@@ -201,6 +201,7 @@ RUN adduser -D -u 1000 -s /bin/zsh agent && \
       /home/agent/.ssh /run/user/1000
 
 COPY --chown=agent:agent zshrc /home/agent/.zshrc
+COPY --chown=agent:agent zprofile /home/agent/.zprofile
 
 ENV COLORTERM=truecolor \
     EDITOR=nvim \

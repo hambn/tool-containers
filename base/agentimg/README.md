@@ -95,21 +95,25 @@ agentimg/
 ├── images/
 │   ├── alpine/
 │   │   ├── Dockerfile
+│   │   ├── zprofile
 │   │   └── zshrc
 │   ├── alpine-browser/
 │   │   ├── Dockerfile
+│   │   ├── zprofile
 │   │   └── zshrc
 │   ├── ubuntu/
 │   │   ├── Dockerfile
 │   │   ├── journald-container.conf
 │   │   ├── systemd-container.conf
 │   │   ├── tmpfiles-tmp.conf
+│   │   ├── zprofile
 │   │   └── zshrc
 │   └── ubuntu-browser/
 │       ├── Dockerfile
 │       ├── journald-container.conf
 │       ├── systemd-container.conf
 │       ├── tmpfiles-tmp.conf
+│       ├── zprofile
 │       └── zshrc
 └── deployment/
     ├── docker/

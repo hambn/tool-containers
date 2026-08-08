@@ -232,6 +232,11 @@ jobs:
             touch "$smoke_file"
             rm -f "$smoke_file"
           '
+          docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lc '
+            set -eu
+            [[ ":$PATH:" = *":$HOME/.local/bin:"* ]]
+            command -v node npm pnpm kubectl helm yq
+          '
 
       - name: Smoke-test Docker through an external daemon socket
         env:

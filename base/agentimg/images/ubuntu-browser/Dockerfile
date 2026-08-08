@@ -251,6 +251,7 @@ RUN usermod -l agent -c "agentimg user" ubuntu && \
       /home/agent/.ssh /run/user/1000
 
 COPY --chown=agent:agent zshrc /home/agent/.zshrc
+COPY --chown=agent:agent zprofile /home/agent/.zprofile
 
 COPY --from=browser /headless-shell /headless-shell
 ENV BROWSER_BIN=/headless-shell/headless-shell \
