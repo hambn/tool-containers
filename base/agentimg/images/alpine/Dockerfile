@@ -3,16 +3,18 @@ FROM docker.io/library/alpine:3.21
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
-      acl alpine-sdk atop autoconf automake bash bash-completion bind-tools btop bubblewrap \
-      ca-certificates cmake coreutils curl dbus diffutils docker docker-cli-buildx \
+      acl alpine-sdk aria2 atop autoconf automake bash bash-completion bind-tools bison brotli \
+      btop bubblewrap bzip2 ca-certificates cmake coreutils curl dbus dialog diffutils docker \
+      docker-cli-buildx \
       docker-cli-compose fd ffmpeg file findutils fzf gcompat gettext git git-lfs gnupg \
-      grep htop httpie imagemagick iotop iproute2 iputils jq less libcap \
-      lsof make man-db man-pages mitmproxy ncdu ncurses ncurses-terminfo net-tools \
-      netcat-openbsd neovim nginx ninja-build ninja-is-really-ninja openrc \
+      grep fakeroot flex htop httpie imagemagick iotop iperf3 iproute2 iputils jq krb5-libs \
+      less libcap libstdc++ lsof make man-db man-pages mercurial mitmproxy mtr nano ncdu ncurses \
+      ncurses-terminfo net-tools netcat-openbsd neovim nginx ninja-build ninja-is-really-ninja \
+      nmap openrc \
       openssh-client-default openssh-server openssl parallel patch pipx pkgconf procps-ng \
       py3-pip python3 ripgrep rsync sed shadow \
       shellcheck shfmt socat sqlite strace sudo tailscale tar tcpdump tmux traceroute tree unzip \
-      util-linux vim wget whois xz zip zsh zsh-syntax-highlighting && \
+      util-linux vim wget whois xz yamllint zip zsh zsh-syntax-highlighting zstd && \
     rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
@@ -35,7 +37,31 @@ RUN go_metadata="$(curl -fsSL 'https://go.dev/dl/?mode=json')" && \
     install -d /usr/local/share/agentimg && \
     printf '%s\n' "$go_version" >/usr/local/share/agentimg/go.version
 
-RUN git config --system init.defaultBranch main && \
+RUN node_metadata="$(curl -fsSL \
+      https://unofficial-builds.nodejs.org/download/release/index.json)" && \
+    node_version="$(printf '%s' "$node_metadata" | jq -er \
+      '[.[] | select(.lts != false and (.files | index("linux-x64-musl")))][0].version')" && \
+    node_archive="node-${node_version}-linux-x64-musl.tar.xz" && \
+    curl -fsSL \
+      "https://unofficial-builds.nodejs.org/download/release/${node_version}/${node_archive}" \
+      -o "/tmp/${node_archive}" && \
+    curl -fsSL \
+      "https://unofficial-builds.nodejs.org/download/release/${node_version}/SHASUMS256.txt" \
+      -o /tmp/node-SHASUMS256.txt && \
+    grep " ${node_archive}\$" /tmp/node-SHASUMS256.txt | \
+      (cd /tmp && sha256sum -c -) && \
+    tar -xJf "/tmp/${node_archive}" -C /usr/local --strip-components=1 --no-same-owner && \
+    ln -sf /usr/local/bin/node /usr/local/bin/nodejs && \
+    rm -f "/tmp/${node_archive}" /tmp/node-SHASUMS256.txt && \
+    npm install --global --no-audit --no-fund pnpm@latest yarn@latest && \
+    npm cache clean --force && \
+    install -d /usr/local/share/agentimg && \
+    printf '%s\n' "${node_version#v}" >/usr/local/share/agentimg/node.version
+
+RUN ping_path="$(readlink -f "$(command -v ping)")" && \
+    setcap cap_net_raw=+ep "$ping_path" && \
+    getcap "$ping_path" | grep -q cap_net_raw && \
+    git config --system init.defaultBranch main && \
     git config --system fetch.prune true && \
     git config --system push.autoSetupRemote true && \
     git lfs install --system && \
@@ -96,6 +122,72 @@ RUN kubectl_version="$(curl -fsSL \
     install -d /usr/local/share/zsh/site-functions && \
     kubectl completion zsh >/usr/local/share/zsh/site-functions/_kubectl && \
     rm -f /tmp/kubectl /tmp/kubectl.sha256
+
+RUN helm_tag="$(git ls-remote --tags --refs https://github.com/helm/helm.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$helm_tag" && \
+    helm_archive="helm-${helm_tag}-linux-amd64.tar.gz" && \
+    curl -fsSL "https://get.helm.sh/${helm_archive}" -o "/tmp/${helm_archive}" && \
+    curl -fsSL "https://get.helm.sh/${helm_archive}.sha256sum" \
+      -o "/tmp/${helm_archive}.sha256sum" && \
+    (cd /tmp && sha256sum -c "${helm_archive}.sha256sum") && \
+    tar -xzf "/tmp/${helm_archive}" -C /tmp && \
+    install -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm && \
+    rm -rf /tmp/linux-amd64 "/tmp/${helm_archive}" "/tmp/${helm_archive}.sha256sum" && \
+    printf '%s\n' "${helm_tag#v}" >/usr/local/share/agentimg/helm.version
+
+RUN kustomize_tag="$(git ls-remote --tags --refs \
+      https://github.com/kubernetes-sigs/kustomize.git 'kustomize/v*' | \
+      awk -F/ '$3 == "kustomize" && $4 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $4 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$kustomize_tag" && \
+    kustomize_archive="kustomize_${kustomize_tag}_linux_amd64.tar.gz" && \
+    curl -fsSL \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${kustomize_tag}/${kustomize_archive}" \
+      -o "/tmp/${kustomize_archive}" && \
+    curl -fsSL \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${kustomize_tag}/checksums.txt" \
+      -o /tmp/kustomize-checksums.txt && \
+    grep " ${kustomize_archive}\$" /tmp/kustomize-checksums.txt | \
+      (cd /tmp && sha256sum -c -) && \
+    tar -xzf "/tmp/${kustomize_archive}" -C /tmp && \
+    install -m 0755 /tmp/kustomize /usr/local/bin/kustomize && \
+    rm -f /tmp/kustomize "/tmp/${kustomize_archive}" /tmp/kustomize-checksums.txt && \
+    printf '%s\n' "${kustomize_tag#v}" >/usr/local/share/agentimg/kustomize.version
+
+RUN kind_tag="$(git ls-remote --tags --refs https://github.com/kubernetes-sigs/kind.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$kind_tag" && \
+    curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/${kind_tag}/kind-linux-amd64" \
+      -o /tmp/kind-linux-amd64 && \
+    curl -fsSL \
+      "https://github.com/kubernetes-sigs/kind/releases/download/${kind_tag}/kind-linux-amd64.sha256sum" \
+      -o /tmp/kind-linux-amd64.sha256sum && \
+    (cd /tmp && sha256sum -c kind-linux-amd64.sha256sum) && \
+    install -m 0755 /tmp/kind-linux-amd64 /usr/local/bin/kind && \
+    rm -f /tmp/kind-linux-amd64 /tmp/kind-linux-amd64.sha256sum && \
+    printf '%s\n' "${kind_tag#v}" >/usr/local/share/agentimg/kind.version
+
+RUN yq_tag="$(git ls-remote --tags --refs https://github.com/mikefarah/yq.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$yq_tag" && \
+    yq_sha256_column="$(curl -fsSL \
+      "https://github.com/mikefarah/yq/releases/download/${yq_tag}/checksums_hashes_order" | \
+      awk '$1 == "SHA-256" { print NR + 1 }')" && \
+    test -n "$yq_sha256_column" && \
+    yq_sha256="$(curl -fsSL \
+      "https://github.com/mikefarah/yq/releases/download/${yq_tag}/checksums" | \
+      awk -v column="$yq_sha256_column" '$1 == "yq_linux_amd64" { print $column }')" && \
+    test -n "$yq_sha256" && \
+    curl -fsSL "https://github.com/mikefarah/yq/releases/download/${yq_tag}/yq_linux_amd64" \
+      -o /tmp/yq && \
+    printf '%s  yq\n' "$yq_sha256" | (cd /tmp && sha256sum -c -) && \
+    install -m 0755 /tmp/yq /usr/local/bin/yq && \
+    rm -f /tmp/yq && \
+    printf '%s\n' "${yq_tag#v}" >/usr/local/share/agentimg/yq.version
 
 RUN adduser -D -u 1000 -s /bin/zsh agent && \
     addgroup agent wheel && \

@@ -30,12 +30,13 @@ tag. See the repository [registry and tag guidance](../../.agents/references/rep
 
 All variants provide a broad command-line development environment: styled Zsh and Bash,
 Git and Git LFS, GitHub and GitLab CLIs, the current stable Go toolchain, Python,
-pip/pipx, uv, kubectl, compilers, CMake/Ninja/Autotools, editors, man pages, SSH,
+pip/pipx, uv, the current Node.js LTS with npm/npx/pnpm/Yarn, kubectl, Helm, Kustomize,
+kind, yq, compilers, CMake/Ninja/Autotools, editors, man pages, SSH,
 Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy, nginx, fd, HTTPie, ShellCheck,
-shfmt, database/network/process diagnostics, and image/video tools. Ubuntu includes
-systemd; Alpine maps the service capability to OpenRC. The terminal profile also
-includes fzf, tmux, Ghostty-compatible terminfo, autosuggestions, syntax highlighting,
-Git-aware prompts, persistent history, and case-insensitive completion.
+shfmt, yamllint, archive/compression utilities, and database/network/process diagnostics.
+Ubuntu includes systemd; Alpine maps the service capability to OpenRC. The terminal
+profile also includes fzf, tmux, Ghostty-compatible terminfo, autosuggestions, syntax
+highlighting, Git-aware prompts, persistent history, and case-insensitive completion.
 
 The browser variants add headless Chromium. The Ubuntu variant uses the self-contained
 `chromedp/headless-shell` bundle; Alpine uses its native Chromium package.
@@ -60,9 +61,10 @@ the default non-root shell.
 kubectl is checksum-verified from the official Kubernetes release service. Its Zsh
 completion is initialized, `~/.kube` is ready for a mounted configuration, and the shell
 provides `k`, `kc`, and `kn` aliases for kubectl, current-context, and namespace changes.
-Every build resolves the current `gh`, `glab`, stable Go, zsh-autosuggestions, and stable
-kubectl releases directly from their upstream release services; there are no
-tool-version build arguments or fallback version literals. GitHub Actions rebuilds all
+Every build resolves the current `gh`, `glab`, stable Go, Node.js LTS, Helm, Kustomize,
+kind, yq, zsh-autosuggestions, and stable kubectl releases directly from their upstream
+release services; there are no tool-version build arguments or fallback version
+literals. npm installs the current pnpm and Yarn releases. GitHub Actions rebuilds all
 variants every day.
 Scheduled and manual builds bypass layer caches and refresh base images so those release
 lookups and distribution package installs actually run. The CLI downloads are
@@ -146,6 +148,11 @@ CI is defined in [`.github/workflows/base-agentimg.yml`](../../.github/workflows
 - [GitHub CLI](https://github.com/cli/cli)
 - [GitLab CLI](https://gitlab.com/gitlab-org/cli)
 - [Go downloads](https://go.dev/dl/)
+- [Node.js downloads](https://nodejs.org/en/download/)
 - [Kubernetes kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+- [Helm](https://helm.sh/docs/intro/install/)
+- [Kustomize](https://github.com/kubernetes-sigs/kustomize)
+- [kind](https://kind.sigs.k8s.io/)
+- [yq](https://github.com/mikefarah/yq)
 - [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions)
 - [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting)

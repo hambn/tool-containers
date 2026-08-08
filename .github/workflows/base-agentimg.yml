@@ -159,8 +159,9 @@ jobs:
         env:
           IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
         run: |
+          set -euo pipefail
           docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lic '
-            set -e
+            set -eux
             test "$(id -u)" = 1000
             test "$(id -un)" = agent
             test "$HOME" = /home/agent
@@ -176,10 +177,12 @@ jobs:
             test -r /usr/local/share/zsh/site-functions/_kubectl
             alias k >/dev/null
             required_commands=(
-              autoconf automake bash bwrap cmake curl dig docker envsubst fd ffmpeg fzf gh
-              git git-lfs glab go gpg htop http infocmp jq kubectl make man mitmproxy nginx
-              ninja nvim parallel patch pipx pkg-config ps python3 rg rsync shellcheck shfmt
-              ssh strace sudo tailscale tcpdump tmux traceroute uv whois xz zip zsh
+              aria2c autoconf automake bash bison brotli bwrap bzip2 cmake curl dialog dig
+              docker envsubst fakeroot fd ffmpeg flex fzf gh git git-lfs glab go gpg helm hg
+              htop http infocmp iperf3 jq kind kubectl kustomize make man mitmproxy mtr nano
+              nginx ninja nmap node nodejs npm npx nvim parallel patch pipx pkg-config pnpm ps
+              python3 rg rsync shellcheck shfmt ssh strace sudo tailscale tcpdump tmux traceroute
+              uv whois xz yamllint yarn yq zip zsh zstd
             )
             for tool in $required_commands; do
               command -v "$tool" >/dev/null || {
@@ -188,13 +191,27 @@ jobs:
               }
             done
             test "$(sudo -n id -u)" = 0
+            getcap "$(readlink -f "$(command -v ping)")" | grep -q cap_net_raw
             ping -c 1 127.0.0.1
             gh --version
             glab --version
             go version
+            node --version
+            npm --version
+            npx --version
+            pnpm --version
+            yarn --version
+            helm version --short
+            kustomize version
+            kind version
+            yq --version
             git lfs version
             test -s /usr/local/share/agentimg/go.version
             cat /usr/local/share/agentimg/go.version
+            for version_file in helm kind kustomize node yq; do
+              test -s "/usr/local/share/agentimg/$version_file.version"
+              cat "/usr/local/share/agentimg/$version_file.version"
+            done
             kubectl version --client=true --output=yaml
             infocmp xterm-ghostty >/dev/null
             test "$(git config --system --get init.defaultBranch)" = main

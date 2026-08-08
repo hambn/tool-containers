@@ -10,19 +10,21 @@ RUN rm -f /etc/dpkg/dpkg.cfg.d/excludes /etc/dpkg/dpkg.cfg.d/01_nodoc && \
     apt-get update && \
     apt-get -y -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef dist-upgrade && \
     apt-get install -y --no-install-recommends \
-      acl atop autoconf automake bash-completion bsdmainutils btop bubblewrap build-essential \
-      ca-certificates cmake curl dbus-user-session dnsutils \
-      docker-buildx docker-compose-v2 docker.io ffmpeg file fonts-noto-color-emoji fonts-symbola \
-      fd-find fzf gettext-base git git-lfs gnupg htop httpie imagemagick iotop iproute2 \
-      iputils-ping jq less libcap2-bin libgbm1 libglib2.0-0t64 libgtk-3-0t64 libnss3 \
+      acl aria2 atop autoconf automake bash-completion bison brotli bsdmainutils btop bubblewrap \
+      build-essential bzip2 ca-certificates cmake curl dbus-user-session dialog dirmngr dnsutils \
+      docker-buildx docker-compose-v2 docker.io fakeroot ffmpeg fd-find file flex \
+      fonts-noto-color-emoji fonts-symbola fzf gettext-base git git-lfs gnupg htop httpie \
+      imagemagick iotop iproute2 \
+      iperf3 iputils-ping jq less libcap2-bin libgbm1 libglib2.0-0t64 libgtk-3-0t64 libnss3 \
       libx11-6 \
       libxcomposite1 libxdamage1 libxext6 libxi6 libxrandr2 locales locales-all lsof make \
-      man-db manpages manpages-dev mitmproxy ncdu ncurses-bin ncurses-term net-tools \
-      netcat-openbsd neovim nginx ninja-build openssh-client openssh-server parallel patch \
-      pipx pkg-config psmisc procps python-is-python3 python3-pip ripgrep rsync shellcheck \
+      man-db manpages manpages-dev mercurial mitmproxy mtr-tiny nano ncdu ncurses-bin \
+      ncurses-term net-tools netcat-openbsd neovim nginx ninja-build nmap openssh-client \
+      openssh-server parallel patch pipx pkg-config psmisc procps python-is-python3 python3-pip \
+      ripgrep rsync shellcheck \
       shfmt socat sqlite3 strace sudo systemd systemd-sysv tcpdump tmux traceroute tree \
       ubuntu-dev-tools ubuntu-server ubuntu-standard unzip util-linux vim wget whois \
-      xz-utils zip zsh zsh-syntax-highlighting && \
+      xz-utils yamllint zip zsh zsh-syntax-highlighting zstd && \
     apt-get remove -y pollinate ubuntu-fan && \
     rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub /usr/sbin/policy-rc.d && \
     rm -rf /var/lib/apt/lists/*
@@ -52,7 +54,28 @@ RUN go_metadata="$(curl -fsSL 'https://go.dev/dl/?mode=json')" && \
     install -d /usr/local/share/agentimg && \
     printf '%s\n' "$go_version" >/usr/local/share/agentimg/go.version
 
+RUN node_metadata="$(curl -fsSL https://nodejs.org/dist/index.json)" && \
+    node_version="$(printf '%s' "$node_metadata" | jq -er \
+      '[.[] | select(.lts != false and (.files | index("linux-x64")))][0].version')" && \
+    node_archive="node-${node_version}-linux-x64.tar.xz" && \
+    curl -fsSL "https://nodejs.org/dist/${node_version}/${node_archive}" \
+      -o "/tmp/${node_archive}" && \
+    curl -fsSL "https://nodejs.org/dist/${node_version}/SHASUMS256.txt" \
+      -o /tmp/node-SHASUMS256.txt && \
+    grep " ${node_archive}\$" /tmp/node-SHASUMS256.txt | \
+      (cd /tmp && sha256sum -c -) && \
+    tar -xJf "/tmp/${node_archive}" -C /usr/local --strip-components=1 --no-same-owner && \
+    ln -sf /usr/local/bin/node /usr/local/bin/nodejs && \
+    rm -f "/tmp/${node_archive}" /tmp/node-SHASUMS256.txt && \
+    npm install --global --no-audit --no-fund pnpm@latest yarn@latest && \
+    npm cache clean --force && \
+    install -d /usr/local/share/agentimg && \
+    printf '%s\n' "${node_version#v}" >/usr/local/share/agentimg/node.version
+
 RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd && \
+    ping_path="$(readlink -f "$(command -v ping)")" && \
+    setcap cap_net_raw=+ep "$ping_path" && \
+    getcap "$ping_path" | grep -q cap_net_raw && \
     git config --system init.defaultBranch main && \
     git config --system fetch.prune true && \
     git config --system push.autoSetupRemote true && \
@@ -113,6 +136,72 @@ RUN kubectl_version="$(curl -fsSL \
     install -d /usr/local/share/zsh/site-functions && \
     kubectl completion zsh >/usr/local/share/zsh/site-functions/_kubectl && \
     rm -f /tmp/kubectl /tmp/kubectl.sha256
+
+RUN helm_tag="$(git ls-remote --tags --refs https://github.com/helm/helm.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$helm_tag" && \
+    helm_archive="helm-${helm_tag}-linux-amd64.tar.gz" && \
+    curl -fsSL "https://get.helm.sh/${helm_archive}" -o "/tmp/${helm_archive}" && \
+    curl -fsSL "https://get.helm.sh/${helm_archive}.sha256sum" \
+      -o "/tmp/${helm_archive}.sha256sum" && \
+    (cd /tmp && sha256sum -c "${helm_archive}.sha256sum") && \
+    tar -xzf "/tmp/${helm_archive}" -C /tmp && \
+    install -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm && \
+    rm -rf /tmp/linux-amd64 "/tmp/${helm_archive}" "/tmp/${helm_archive}.sha256sum" && \
+    printf '%s\n' "${helm_tag#v}" >/usr/local/share/agentimg/helm.version
+
+RUN kustomize_tag="$(git ls-remote --tags --refs \
+      https://github.com/kubernetes-sigs/kustomize.git 'kustomize/v*' | \
+      awk -F/ '$3 == "kustomize" && $4 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $4 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$kustomize_tag" && \
+    kustomize_archive="kustomize_${kustomize_tag}_linux_amd64.tar.gz" && \
+    curl -fsSL \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${kustomize_tag}/${kustomize_archive}" \
+      -o "/tmp/${kustomize_archive}" && \
+    curl -fsSL \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${kustomize_tag}/checksums.txt" \
+      -o /tmp/kustomize-checksums.txt && \
+    grep " ${kustomize_archive}\$" /tmp/kustomize-checksums.txt | \
+      (cd /tmp && sha256sum -c -) && \
+    tar -xzf "/tmp/${kustomize_archive}" -C /tmp && \
+    install -m 0755 /tmp/kustomize /usr/local/bin/kustomize && \
+    rm -f /tmp/kustomize "/tmp/${kustomize_archive}" /tmp/kustomize-checksums.txt && \
+    printf '%s\n' "${kustomize_tag#v}" >/usr/local/share/agentimg/kustomize.version
+
+RUN kind_tag="$(git ls-remote --tags --refs https://github.com/kubernetes-sigs/kind.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$kind_tag" && \
+    curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/${kind_tag}/kind-linux-amd64" \
+      -o /tmp/kind-linux-amd64 && \
+    curl -fsSL \
+      "https://github.com/kubernetes-sigs/kind/releases/download/${kind_tag}/kind-linux-amd64.sha256sum" \
+      -o /tmp/kind-linux-amd64.sha256sum && \
+    (cd /tmp && sha256sum -c kind-linux-amd64.sha256sum) && \
+    install -m 0755 /tmp/kind-linux-amd64 /usr/local/bin/kind && \
+    rm -f /tmp/kind-linux-amd64 /tmp/kind-linux-amd64.sha256sum && \
+    printf '%s\n' "${kind_tag#v}" >/usr/local/share/agentimg/kind.version
+
+RUN yq_tag="$(git ls-remote --tags --refs https://github.com/mikefarah/yq.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$yq_tag" && \
+    yq_sha256_column="$(curl -fsSL \
+      "https://github.com/mikefarah/yq/releases/download/${yq_tag}/checksums_hashes_order" | \
+      awk '$1 == "SHA-256" { print NR + 1 }')" && \
+    test -n "$yq_sha256_column" && \
+    yq_sha256="$(curl -fsSL \
+      "https://github.com/mikefarah/yq/releases/download/${yq_tag}/checksums" | \
+      awk -v column="$yq_sha256_column" '$1 == "yq_linux_amd64" { print $column }')" && \
+    test -n "$yq_sha256" && \
+    curl -fsSL "https://github.com/mikefarah/yq/releases/download/${yq_tag}/yq_linux_amd64" \
+      -o /tmp/yq && \
+    printf '%s  yq\n' "$yq_sha256" | (cd /tmp && sha256sum -c -) && \
+    install -m 0755 /tmp/yq /usr/local/bin/yq && \
+    rm -f /tmp/yq && \
+    printf '%s\n' "${yq_tag#v}" >/usr/local/share/agentimg/yq.version
 
 # Keep a privileged, explicitly selected systemd PID 1 useful inside an OCI container.
 RUN install -d /etc/systemd/system.conf.d /etc/systemd/journald.conf.d /etc/tmpfiles.d
