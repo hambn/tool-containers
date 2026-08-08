@@ -1,0 +1,57 @@
+# agentimg interactive Zsh defaults. Keep this portable across Ubuntu and Alpine.
+if [[ -o interactive ]]; then
+  setopt AUTO_CD AUTO_PUSHD HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS
+  setopt INTERACTIVE_COMMENTS PROMPT_SUBST SHARE_HISTORY
+
+  HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+  HISTSIZE=10000
+  SAVEHIST=10000
+  KEYTIMEOUT=1
+
+  fpath=(/usr/local/share/zsh/site-functions $fpath)
+  autoload -Uz colors compinit vcs_info
+  colors
+  mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+  compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+
+  zstyle ':completion:*' menu select
+  zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+  zstyle ':vcs_info:git:*' formats ' %F{magenta}[git:%b]%f'
+  typeset -ga precmd_functions
+  precmd_functions+=(vcs_info)
+
+  PROMPT='%F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f${vcs_info_msg_0_} %(?..%F{red}[%?]%f )%F{green}>%f '
+  RPROMPT='%F{242}%D{%H:%M}%f'
+
+  bindkey -e
+  alias ll='ls -alF'
+  alias la='ls -A'
+  alias g='git'
+  alias gs='git status --short --branch'
+
+  if (( $+commands[kubectl] )); then
+    alias k='kubectl'
+    alias kc='kubectl config current-context'
+    alias kn='kubectl config set-context --current --namespace'
+    compdef kubectl k
+  fi
+
+  for plugin in \
+    /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+    /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+    if [[ -r "$plugin" ]]; then
+      source "$plugin"
+      break
+    fi
+  done
+
+  # Syntax highlighting must be loaded after widgets and other plugins.
+  for plugin in \
+    /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+    /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+    if [[ -r "$plugin" ]]; then
+      source "$plugin"
+      break
+    fi
+  done
+fi

@@ -4,7 +4,7 @@ Install the local chart:
 
 ```sh
 helm install agentimg ./chart
-kubectl exec -it deployment/agentimg -- bash
+kubectl exec -it deployment/agentimg -- zsh -l
 ```
 
 Select another variant with `--set image.tag=alpine`. Chart publication is not enabled;

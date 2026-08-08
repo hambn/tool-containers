@@ -1,6 +1,8 @@
 # alpine: Omnigent on the Alpine agentbloat foundation without a browser.
 FROM ghcr.io/hambn/agentbloat:alpine
 
+USER root
+
 ARG OMNIGENT_VERSION=latest
 
 RUN apk add --no-cache abseil-cpp-dev py3-pybind11-dev python3-dev re2-dev
@@ -15,5 +17,6 @@ RUN if [ "${OMNIGENT_VERSION}" = latest ]; then \
     rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
+USER agent
 WORKDIR /workspace
 ENTRYPOINT ["omnigent"]

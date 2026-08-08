@@ -1,8 +1,9 @@
 name: ai/agentbloat
 
 # Pushes and manual runs publish moving variant tags only. The hourly schedule checks
-# all agent package versions and the four agentimg base tags; an agent update also adds
-# one primary-image tag per changed CLI, for example claude-code-v1.2.3.
+# all agent package versions and the four agentimg base tags; a successful agentimg run
+# checks base drift immediately. An agent update also adds one primary-image tag per
+# changed CLI, for example claude-code-v1.2.3.
 on:
   push:
     branches: [main]
@@ -11,6 +12,9 @@ on:
       - ".github/workflows/ai-agentbloat.yml"
   schedule:
     - cron: "0 * * * *"
+  workflow_run:
+    workflows: ["base/agentimg"]
+    types: [completed]
   workflow_dispatch:
 
 env:
@@ -20,6 +24,7 @@ env:
 
 jobs:
   plan:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions: { contents: read, packages: read }
     outputs:
@@ -160,6 +165,18 @@ jobs:
                   fi
                 done
               fi
+              ;;
+            workflow_run)
+              for variant in "${variants[@]}"; do
+                current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$basedigests")
+                old=$(docker buildx imagetools inspect "$image:$variant" \
+                  --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' \
+                  2>/dev/null || echo missing)
+                if [ "$current" != "$old" ]; then
+                  echo "$variant base: $old -> $current"
+                  selected+=("$variant")
+                fi
+              done
               ;;
             *)
               echo "unsupported event: $EVENT" >&2

@@ -1,6 +1,8 @@
 # ubuntu: Omnigent on the Ubuntu agentbloat foundation without a browser.
 FROM ghcr.io/hambn/agentbloat:ubuntu
 
+USER root
+
 ARG OMNIGENT_VERSION=latest
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
@@ -19,5 +21,6 @@ RUN if [ "${OMNIGENT_VERSION}" = latest ]; then \
     rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
+USER agent
 WORKDIR /workspace
 ENTRYPOINT ["omnigent"]

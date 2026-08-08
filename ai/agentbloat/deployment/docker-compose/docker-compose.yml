@@ -4,7 +4,7 @@ name: agentbloat
 services:
   agentbloat:
     image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}
-    command: ["bash"]
+    command: ["zsh", "-l"]
     volumes:
       - ./:/workspace
     stdin_open: true

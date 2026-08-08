@@ -4,7 +4,7 @@ name: agentimg
 services:
   agentimg:
     image: ${AGENTIMG_IMAGE:-ghcr.io/hambn/agentimg:latest}
-    command: ["bash"]
+    command: ["zsh", "-l"]
     volumes:
       - ./:/workspace
     stdin_open: true

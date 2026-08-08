@@ -1,6 +1,8 @@
 # alpine-browser: agentimg Alpine foundation with Chromium and the current agent CLIs.
 FROM ghcr.io/hambn/agentimg:alpine-browser
 
+USER root
+
 ARG CODEX_VERSION=latest
 ARG CLAUDE_CODE_VERSION=latest
 ARG CURSOR_AGENT_VERSION=latest
@@ -44,5 +46,6 @@ RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
     rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
+USER agent
 WORKDIR /workspace
-CMD ["/bin/bash"]
+CMD ["/bin/zsh", "-l"]

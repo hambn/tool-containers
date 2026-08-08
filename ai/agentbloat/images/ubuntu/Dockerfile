@@ -1,6 +1,8 @@
 # ubuntu: agentimg Ubuntu foundation with the current agent CLIs, without a browser.
 FROM ghcr.io/hambn/agentimg:ubuntu
 
+USER root
+
 ARG CODEX_VERSION=latest
 ARG CLAUDE_CODE_VERSION=latest
 ARG CURSOR_AGENT_VERSION=latest
@@ -51,5 +53,6 @@ RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
     rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
+USER agent
 WORKDIR /workspace
-CMD ["/sbin/init"]
+CMD ["/bin/zsh", "-l"]

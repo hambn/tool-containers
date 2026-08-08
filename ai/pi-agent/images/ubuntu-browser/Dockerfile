@@ -1,6 +1,8 @@
 # ubuntu-browser: Pi coding agent on the Ubuntu browser-enabled agentimg foundation.
 FROM ghcr.io/hambn/agentimg:ubuntu-browser
 
+USER root
+
 ARG PI_AGENT_VERSION=latest
 ARG NODE_MAJOR=22
 
@@ -17,5 +19,6 @@ RUN npm install --global --ignore-scripts --no-fund --no-audit \
     npm cache clean --force
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
+USER agent
 WORKDIR /workspace
 ENTRYPOINT ["pi"]

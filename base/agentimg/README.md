@@ -28,11 +28,13 @@ tag. See the repository [registry and tag guidance](../../.agents/references/rep
 
 ## Included software
 
-All variants provide a broad command-line development environment: Bash, Git, GitHub
-and GitLab CLIs, Go, Python, pip/pipx, uv, compilers, editors, man pages, SSH,
-Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy, database/network/process
-diagnostics, and image/video tools. Ubuntu includes systemd; Alpine maps the service
-capability to OpenRC.
+All variants provide a broad command-line development environment: styled Zsh and Bash,
+Git, GitHub and GitLab CLIs, Go, Python, pip/pipx, uv, kubectl, compilers, editors, man
+pages, SSH, Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy,
+database/network/process diagnostics, and image/video tools. Ubuntu includes systemd;
+Alpine maps the service capability to OpenRC. The terminal profile also includes fzf,
+tmux, autosuggestions, syntax highlighting, Git-aware prompts, persistent history, and
+case-insensitive completion.
 
 The browser variants add headless Chromium. The Ubuntu variant uses the self-contained
 `chromedp/headless-shell` bundle; Alpine uses its native Chromium package.
@@ -44,9 +46,25 @@ Deliberately excluded from all variants:
 - nginx, site content, Ghostty terminfo, and other web-server components
 
 Docker, SSH, and Tailscale are installed but not enabled automatically. Derived images
-or privileged runtimes can opt into those daemons. Ubuntu keeps root as its default user
-because systemd must run as PID 1; an unprivileged UID-1000 `agent` user is available.
-Alpine defaults to a shell and also provides the `agent` user.
+or privileged runtimes can opt into those daemons. Every variant defaults to the
+unprivileged UID/GID-1000 `agent` user, `/home/agent`, and a login Zsh in `/workspace`.
+Ubuntu systemd remains available when a privileged runtime explicitly selects root and
+`/sbin/init`.
+
+kubectl is checksum-verified from the official Kubernetes release service. Its Zsh
+completion is initialized, `~/.kube` is ready for a mounted configuration, and the shell
+provides `k`, `kc`, and `kn` aliases for kubectl, current-context, and namespace changes.
+GitHub Actions resolves current `gh`, `glab`, and stable kubectl releases every day,
+passes their exact versions into the build, and rebuilds all variants when one changes.
+All three downloads are checksum-verified, and each built digest must pass command,
+version, sudo, shell, workspace, Docker CLI/Buildx/Compose, and browser-presence smoke
+checks before any moving tag is published.
+
+Docker CLI, Buildx, Compose, and the daemon binary are installed, but a daemon is not
+started in the default non-root shell. Use an opt-in mounted socket or `DOCKER_HOST` for
+an external daemon. A nested daemon requires runtime privileges; `systemctl` only works
+when root systemd is actually PID 1, which ordinary Kubernetes development pods do not
+provide.
 
 ## Use cases
 
@@ -64,13 +82,17 @@ agentimg/
 ├── README.md
 ├── images/
 │   ├── alpine/
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── zshrc
 │   ├── alpine-browser/
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── zshrc
 │   ├── ubuntu/
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── zshrc
 │   └── ubuntu-browser/
-│       └── Dockerfile
+│       ├── Dockerfile
+│       └── zshrc
 └── deployment/
     ├── docker/
     │   ├── README.md
@@ -106,3 +128,6 @@ CI is defined in [`.github/workflows/base-agentimg.yml`](../../.github/workflows
 - [Alpine Linux container image](https://hub.docker.com/_/alpine)
 - [chromedp/headless-shell](https://github.com/chromedp/docker-headless-shell)
 - [GitLab CLI](https://gitlab.com/gitlab-org/cli)
+- [Kubernetes kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+- [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions)
+- [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting)

@@ -7,7 +7,7 @@ services:
       context: ../../images/ubuntu-browser
     image: local/agentimg:ubuntu-browser
     pull_policy: never
-    command: ["bash"]
+    command: ["zsh", "-l"]
     volumes:
       - ./:/workspace
     stdin_open: true

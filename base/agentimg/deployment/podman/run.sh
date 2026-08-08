@@ -5,4 +5,4 @@ set -euo pipefail
 IMAGE="${AGENTIMG_IMAGE:-ghcr.io/hambn/agentimg:latest}"
 podman run -it --rm \
   -v "$PWD:/workspace:Z" \
-  "$IMAGE" bash "$@"
+  "$IMAGE" zsh "$@"

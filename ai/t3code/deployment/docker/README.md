@@ -16,5 +16,10 @@ developer tooling, including Docker CLI.
 # then open http://localhost:3773
 ```
 
+To make the inherited Docker CLI use the host daemon, run
+`T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh`. The script mounts the socket and
+adds its GID for the non-root `agent` user. Docker socket access is root-equivalent on
+the host, so keep this opt-in.
+
 Airgapped: on an online host run `docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar`,
 copy the tar over, then `./airgapped.run.sh`.

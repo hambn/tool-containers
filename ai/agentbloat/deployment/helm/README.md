@@ -4,7 +4,7 @@ Install the local chart:
 
 ```sh
 helm install agentbloat ./chart
-kubectl exec -it deployment/agentbloat -- bash
+kubectl exec -it deployment/agentbloat -- zsh -l
 ```
 
 Select another variant with `--set image.tag=alpine`. Chart publication is not enabled;

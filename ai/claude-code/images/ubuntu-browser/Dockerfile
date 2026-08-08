@@ -1,6 +1,8 @@
 # ubuntu-browser: Claude Code on the Ubuntu agentimg foundation with Chromium.
 FROM ghcr.io/hambn/agentimg:ubuntu-browser
 
+USER root
+
 ARG CLAUDE_CODE_VERSION=latest
 ARG NODE_MAJOR=22
 
@@ -17,6 +19,7 @@ RUN npm install --global --no-fund --no-audit \
     npm cache clean --force
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
+USER agent
 WORKDIR /workspace
 ENTRYPOINT ["claude"]
 CMD []
