@@ -72,15 +72,17 @@ RUN gh_version="$(curl -fsSL \
       /tmp/gh-checksums.txt
 
 # Alpine 3.21 predates its package, so install the current upstream release.
-RUN zsh_autosuggestions_version="$(curl -fsSL \
-      https://api.github.com/repos/zsh-users/zsh-autosuggestions/releases/latest | \
-      jq -er '.tag_name | ltrimstr("v")')" && \
-    git clone --depth 1 --branch "v${zsh_autosuggestions_version}" \
+RUN zsh_autosuggestions_tag="$(git ls-remote --tags --refs \
+      https://github.com/zsh-users/zsh-autosuggestions.git 'v*' | \
+      awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
+      sort -V | tail -n 1)" && \
+    test -n "$zsh_autosuggestions_tag" && \
+    git clone --depth 1 --branch "$zsh_autosuggestions_tag" \
       https://github.com/zsh-users/zsh-autosuggestions.git \
       /usr/share/zsh/plugins/zsh-autosuggestions && \
     rm -rf /usr/share/zsh/plugins/zsh-autosuggestions/.git && \
     install -d /usr/local/share/agentimg && \
-    printf '%s\n' "$zsh_autosuggestions_version" \
+    printf '%s\n' "${zsh_autosuggestions_tag#v}" \
       >/usr/local/share/agentimg/zsh-autosuggestions.version
 
 RUN kubectl_version="$(curl -fsSL \
