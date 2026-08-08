@@ -167,6 +167,21 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
 
+      - name: Smoke-test inherited runtime and Claude Code
+        env:
+          IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+        run: |
+          docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lc '
+            set -eux
+            test "$(id -u)" = 1000
+            test "$(id -un)" = agent
+            node --version
+            npm --version
+            test -s /usr/local/share/agentimg/node.version
+            if test -f /etc/alpine-release; then apk info -e gcompat; fi
+            claude --version
+          '
+
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:

@@ -13,8 +13,6 @@ ARG GEMINI_CLI_VERSION=latest
 ARG PI_AGENT_VERSION=latest
 ARG ACP_AGENT_VERSION=latest
 
-RUN apk add --no-cache gcompat nodejs npm
-
 RUN npm install --global --no-fund --no-audit \
       "@openai/codex@${CODEX_VERSION}" \
       "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
@@ -45,7 +43,6 @@ RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
       "acp-agent==${ACP_AGENT_VERSION}" && \
     rm -rf /root/.cache/uv
 
-ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 USER agent
 WORKDIR /workspace
 CMD ["/bin/zsh", "-l"]

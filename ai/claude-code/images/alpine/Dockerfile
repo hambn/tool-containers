@@ -5,13 +5,10 @@ USER root
 
 ARG CLAUDE_CODE_VERSION=latest
 
-RUN apk add --no-cache gcompat nodejs npm
-
 RUN npm install --global --no-fund --no-audit \
       "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && \
     npm cache clean --force
 
-ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
 USER agent
 WORKDIR /workspace
 ENTRYPOINT ["claude"]
