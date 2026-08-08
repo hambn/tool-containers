@@ -182,7 +182,10 @@ jobs:
               ssh strace sudo tailscale tcpdump tmux traceroute uv whois xz zip zsh
             )
             for tool in $required_commands; do
-              command -v "$tool" >/dev/null
+              command -v "$tool" >/dev/null || {
+                echo "missing required command: $tool" >&2
+                exit 1
+              }
             done
             test "$(sudo -n id -u)" = 0
             ping -c 1 127.0.0.1

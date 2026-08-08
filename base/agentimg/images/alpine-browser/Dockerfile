@@ -11,7 +11,7 @@ RUN apk upgrade --no-cache && \
       netcat-openbsd neovim nginx ninja-build ninja-is-really-ninja openrc \
       openssh-client-default openssh-server openssl parallel patch pipx pkgconf procps-ng \
       py3-pip python3 ripgrep rsync sed shadow \
-      shellcheck shfmt socat sqlite strace sudo tailscale tar tcpdump tmux tree unzip \
+      shellcheck shfmt socat sqlite strace sudo tailscale tar tcpdump tmux traceroute tree unzip \
       util-linux vim wget whois xz zip zsh zsh-syntax-highlighting && \
     rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
