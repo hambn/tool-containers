@@ -198,11 +198,14 @@ RUN adduser -D -u 1000 -s /bin/zsh agent && \
     install -d -o agent -g agent /home/agent/.cache/zsh /home/agent/.config \
       /home/agent/.local/share /workspace && \
     install -d -m 0700 -o agent -g agent /home/agent/.docker /home/agent/.kube \
-      /home/agent/.ssh /run/user/1000 && \
-    chmod 0700 /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000
+      /home/agent/.ssh /run/user/1000
 
 COPY --chown=agent:agent zshrc /home/agent/.zshrc
 COPY --chown=agent:agent zprofile /home/agent/.zprofile
+
+RUN chmod g-s /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000 && \
+    chmod 0700 /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000 && \
+    test "$(stat -c %a /home/agent/.kube)" = 700
 
 ENV BROWSER_BIN=/usr/bin/chromium-browser \
     COLORTERM=truecolor \
