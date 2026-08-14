@@ -160,6 +160,10 @@ jobs:
           IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
+          # Runtime tests pull the pushed digest into the Docker engine. The BuildKit
+          # cache is no longer needed on this ephemeral runner and large variants can
+          # otherwise exhaust its disk while creating the privileged systemd container.
+          docker buildx prune --all --force
           docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lic '
             set -eux
             test "$(id -u)" = 1000
@@ -271,9 +275,18 @@ jobs:
           IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
-          container_id=$(docker run --detach --privileged --cgroupns=private \
+          start_log=$(mktemp)
+          if ! container_id=$(docker run --detach --privileged --cgroupns=private \
             --user root --tmpfs /run --tmpfs /run/lock \
-            --entrypoint /sbin/init "$IMAGE_REF")
+            --entrypoint /sbin/init "$IMAGE_REF" 2>"$start_log"); then
+            start_error=$(tail -n 20 "$start_log" | tr '\n' ' ')
+            echo "::error title=Unable to start systemd test container::$start_error"
+            cat "$start_log" >&2
+            docker system df || true
+            rm -f "$start_log"
+            exit 1
+          fi
+          rm -f "$start_log"
           cleanup() {
             docker rm --force "$container_id" >/dev/null 2>&1 || true
           }
