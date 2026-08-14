@@ -1,6 +1,6 @@
 # agentbloat
 
-[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`agentimg`](../../base/agentimg/) foundations.
+[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/images/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`agentimg`](../../base/agentimg/) foundations.
 
 ## Contents
 
@@ -91,7 +91,7 @@ agentbloat/
         └── run.sh
 ```
 
-CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../.github/workflows/ai-agentbloat.yml).
+CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../../.github/workflows/ai-agentbloat.yml).
 
 ## Sources
 

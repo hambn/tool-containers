@@ -21,7 +21,7 @@
 Pull moving tags from `ghcr.io/hambn/open-code-review:<tag>` or
 `docker.io/hambn/open-code-review:<tag>`. OCR package updates repoint all moving tags
 and add `ocr-v<version>` to the primary image. `agentimg` base refreshes and source edits
-repoint moving tags only. See the repository's [registry and tag policy](../../.agents/references/repo/registries-and-tags.md).
+repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/references/repo/registries-and-tags.md).
 
 ## Use cases
 
@@ -61,7 +61,7 @@ open-code-review/
         └── run.sh
 ```
 
-CI is defined in [`.github/workflows/ai-open-code-review.yml`](../../.github/workflows/ai-open-code-review.yml).
+CI is defined in [`.github/workflows/ai-open-code-review.yml`](../../../.github/workflows/ai-open-code-review.yml).
 
 ## Sources
 

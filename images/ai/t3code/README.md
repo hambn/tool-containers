@@ -43,7 +43,7 @@ The moving variant tags and `latest` are repointed for every selected rebuild. A
   - [`docker-swarm/`](./deployment/docker-swarm/) — [`stack.yml`](./deployment/docker-swarm/stack.yml)
   - [`kubernetes/`](./deployment/kubernetes/) — [`deployment.yaml`](./deployment/kubernetes/deployment.yaml)
   - [`helm/`](./deployment/helm/) — [`chart/`](./deployment/helm/chart/)
-- CI: [`.github/workflows/ai-t3code.yml`](../../.github/workflows/ai-t3code.yml) — detects agent/base/T3 updates and pushes both registries
+- CI: [`.github/workflows/ai-t3code.yml`](../../../.github/workflows/ai-t3code.yml) — detects agent/base/T3 updates and pushes both registries
 
 ## Sources
 

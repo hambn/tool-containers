@@ -10,19 +10,19 @@ Repository and agent guidance lives in [`.agents/`](./.agents/README.md).
 
 | Tool | Description |
 |-------|-------------|
-| [codex](./ai/codex/) | [OpenAI Codex CLI](https://github.com/openai/codex) on agentimg foundations |
-| [agentbloat](./ai/agentbloat/) | Current Codex, Claude, Cursor, Grok, OpenCode, Copilot, Gemini, ACP Registry, and Pi agent CLIs on agentimg foundations |
-| [open-code-review](./ai/open-code-review/) | Alibaba Open Code Review CLI on agentimg foundations |
-| [pi-agent](./ai/pi-agent/) | [Pi](https://github.com/earendil-works/pi) coding agent on agentimg foundations |
-| [omnigent](./ai/omnigent/) | [Omnigent](https://github.com/omnigent-ai/omnigent) AI agent meta-harness on agentbloat foundations |
-| [claude-code](./ai/claude-code/) | [Claude Code](https://github.com/anthropics/claude-code) CLI in a container |
-| [t3code](./ai/t3code/) | [T3 Code](https://github.com/pingdotgg/t3code) web GUI for coding agents in a container |
+| [codex](./images/ai/codex/) | [OpenAI Codex CLI](https://github.com/openai/codex) on agentimg foundations |
+| [agentbloat](./images/ai/agentbloat/) | Current Codex, Claude, Cursor, Grok, OpenCode, Copilot, Gemini, ACP Registry, and Pi agent CLIs on agentimg foundations |
+| [open-code-review](./images/ai/open-code-review/) | Alibaba Open Code Review CLI on agentimg foundations |
+| [pi-agent](./images/ai/pi-agent/) | [Pi](https://github.com/earendil-works/pi) coding agent on agentimg foundations |
+| [omnigent](./images/ai/omnigent/) | [Omnigent](https://github.com/omnigent-ai/omnigent) AI agent meta-harness on agentbloat foundations |
+| [claude-code](./images/ai/claude-code/) | [Claude Code](https://github.com/anthropics/claude-code) CLI in a container |
+| [t3code](./images/ai/t3code/) | [T3 Code](https://github.com/pingdotgg/t3code) web GUI for coding agents in a container |
 
 ### base
 
 | Tool | Description |
 |------|-------------|
-| [agentimg](./base/agentimg/) | Broad Ubuntu and Alpine foundation images with optional headless Chromium |
+| [agentimg](./images/base/agentimg/) | Broad Ubuntu and Alpine foundation images with optional headless Chromium |
 
 ### ci
 

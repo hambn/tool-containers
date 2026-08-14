@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "base/agentimg/images/**"
+      - "images/base/agentimg/images/**"
       - ".github/workflows/base-agentimg.yml"
   schedule:
     - cron: "0 4 * * *"
@@ -60,7 +60,7 @@ jobs:
           # Hash every external FROM digest. This includes the separate headless-browser
           # stage, not only the final runtime base.
           base_fingerprint() {
-            local dockerfile="$THING/images/$1/Dockerfile" ref digest
+            local dockerfile="images/$THING/images/$1/Dockerfile" ref digest
             while read -r ref; do
               ref=$(resolve_arg_ref "$dockerfile" "$ref")
               digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
@@ -69,7 +69,7 @@ jobs:
               sha256sum | cut -d' ' -f1
           }
 
-          all=$(find "$THING/images" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          all=$(find "images/$THING/images" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
           fingerprints='{}'
           for variant in $all; do
             fingerprint=$(base_fingerprint "$variant")
@@ -93,7 +93,7 @@ jobs:
                 selected="$all"
               else
                 for variant in $all; do
-                  grep -q "^$THING/images/$variant/" <<<"$diff" &&
+                  grep -q "^images/$THING/images/$variant/" <<<"$diff" &&
                     selected="$selected $variant" || true
                 done
               fi
@@ -141,7 +141,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ${{ env.THING }}/images/${{ matrix.variant }}
+          context: images/${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
           provenance: false
           pull: true

@@ -23,7 +23,7 @@ Pull moving tags from `ghcr.io/hambn/claude-code:<tag>` or
 `docker.io/hambn/claude-code:<tag>`. A Claude Code npm release repoints all moving tags
 and adds `cc-v<version>` to the primary image. `agentimg` base refreshes and repository
 edits repoint moving tags only. See the repository's
-[registry and tag policy](../../.agents/references/repo/registries-and-tags.md).
+[registry and tag policy](../../../.agents/references/repo/registries-and-tags.md).
 
 Node.js, npm, and the common development/CI toolchain are inherited from `agentimg`;
 the Claude Code images install only the Claude Code package. Runtime credentials remain
@@ -79,7 +79,7 @@ claude-code/
         └── run.sh
 ```
 
-CI is defined in [`.github/workflows/ai-claude-code.yml`](../../.github/workflows/ai-claude-code.yml).
+CI is defined in [`.github/workflows/ai-claude-code.yml`](../../../.github/workflows/ai-claude-code.yml).
 
 ## Sources
 
