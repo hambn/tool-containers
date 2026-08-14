@@ -184,11 +184,6 @@ jobs:
               python3 rg rsync shellcheck shfmt ssh strace sudo tailscale tcpdump tmux traceroute
               uv whois xz yamllint yarn yq zip zsh zstd
             )
-            if [[ "${{ matrix.variant }}" == ubuntu ]]; then
-              required_commands+=(
-                ansible aws logrotate mysql openconnect openssl psql sshpass terraform xmlstarlet
-              )
-            fi
             for tool in $required_commands; do
               command -v "$tool" >/dev/null || {
                 echo "missing required command: $tool" >&2
@@ -217,13 +212,6 @@ jobs:
               test -s "/usr/local/share/agentimg/$version_file.version"
               cat "/usr/local/share/agentimg/$version_file.version"
             done
-            if [[ "${{ matrix.variant }}" == ubuntu ]]; then
-              test -s /usr/local/share/agentimg/terraform.version
-              cat /usr/local/share/agentimg/terraform.version
-              aws --version
-              terraform version
-              python3 -c "import boto3, cryptography, docker, kubernetes, requests, setuptools, wheel"
-            fi
             kubectl version --client=true --output=yaml
             infocmp xterm-ghostty >/dev/null
             test "$(git config --system --get init.defaultBranch)" = main

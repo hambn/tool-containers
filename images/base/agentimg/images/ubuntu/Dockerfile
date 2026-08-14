@@ -4,27 +4,22 @@ FROM docker.io/library/ubuntu:24.04
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Restore documentation, upgrade the base, and install the development/DevOps toolset.
 RUN rm -f /etc/dpkg/dpkg.cfg.d/excludes /etc/dpkg/dpkg.cfg.d/01_nodoc && \
     apt-get update && \
-    apt-get -y -o Dpkg::Options::=--force-confold \
-      -o Dpkg::Options::=--force-confdef dist-upgrade && \
+    apt-get -y -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef dist-upgrade && \
     apt-get install -y --no-install-recommends \
-      acl ansible aria2 atop autoconf automake bash-completion bison brotli \
-      bsdmainutils btop bubblewrap build-essential bzip2 ca-certificates cmake curl \
-      dbus-user-session default-mysql-client dialog dirmngr dnsutils docker-buildx \
-      docker-compose-v2 docker.io fakeroot fd-find ffmpeg file flex fzf gettext-base git \
-      git-lfs gnupg htop httpie imagemagick iotop iperf3 iproute2 iputils-ping jq less \
-      libcap2-bin locales locales-all logrotate lsof make man-db manpages manpages-dev \
-      mercurial mitmproxy mtr-tiny nano ncdu ncurses-bin ncurses-term net-tools \
-      netcat-openbsd neovim nginx ninja-build nmap openconnect openssh-client \
-      openssh-server openssl parallel patch pipx pkg-config postgresql-client procps \
-      psmisc python-is-python3 python3-boto3 python3-cryptography python3-docker \
-      python3-kubernetes python3-pip python3-requests python3-setuptools python3-wheel \
-      ripgrep rsync shellcheck shfmt socat sqlite3 sshpass strace sudo systemd systemd-sysv \
-      tcpdump tmux traceroute tree ubuntu-dev-tools ubuntu-server ubuntu-standard unzip \
-      util-linux vim wget whois xmlstarlet xz-utils yamllint zip zsh \
-      zsh-syntax-highlighting zstd && \
+      acl aria2 atop autoconf automake bash-completion bison brotli bsdmainutils btop bubblewrap \
+      build-essential bzip2 ca-certificates cmake curl dbus-user-session dialog dirmngr dnsutils \
+      docker-buildx docker-compose-v2 docker.io ffmpeg fd-find file fzf gettext-base git \
+      git-lfs gnupg fakeroot flex htop httpie imagemagick iotop iperf3 iproute2 iputils-ping jq \
+      less libcap2-bin locales locales-all lsof make man-db manpages manpages-dev mercurial \
+      mitmproxy mtr-tiny nano ncdu ncurses-bin ncurses-term net-tools netcat-openbsd neovim \
+      nginx ninja-build nmap \
+      openssh-client openssh-server parallel patch pipx pkg-config psmisc procps \
+      python-is-python3 python3-pip ripgrep rsync shellcheck shfmt socat sqlite3 strace sudo \
+      systemd systemd-sysv tcpdump tmux traceroute tree ubuntu-dev-tools ubuntu-server \
+      ubuntu-standard unzip util-linux vim wget whois xz-utils yamllint zip zsh zstd \
+      zsh-syntax-highlighting && \
     apt-get remove -y pollinate ubuntu-fan && \
     rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub /usr/sbin/policy-rc.d && \
     rm -rf /var/lib/apt/lists/*
@@ -36,27 +31,6 @@ RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg \
     apt-get update && apt-get install -y --no-install-recommends tailscale && \
     rm -rf /var/lib/apt/lists/* && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
-
-# Keep the Python-distributed AWS CLI isolated while exposing its launcher globally.
-RUN UV_TOOL_BIN_DIR=/usr/local/bin UV_TOOL_DIR=/opt/uv-tools uv tool install awscli
-
-# Resolve the current release and verify it against HashiCorp's checksum list.
-RUN terraform_version="$(curl -fsSL \
-      https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -er .current_version)" && \
-    terraform_archive="terraform_${terraform_version}_linux_amd64.zip" && \
-    curl -fsSL \
-      "https://releases.hashicorp.com/terraform/${terraform_version}/${terraform_archive}" \
-      -o "/tmp/${terraform_archive}" && \
-    curl -fsSL \
-      "https://releases.hashicorp.com/terraform/${terraform_version}/terraform_${terraform_version}_SHA256SUMS" \
-      -o /tmp/terraform-SHA256SUMS && \
-    grep " ${terraform_archive}\$" /tmp/terraform-SHA256SUMS | \
-      (cd /tmp && sha256sum -c -) && \
-    unzip -q "/tmp/${terraform_archive}" -d /tmp/terraform && \
-    install -m 0755 /tmp/terraform/terraform /usr/local/bin/terraform && \
-    rm -rf /tmp/terraform "/tmp/${terraform_archive}" /tmp/terraform-SHA256SUMS && \
-    install -d /usr/local/share/agentimg && \
-    printf '%s\n' "$terraform_version" >/usr/local/share/agentimg/terraform.version
 
 RUN go_metadata="$(curl -fsSL 'https://go.dev/dl/?mode=json')" && \
     go_version="$(printf '%s' "$go_metadata" | \

@@ -38,11 +38,6 @@ Ubuntu includes systemd; Alpine maps the service capability to OpenRC. The termi
 profile also includes fzf, tmux, Ghostty-compatible terminfo, autosuggestions, syntax
 highlighting, Git-aware prompts, persistent history, and case-insensitive completion.
 
-The non-browser `ubuntu` profile additionally includes Ansible, AWS CLI, Terraform,
-OpenConnect, SSHpass, MySQL and PostgreSQL clients, XMLStarlet, logrotate, and the Ubuntu
-packages for the Boto3, Cryptography, Docker, Kubernetes, Requests, Setuptools, and Wheel
-Python modules.
-
 The browser variants add headless Chromium. The Ubuntu variant uses the self-contained
 `chromedp/headless-shell` bundle; Alpine uses its native Chromium package.
 
@@ -82,17 +77,6 @@ started in the default non-root shell. Use an opt-in mounted socket or `DOCKER_H
 an external daemon. A nested daemon requires runtime privileges; `systemctl` only works
 when root systemd is actually PID 1, which ordinary Kubernetes development pods do not
 provide.
-
-If `docker ps` reports that `/var/run/docker.sock` does not exist, recreate the container
-with the host socket enabled; it cannot be added to an already-running container:
-
-```sh
-AGENTIMG_DOCKER_SOCKET=/var/run/docker.sock ./deployment/docker/run.sh
-```
-
-The launch script mounts the socket and adds its group ID for the non-root `agent` user.
-Do not run `systemctl restart docker` in the default shell: that shell is PID 1, not
-systemd. Host socket access is root-equivalent on the host and therefore remains opt-in.
 
 ## Use cases
 
