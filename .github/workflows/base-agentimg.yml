@@ -302,10 +302,6 @@ jobs:
           done
 
           if [ "$state" != running ]; then
-            failed_units=$(docker exec "$container_id" \
-              systemctl --failed --no-legend --plain 2>/dev/null | \
-              awk '{ print $1 }' | paste -sd, - || true)
-            echo "::error title=systemd profile entered $state::Failed units: ${failed_units:-unknown}"
             docker exec "$container_id" systemctl --failed --no-legend --plain || true
             docker logs "$container_id" || true
             exit 1
