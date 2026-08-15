@@ -200,7 +200,7 @@ install_go() {
     go_metadata="$(curl -fsSL 'https://go.dev/dl/?mode=json')"
     go_version="$(printf '%s' "$go_metadata" |
         jq -er '[.[] | select(.stable == true)][0].version')"
-    go_sha256="$(printf '%s' "$go_metadata" | jq -er --arg version "$go_version"
+    go_sha256="$(printf '%s' "$go_metadata" | jq -er --arg version "$go_version" \
         '[.[] | select(.version == $version)][0].files[] |
          select(.os == "linux" and .arch == "amd64" and .kind == "archive") | .sha256')"
     go_archive="${go_version}.linux-amd64.tar.gz"
@@ -224,7 +224,7 @@ install_node() {
     local node_archive
 
     node_metadata="$(curl -fsSL https://nodejs.org/dist/index.json)"
-    node_version="$(printf '%s' "$node_metadata" | jq -er
+    node_version="$(printf '%s' "$node_metadata" | jq -er \
         '[.[] | select(.lts != false and (.files | index("linux-x64")))][0].version')"
     node_archive="node-${node_version}-linux-x64.tar.xz"
     curl -fsSL "https://nodejs.org/dist/${node_version}/${node_archive}" \
@@ -272,7 +272,7 @@ install_glab() {
     local glab_version
     local glab_archive
 
-    glab_version="$(curl -fsSL
+    glab_version="$(curl -fsSL \
         'https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases/permalink/latest' |
         jq -er '.tag_name | ltrimstr("v")')"
     glab_archive="glab_${glab_version}_linux_amd64.tar.gz"
@@ -292,7 +292,7 @@ install_gh() {
     local gh_version
     local gh_archive
 
-    gh_version="$(curl -fsSL
+    gh_version="$(curl -fsSL \
         https://api.github.com/repos/cli/cli/releases/latest |
         jq -er '.tag_name | ltrimstr("v")')"
     gh_archive="gh_${gh_version}_linux_amd64.tar.gz"
@@ -314,7 +314,7 @@ install_zsh_autosuggestions() {
 
     local zsh_autosuggestions_tag
 
-    zsh_autosuggestions_tag="$(git ls-remote --tags --refs
+    zsh_autosuggestions_tag="$(git ls-remote --tags --refs \
         https://github.com/zsh-users/zsh-autosuggestions.git 'v*' |
         awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' |
         sort -V | tail -n 1)"
@@ -372,7 +372,7 @@ install_kustomize() {
     local kustomize_tag
     local kustomize_archive
 
-    kustomize_tag="$(git ls-remote --tags --refs
+    kustomize_tag="$(git ls-remote --tags --refs \
         https://github.com/kubernetes-sigs/kustomize.git 'kustomize/v*' |
         awk -F/ '$3 == "kustomize" && $4 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $4 }' |
         sort -V | tail -n 1)"
@@ -423,11 +423,11 @@ install_yq() {
         awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' |
         sort -V | tail -n 1)"
     test -n "$yq_tag"
-    yq_sha256_column="$(curl -fsSL
+    yq_sha256_column="$(curl -fsSL \
         "https://github.com/mikefarah/yq/releases/download/${yq_tag}/checksums_hashes_order" |
         awk '$1 == "SHA-256" { print NR + 1 }')"
     test -n "$yq_sha256_column"
-    yq_sha256="$(curl -fsSL
+    yq_sha256="$(curl -fsSL \
         "https://github.com/mikefarah/yq/releases/download/${yq_tag}/checksums" |
         awk -v column="$yq_sha256_column" '$1 == "yq_linux_amd64" { print $column }')"
     test -n "$yq_sha256"
