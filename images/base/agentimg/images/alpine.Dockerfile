@@ -24,7 +24,8 @@ ENV COLORTERM=truecolor \
     XDG_CACHE_HOME=/home/agent/.cache \
     XDG_CONFIG_HOME=/home/agent/.config \
     XDG_DATA_HOME=/home/agent/.local/share \
-    XDG_RUNTIME_DIR=/run/user/1000
+    XDG_RUNTIME_DIR=/run/user/1000 \
+    ZDOTDIR=/home/agent
 USER agent
-WORKDIR /workspace
+WORKDIR /home/agent
 CMD ["/bin/zsh", "-l"]

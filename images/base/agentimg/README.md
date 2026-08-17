@@ -31,7 +31,7 @@ tag. See the repository [registry and tag guidance](../../../.agents/references/
 All variants provide a broad command-line development environment: styled Zsh and Bash,
 Git and Git LFS, GitHub and GitLab CLIs, the current stable Go toolchain, Python,
 pip/pipx, uv, the current Node.js LTS with npm/npx/pnpm/Yarn, kubectl, Helm, Kustomize,
-kind, yq, compilers, CMake/Ninja/Autotools, editors, man pages, SSH,
+yq, compilers, CMake/Ninja/Autotools, editors, man pages, SSH,
 Docker/Buildx/Compose, Tailscale, Bubblewrap, mitmproxy, nginx, fd, HTTPie, ShellCheck,
 shfmt, yamllint, archive/compression utilities, and database/network/process diagnostics.
 Ubuntu includes systemd; Alpine maps the service capability to OpenRC. The terminal
@@ -49,8 +49,8 @@ Deliberately excluded from all variants:
 
 Docker, nginx, SSH, and Tailscale are installed but not enabled automatically. Derived
 images or privileged runtimes can opt into those daemons. Every variant defaults to the
-unprivileged UID/GID-1000 `agent` user and `/home/agent`; the Ubuntu base shell starts
-there, while derived images explicitly use the mounted `/workspace` directory.
+unprivileged UID/GID-1000 `agent` user and starts in `/home/agent`; `/workspace` remains
+available as an optional project mount for deployment examples.
 
 Ubuntu systemd remains available when a privileged runtime explicitly selects root and
 `/sbin/init`. Its container profile uses `multi-user.target`, console logging, a bounded
@@ -63,14 +63,14 @@ kubectl is checksum-verified from the official Kubernetes release service. Its Z
 completion is initialized, `~/.kube` is ready for a mounted configuration, and the shell
 provides `k`, `kc`, and `kn` aliases for kubectl, current-context, and namespace changes.
 Every build resolves the current `gh`, `glab`, stable Go, Node.js LTS, Helm, Kustomize,
-kind, yq, zsh-autosuggestions, and stable kubectl releases directly from their upstream
+yq, zsh-autosuggestions, and stable kubectl releases directly from their upstream
 release services; there are no tool-version build arguments or fallback version
 literals. npm installs the current pnpm and Yarn releases. GitHub Actions rebuilds all
 variants every day.
 Scheduled and manual builds bypass layer caches and refresh base images so those release
 lookups and distribution package installs actually run. The CLI downloads are
 checksum-verified, and each built digest must pass command, passwordless-sudo, shell,
-workspace, Docker CLI/Buildx/Compose, and browser-presence smoke checks before any
+agent-home, Docker CLI/Buildx/Compose, and browser-presence smoke checks before any
 moving tag is published.
 
 Docker CLI, Buildx, Compose, and the daemon binary are installed, but a daemon is not
@@ -157,7 +157,6 @@ CI is defined in [`.github/workflows/base-agentimg.yml`](../../../.github/workfl
 - [Kubernetes kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 - [Helm](https://helm.sh/docs/intro/install/)
 - [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-- [kind](https://kind.sigs.k8s.io/)
 - [yq](https://github.com/mikefarah/yq)
 - [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions)
 - [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting)

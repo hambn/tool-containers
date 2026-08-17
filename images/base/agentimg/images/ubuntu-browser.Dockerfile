@@ -35,8 +35,9 @@ ENV BROWSER_BIN=/headless-shell/headless-shell \
     XDG_CONFIG_HOME=/home/agent/.config \
     XDG_DATA_HOME=/home/agent/.local/share \
     XDG_RUNTIME_DIR=/run/user/1000 \
-    container=oci
+    container=oci \
+    ZDOTDIR=/home/agent
 
 USER agent
-WORKDIR /workspace
+WORKDIR /home/agent
 CMD ["/bin/zsh", "-l"]

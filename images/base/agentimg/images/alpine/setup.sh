@@ -401,27 +401,6 @@ install_kustomize() {
     printf '%s\n' "${kustomize_tag#v}" >/usr/local/share/agentimg/kustomize.version
 }
 
-install_kind() {
-    # Kind
-
-    local kind_tag
-
-    kind_tag="$(git ls-remote --tags --refs https://github.com/kubernetes-sigs/kind.git 'v*' |
-        awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' |
-        sort -V | tail -n 1)"
-    test -n "$kind_tag"
-    curl -fsSL \
-        "https://github.com/kubernetes-sigs/kind/releases/download/${kind_tag}/kind-linux-amd64" \
-        -o /tmp/kind-linux-amd64
-    curl -fsSL \
-        "https://github.com/kubernetes-sigs/kind/releases/download/${kind_tag}/kind-linux-amd64.sha256sum" \
-        -o /tmp/kind-linux-amd64.sha256sum
-    (cd /tmp && sha256sum -c kind-linux-amd64.sha256sum)
-    install -m 0755 /tmp/kind-linux-amd64 /usr/local/bin/kind
-    rm -f /tmp/kind-linux-amd64 /tmp/kind-linux-amd64.sha256sum
-    printf '%s\n' "${kind_tag#v}" >/usr/local/share/agentimg/kind.version
-}
-
 install_yq() {
     # yq
 
@@ -450,7 +429,7 @@ install_yq() {
 }
 
 configure_agent_user() {
-    # Agent user and workspace
+    # Agent user and home
 
     adduser -D -u 1000 -s /bin/zsh agent
     addgroup agent wheel
@@ -458,8 +437,8 @@ configure_agent_user() {
     printf 'agent ALL=(ALL:ALL) NOPASSWD: ALL\n' >/etc/sudoers.d/agent
     chmod 0440 /etc/sudoers.d/agent
     visudo -cf /etc/sudoers.d/agent
-    install -d -o agent -g agent /home/agent/.cache/zsh /home/agent/.config \
-        /home/agent/.local/share /workspace
+    install -d -o agent -g agent /home/agent /home/agent/.cache/zsh /home/agent/.config \
+        /home/agent/.local/share
     install -d -m 0700 -o agent -g agent /home/agent/.docker /home/agent/.kube \
         /home/agent/.ssh /run/user/1000
     chmod g-s /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000
@@ -488,7 +467,6 @@ setup() {
     install_kubectl
     install_helm
     install_kustomize
-    install_kind
     install_yq
     configure_agent_user
     cleanup_image

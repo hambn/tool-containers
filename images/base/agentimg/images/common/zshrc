@@ -1,5 +1,6 @@
 # agentimg interactive Zsh defaults. Keep this portable across Ubuntu and Alpine.
-[[ -r "$HOME/.zprofile" ]] && source "$HOME/.zprofile"
+zsh_config_dir="${ZDOTDIR:-$HOME}"
+[[ -r "$zsh_config_dir/.zprofile" ]] && source "$zsh_config_dir/.zprofile"
 
 if [[ -o interactive ]]; then
   setopt AUTO_CD AUTO_PUSHD HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS
