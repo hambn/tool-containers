@@ -10,6 +10,7 @@ update() {
 }
 
 common_packages() {
+    local profile="${1:-base}"
     local apt_packages=(
         # Access control, security, and trust
 
@@ -151,6 +152,29 @@ common_packages() {
         ubuntu-standard           # Standard Ubuntu system utilities metapackage.
         util-linux                # Core Linux system utilities.
     )
+
+    if [[ "$profile" == browser ]]; then
+        local browser_packages=(
+            # Browser fonts and runtime libraries
+
+            fonts-noto-color-emoji  # Emoji font used by browser rendering.
+            fonts-symbola            # Symbol font used by browser rendering.
+            libgbm1                  # Generic buffer management runtime library.
+            libglib2.0-0t64          # GLib runtime library.
+            libgtk-3-0t64            # GTK 3 runtime library.
+            libnss3                  # Network Security Services runtime library.
+            libx11-6                 # X11 client runtime library.
+            libxcomposite1           # X11 composite extension runtime library.
+            libxdamage1              # X11 damage extension runtime library.
+            libxext6                 # X11 extensions runtime library.
+            libxi6                   # X11 input extension runtime library.
+            libxrandr2               # X11 resize and rotate extension runtime library.
+        )
+        apt_packages+=("${browser_packages[@]}")
+    elif [[ "$profile" != base ]]; then
+        printf 'unknown Ubuntu setup profile: %s\n' "$profile" >&2
+        return 1
+    fi
 
     apt-get install -y --no-install-recommends "${apt_packages[@]}"
 
@@ -506,8 +530,10 @@ cleanup_image() {
 }
 
 setup() {
+    local profile="${1:-base}"
+
     update
-    common_packages
+    common_packages "$profile"
     install_tailscale
     install_uv
     install_go
