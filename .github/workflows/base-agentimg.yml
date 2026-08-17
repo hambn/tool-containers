@@ -1,7 +1,7 @@
 name: base/agentimg
 
-# Push: build only variants whose image directory changed. Publish stable tags plus
-#        <variant>-<commit-short-sha>.
+# Push: build only variants whose Dockerfile or shared image asset changed. Publish
+#        stable tags plus <variant>-<commit-short-sha>.
 # Schedule: rebuild every variant with current upstream tools. Repoint stable tags only.
 # Dispatch: build every variant and repoint stable tags only.
 on:
@@ -60,7 +60,7 @@ jobs:
           # Hash every external FROM digest. This includes the separate headless-browser
           # stage, not only the final runtime base.
           base_fingerprint() {
-            local dockerfile="images/$THING/images/$1/Dockerfile" ref digest
+            local dockerfile="images/$THING/images/$1.Dockerfile" ref digest
             while read -r ref; do
               ref=$(resolve_arg_ref "$dockerfile" "$ref")
               digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
@@ -69,9 +69,16 @@ jobs:
               sha256sum | cut -d' ' -f1
           }
 
-          all=$(find "images/$THING/images" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          mapfile -t all < <(
+            find "images/$THING/images" -mindepth 1 -maxdepth 1 -type f \
+              -name '*.Dockerfile' -printf '%f\n' |
+              sed 's/\.Dockerfile$//' |
+              sort
+          )
+          test "${#all[@]}" -gt 0
+
           fingerprints='{}'
-          for variant in $all; do
+          for variant in "${all[@]}"; do
             fingerprint=$(base_fingerprint "$variant")
             fingerprints=$(jq \
               --arg variant "$variant" \
@@ -79,7 +86,7 @@ jobs:
               '. + {($variant): $fingerprint}' <<<"$fingerprints")
           done
 
-          selected=""
+          selected=()
           commit_tag=false
           case "$EVENT" in
             push)
@@ -90,23 +97,39 @@ jobs:
                 diff=$(git diff --name-only "$BEFORE" "$SHA")
               fi
               if grep -q '^\.github/workflows/base-agentimg\.yml$' <<<"$diff"; then
-                selected="$all"
+                selected=("${all[@]}")
               else
-                for variant in $all; do
-                  grep -q "^images/$THING/images/$variant/" <<<"$diff" &&
-                    selected="$selected $variant" || true
-                done
+                selected=()
+                while read -r changed; do
+                  relative=${changed#images/$THING/images/}
+                  if [[ "$relative" == *.Dockerfile ]]; then
+                    variant=${relative%.Dockerfile}
+                    for candidate in "${all[@]}"; do
+                      [ "$candidate" = "$variant" ] && selected+=("$candidate")
+                    done
+                  elif [[ "$relative" == */* ]]; then
+                    family=${relative%%/*}
+                    if [ "$family" = common ]; then
+                      selected=("${all[@]}")
+                      break
+                    fi
+                    for candidate in "${all[@]}"; do
+                      [[ "$candidate" = "$family" || "$candidate" == "$family-"* ]] &&
+                        selected+=("$candidate")
+                    done
+                  fi
+                done <<<"$diff"
               fi
               ;;
             schedule)
-              selected="$all"
+              selected=("${all[@]}")
               ;;
             workflow_dispatch)
-              selected="$all"
+              selected=("${all[@]}")
               ;;
           esac
 
-          variants=$(printf '%s\n' $selected | sed '/^$/d' | jq -R . | jq -cs 'unique')
+          variants=$(printf '%s\n' "${selected[@]}" | sed '/^$/d' | jq -R . | jq -cs 'unique')
           short_sha=$(cut -c1-12 <<<"$SHA")
           {
             echo "variants=$variants"
@@ -141,7 +164,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: images/${{ env.THING }}/images/${{ matrix.variant }}
+          context: images/${{ env.THING }}/images
+          file: images/${{ env.THING }}/images/${{ matrix.variant }}.Dockerfile
           platforms: linux/amd64
           provenance: false
           pull: true
