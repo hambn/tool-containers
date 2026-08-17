@@ -1,16 +1,16 @@
-# alpine-browser: Alpine 3.21 developer/agent foundation with Chromium.
+# alpine: Alpine 3.21 developer/agent foundation without a browser.
 FROM docker.io/library/alpine:3.21
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
       acl alpine-sdk aria2 atop autoconf automake bash bash-completion bind-tools bison brotli \
-      btop bubblewrap bzip2 ca-certificates chromium cmake coreutils curl dbus dialog diffutils \
-      docker docker-cli-buildx \
-      docker-cli-compose fd ffmpeg file findutils font-noto-emoji fzf gcompat gettext git \
-      git-lfs gnupg grep fakeroot flex htop httpie imagemagick iotop iperf3 iproute2 iputils jq \
-      krb5-libs less libcap libstdc++ lsof make man-db man-pages mercurial mitmproxy mtr nano \
-      ncdu ncurses ncurses-terminfo net-tools netcat-openbsd neovim nginx ninja-build \
-      ninja-is-really-ninja nmap openrc \
+      btop bubblewrap bzip2 ca-certificates cmake coreutils curl dbus dialog diffutils docker \
+      docker-cli-buildx \
+      docker-cli-compose fd ffmpeg file findutils fzf gcompat gettext git git-lfs gnupg \
+      grep fakeroot flex htop httpie imagemagick iotop iperf3 iproute2 iputils jq krb5-libs \
+      less libcap libstdc++ lsof make man-db man-pages mercurial mitmproxy mtr nano ncdu ncurses \
+      ncurses-terminfo net-tools netcat-openbsd neovim nginx ninja-build ninja-is-really-ninja \
+      nmap openrc \
       openssh-client-default openssh-server openssl parallel patch pipx pkgconf procps-ng \
       py3-pip python3 ripgrep rsync sed shadow \
       shellcheck shfmt socat sqlite strace sudo tailscale tar tcpdump tmux traceroute tree unzip \
@@ -200,15 +200,14 @@ RUN adduser -D -u 1000 -s /bin/zsh agent && \
     install -d -m 0700 -o agent -g agent /home/agent/.docker /home/agent/.kube \
       /home/agent/.ssh /run/user/1000
 
-COPY --chown=agent:agent zshrc /home/agent/.zshrc
-COPY --chown=agent:agent zprofile /home/agent/.zprofile
+COPY --chown=agent:agent common/zshrc /home/agent/.zshrc
+COPY --chown=agent:agent common/zprofile /home/agent/.zprofile
 
 RUN chmod g-s /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000 && \
     chmod 0700 /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000 && \
     test "$(stat -c %a /home/agent/.kube)" = 700
 
-ENV BROWSER_BIN=/usr/bin/chromium-browser \
-    COLORTERM=truecolor \
+ENV COLORTERM=truecolor \
     EDITOR=nvim \
     HOME=/home/agent \
     LANG=C.UTF-8 \

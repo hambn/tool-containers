@@ -4,15 +4,15 @@ FROM docker.io/library/ubuntu:24.04
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 
-COPY setup.sh /tmp/agentimg-setup.sh
-COPY systemd-container.conf /tmp/agentimg-systemd-container.conf
-COPY journald-container.conf /tmp/agentimg-journald-container.conf
-COPY tmpfiles-tmp.conf /tmp/agentimg-tmpfiles-tmp.conf
+COPY ubuntu/setup.sh /tmp/agentimg-setup.sh
+COPY ubuntu/systemd-container.conf /tmp/agentimg-systemd-container.conf
+COPY ubuntu/journald-container.conf /tmp/agentimg-journald-container.conf
+COPY ubuntu/tmpfiles-tmp.conf /tmp/agentimg-tmpfiles-tmp.conf
 
 RUN bash /tmp/agentimg-setup.sh && rm -f /tmp/agentimg-setup.sh
 
-COPY --chown=agent:agent zshrc /home/agent/.zshrc
-COPY --chown=agent:agent zprofile /home/agent/.zprofile
+COPY --chown=agent:agent common/zshrc /home/agent/.zshrc
+COPY --chown=agent:agent common/zprofile /home/agent/.zprofile
 
 ENV COLORTERM=truecolor \
     EDITOR=nvim \

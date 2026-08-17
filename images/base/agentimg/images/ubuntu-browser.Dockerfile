@@ -1,24 +1,41 @@
-# alpine: Alpine 3.21 developer/agent foundation without a browser.
-FROM docker.io/library/alpine:3.21
+# ubuntu-browser: broad Ubuntu 24.04 developer/agent foundation with headless Chromium.
+FROM docker.io/chromedp/headless-shell:stable AS browser
 
-RUN apk upgrade --no-cache && \
-    apk add --no-cache \
-      acl alpine-sdk aria2 atop autoconf automake bash bash-completion bind-tools bison brotli \
-      btop bubblewrap bzip2 ca-certificates cmake coreutils curl dbus dialog diffutils docker \
-      docker-cli-buildx \
-      docker-cli-compose fd ffmpeg file findutils fzf gcompat gettext git git-lfs gnupg \
-      grep fakeroot flex htop httpie imagemagick iotop iperf3 iproute2 iputils jq krb5-libs \
-      less libcap libstdc++ lsof make man-db man-pages mercurial mitmproxy mtr nano ncdu ncurses \
-      ncurses-terminfo net-tools netcat-openbsd neovim nginx ninja-build ninja-is-really-ninja \
-      nmap openrc \
-      openssh-client-default openssh-server openssl parallel patch pipx pkgconf procps-ng \
-      py3-pip python3 ripgrep rsync sed shadow \
-      shellcheck shfmt socat sqlite strace sudo tailscale tar tcpdump tmux traceroute tree unzip \
-      util-linux vim wget whois xz yamllint zip zsh zsh-syntax-highlighting zstd && \
-    rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
-    curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+FROM docker.io/library/ubuntu:24.04
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN rm -f /etc/dpkg/dpkg.cfg.d/excludes /etc/dpkg/dpkg.cfg.d/01_nodoc && \
+    apt-get update && \
+    apt-get -y -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef dist-upgrade && \
+    apt-get install -y --no-install-recommends \
+      acl aria2 atop autoconf automake bash-completion bison brotli bsdmainutils btop bubblewrap \
+      build-essential bzip2 ca-certificates cmake curl dbus-user-session dialog dirmngr dnsutils \
+      docker-buildx docker-compose-v2 docker.io fakeroot ffmpeg fd-find file flex \
+      fonts-noto-color-emoji fonts-symbola fzf gettext-base git git-lfs gnupg htop httpie \
+      imagemagick iotop iproute2 \
+      iperf3 iputils-ping jq less libcap2-bin libgbm1 libglib2.0-0t64 libgtk-3-0t64 libnss3 \
+      libx11-6 \
+      libxcomposite1 libxdamage1 libxext6 libxi6 libxrandr2 locales locales-all lsof make \
+      man-db manpages manpages-dev mercurial mitmproxy mtr-tiny nano ncdu ncurses-bin \
+      ncurses-term net-tools netcat-openbsd neovim nginx ninja-build nmap openssh-client \
+      openssh-server parallel patch pipx pkg-config psmisc procps python-is-python3 python3-pip \
+      ripgrep rsync shellcheck \
+      shfmt socat sqlite3 strace sudo systemd systemd-sysv tcpdump tmux traceroute tree \
+      ubuntu-dev-tools ubuntu-server ubuntu-standard unzip util-linux vim wget whois \
+      xz-utils yamllint zip zsh zsh-syntax-highlighting zstd && \
+    apt-get remove -y pollinate ubuntu-fan && \
+    rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub /usr/sbin/policy-rc.d && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg \
+      -o /usr/share/keyrings/tailscale-archive-keyring.gpg && \
+    curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list \
+      -o /etc/apt/sources.list.d/tailscale.list && \
+    apt-get update && apt-get install -y --no-install-recommends tailscale && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 RUN go_metadata="$(curl -fsSL 'https://go.dev/dl/?mode=json')" && \
     go_version="$(printf '%s' "$go_metadata" | \
@@ -37,16 +54,13 @@ RUN go_metadata="$(curl -fsSL 'https://go.dev/dl/?mode=json')" && \
     install -d /usr/local/share/agentimg && \
     printf '%s\n' "$go_version" >/usr/local/share/agentimg/go.version
 
-RUN node_metadata="$(curl -fsSL \
-      https://unofficial-builds.nodejs.org/download/release/index.json)" && \
+RUN node_metadata="$(curl -fsSL https://nodejs.org/dist/index.json)" && \
     node_version="$(printf '%s' "$node_metadata" | jq -er \
-      '[.[] | select(.lts != false and (.files | index("linux-x64-musl")))][0].version')" && \
-    node_archive="node-${node_version}-linux-x64-musl.tar.xz" && \
-    curl -fsSL \
-      "https://unofficial-builds.nodejs.org/download/release/${node_version}/${node_archive}" \
+      '[.[] | select(.lts != false and (.files | index("linux-x64")))][0].version')" && \
+    node_archive="node-${node_version}-linux-x64.tar.xz" && \
+    curl -fsSL "https://nodejs.org/dist/${node_version}/${node_archive}" \
       -o "/tmp/${node_archive}" && \
-    curl -fsSL \
-      "https://unofficial-builds.nodejs.org/download/release/${node_version}/SHASUMS256.txt" \
+    curl -fsSL "https://nodejs.org/dist/${node_version}/SHASUMS256.txt" \
       -o /tmp/node-SHASUMS256.txt && \
     grep " ${node_archive}\$" /tmp/node-SHASUMS256.txt | \
       (cd /tmp && sha256sum -c -) && \
@@ -58,7 +72,8 @@ RUN node_metadata="$(curl -fsSL \
     install -d /usr/local/share/agentimg && \
     printf '%s\n' "${node_version#v}" >/usr/local/share/agentimg/node.version
 
-RUN ping_path="$(readlink -f "$(command -v ping)")" && \
+RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd && \
+    ping_path="$(readlink -f "$(command -v ping)")" && \
     setcap cap_net_raw=+ep "$ping_path" && \
     getcap "$ping_path" | grep -q cap_net_raw && \
     git config --system init.defaultBranch main && \
@@ -97,7 +112,6 @@ RUN gh_version="$(curl -fsSL \
     rm -rf "/tmp/gh_${gh_version}_linux_amd64" "/tmp/${gh_archive}" \
       /tmp/gh-checksums.txt
 
-# Alpine 3.21 predates its package, so install the current upstream release.
 RUN zsh_autosuggestions_tag="$(git ls-remote --tags --refs \
       https://github.com/zsh-users/zsh-autosuggestions.git 'v*' | \
       awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $3 }' | \
@@ -189,32 +203,66 @@ RUN yq_tag="$(git ls-remote --tags --refs https://github.com/mikefarah/yq.git 'v
     rm -f /tmp/yq && \
     printf '%s\n' "${yq_tag#v}" >/usr/local/share/agentimg/yq.version
 
-RUN adduser -D -u 1000 -s /bin/zsh agent && \
-    addgroup agent wheel && \
-    addgroup agent docker && \
+# Keep a privileged, explicitly selected systemd PID 1 useful inside an OCI container.
+RUN install -d /etc/systemd/system.conf.d /etc/systemd/journald.conf.d /etc/tmpfiles.d
+COPY ubuntu/systemd-container.conf /etc/systemd/system.conf.d/agentimg-container.conf
+COPY ubuntu/journald-container.conf /etc/systemd/journald.conf.d/agentimg-container.conf
+COPY ubuntu/tmpfiles-tmp.conf /etc/tmpfiles.d/tmp.conf
+RUN systemctl set-default multi-user.target && \
+    systemctl mask -- \
+      apt-daily.service apt-daily.timer apt-daily-upgrade.service apt-daily-upgrade.timer \
+      atop-rotate.timer console-getty.service dm-event.socket dpkg-db-backup.timer \
+      e2scrub_all.timer etc-hostname.mount etc-hosts.mount etc-resolv.conf.mount fwupd.service \
+      fwupd-refresh.service fwupd-refresh.timer getty.target getty@.service iscsid.socket \
+      keyboard-setup.service ldconfig.service lxd-installer.socket man-db.timer \
+      modprobe@.service motd-news.service motd-news.timer \
+      plymouth-halt.service plymouth-kexec.service plymouth-poweroff.service \
+      plymouth-quit-wait.service plymouth-quit.service plymouth-read-write.service \
+      plymouth-reboot.service plymouth-start.service plymouth-switch-root-initramfs.service \
+      plymouth-switch-root.service systemd-ask-password-console.path \
+      systemd-ask-password-wall.path systemd-hwdb-update.service \
+      systemd-journal-catalog-update.service systemd-modules-load.service \
+      systemd-random-seed.service systemd-remount-fs.service systemd-resolved.service \
+      systemd-update-done.service systemd-update-utmp.service \
+      systemd-udev-settle.service systemd-udev-trigger.service systemd-udevd-control.socket \
+      systemd-udevd-kernel.socket systemd-udevd.service update-notifier-download.timer \
+      update-notifier-motd.timer ubuntu-fan.service unattended-upgrades.service -.mount
+RUN systemctl disable -- \
+      apport-autoreport.path apport-autoreport.timer apport-forward.socket apport.service \
+      atop.service atopacct.service containerd.service docker.service e2scrub_reap.service \
+      lvm2-lvmpolld.socket multipathd.service nginx.service snapd.service snapd.socket \
+      ssh.service ssh.socket sysstat.service tailscaled.service udisks2.service ufw.service \
+      || true
+
+RUN usermod -l agent -c "agentimg user" ubuntu && \
+    groupmod -n agent ubuntu && \
+    mv /home/ubuntu /home/agent && \
+    usermod -d /home/agent -s /bin/zsh agent && \
+    sed -i 's/^ubuntu:/agent:/' /etc/subuid /etc/subgid && \
+    usermod -aG docker,sudo agent && \
     printf 'agent ALL=(ALL:ALL) NOPASSWD: ALL\n' >/etc/sudoers.d/agent && \
     chmod 0440 /etc/sudoers.d/agent && \
     visudo -cf /etc/sudoers.d/agent && \
+    install -d /var/lib/systemd/linger && \
+    touch /var/lib/systemd/linger/agent && \
     install -d -o agent -g agent /home/agent/.cache/zsh /home/agent/.config \
       /home/agent/.local/share /workspace && \
     install -d -m 0700 -o agent -g agent /home/agent/.docker /home/agent/.kube \
       /home/agent/.ssh /run/user/1000
 
-COPY --chown=agent:agent zshrc /home/agent/.zshrc
-COPY --chown=agent:agent zprofile /home/agent/.zprofile
+COPY --chown=agent:agent common/zshrc /home/agent/.zshrc
+COPY --chown=agent:agent common/zprofile /home/agent/.zprofile
 
-RUN chmod g-s /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000 && \
-    chmod 0700 /home/agent/.docker /home/agent/.kube /home/agent/.ssh /run/user/1000 && \
-    test "$(stat -c %a /home/agent/.kube)" = 700
-
-ENV COLORTERM=truecolor \
+COPY --from=browser /headless-shell /headless-shell
+ENV BROWSER_BIN=/headless-shell/headless-shell \
+    COLORTERM=truecolor \
     EDITOR=nvim \
     HOME=/home/agent \
     LANG=C.UTF-8 \
     LESS=-FRX \
     LOGNAME=agent \
     PAGER=less \
-    PATH=/home/agent/.local/bin:/usr/local/bin:/usr/local/go/bin:$PATH \
+    PATH=/home/agent/.local/bin:/headless-shell:/usr/local/bin:/usr/local/go/bin:$PATH \
     SHELL=/bin/zsh \
     TERM=xterm-256color \
     USER=agent \
@@ -222,7 +270,9 @@ ENV COLORTERM=truecolor \
     XDG_CACHE_HOME=/home/agent/.cache \
     XDG_CONFIG_HOME=/home/agent/.config \
     XDG_DATA_HOME=/home/agent/.local/share \
-    XDG_RUNTIME_DIR=/run/user/1000
+    XDG_RUNTIME_DIR=/run/user/1000 \
+    container=oci
+
 USER agent
 WORKDIR /workspace
 CMD ["/bin/zsh", "-l"]
