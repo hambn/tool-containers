@@ -32,5 +32,5 @@ ENV COLORTERM=truecolor \
     XDG_RUNTIME_DIR=/run/user/1000 \
     container=oci
 USER agent
-WORKDIR /workspace
+WORKDIR /home/agent
 CMD ["/bin/zsh", "-l"]

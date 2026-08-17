@@ -49,7 +49,8 @@ Deliberately excluded from all variants:
 
 Docker, nginx, SSH, and Tailscale are installed but not enabled automatically. Derived
 images or privileged runtimes can opt into those daemons. Every variant defaults to the
-unprivileged UID/GID-1000 `agent` user, `/home/agent`, and a login Zsh in `/workspace`.
+unprivileged UID/GID-1000 `agent` user and `/home/agent`; the Ubuntu base shell starts
+there, while derived images explicitly use the mounted `/workspace` directory.
 
 Ubuntu systemd remains available when a privileged runtime explicitly selects root and
 `/sbin/init`. Its container profile uses `multi-user.target`, console logging, a bounded
