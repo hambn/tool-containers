@@ -1,0 +1,2 @@
+# Anchor Zsh startup files in the agent user's home and prevent the new-user wizard.
+export ZDOTDIR=/home/agent

@@ -11,6 +11,7 @@ COPY ubuntu/tmpfiles-tmp.conf /tmp/agentimg-tmpfiles-tmp.conf
 
 RUN bash /tmp/agentimg-setup.sh && rm -f /tmp/agentimg-setup.sh
 
+COPY --chown=agent:agent common/zshenv /home/agent/.zshenv
 COPY --chown=agent:agent common/zshrc /home/agent/.zshrc
 COPY --chown=agent:agent common/zprofile /home/agent/.zprofile
 

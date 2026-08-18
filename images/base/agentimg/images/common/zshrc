@@ -12,19 +12,15 @@ if [[ -o interactive ]]; then
   KEYTIMEOUT=1
 
   fpath=(/usr/local/share/zsh/site-functions $fpath)
-  autoload -Uz colors compinit vcs_info
+  autoload -Uz colors compinit
   colors
   mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
   compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 
   zstyle ':completion:*' menu select
   zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-  zstyle ':vcs_info:git:*' formats ' %F{magenta}[git:%b]%f'
-  typeset -ga precmd_functions
-  precmd_functions+=(vcs_info)
 
-  PROMPT='%F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f${vcs_info_msg_0_} %(?..%F{red}[%?]%f )%F{green}>%f '
-  RPROMPT='%F{242}%D{%H:%M}%f'
+  PROMPT='%F{242}[%F{250}%D{%H:%M:%S}%F{242}]%f %F{242}[%F{250}%1~%F{242}]%f %F{255}❯%f '
 
   bindkey -e
   alias ll='ls -alF'

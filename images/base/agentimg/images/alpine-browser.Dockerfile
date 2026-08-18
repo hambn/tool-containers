@@ -6,6 +6,7 @@ COPY alpine/setup.sh /tmp/agentimg-alpine-setup.sh
 RUN /bin/sh /tmp/agentimg-alpine-setup.sh browser && \
     rm -f /tmp/agentimg-alpine-setup.sh
 
+COPY --chown=agent:agent common/zshenv /home/agent/.zshenv
 COPY --chown=agent:agent common/zshrc /home/agent/.zshrc
 COPY --chown=agent:agent common/zprofile /home/agent/.zprofile
 

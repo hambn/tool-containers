@@ -15,6 +15,7 @@ RUN bash /tmp/agentimg-setup.sh browser && \
     rm -f /tmp/agentimg-setup.sh
 
 COPY --from=browser /headless-shell /headless-shell
+COPY --chown=agent:agent common/zshenv /home/agent/.zshenv
 COPY --chown=agent:agent common/zshrc /home/agent/.zshrc
 COPY --chown=agent:agent common/zprofile /home/agent/.zprofile
 

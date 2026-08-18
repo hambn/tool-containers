@@ -196,6 +196,7 @@ jobs:
             test "$LANG" = C.UTF-8
             [[ ":$PATH:" = *":$HOME/.local/bin:"* ]]
             test -w "$HOME"
+            test -r "$ZDOTDIR/.zshenv"
             test -r "$ZDOTDIR/.zshrc"
             test -r "$ZDOTDIR/.zprofile"
             test -d "$HOME/.kube"
