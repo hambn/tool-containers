@@ -82,13 +82,16 @@ Derived tools keep `images/<variant>/Dockerfile`. `images/base/agentimg` deliber
 keeps four flat `images/*.Dockerfile` files because its variants share distro-local
 scripts and common shell assets in one build context. A tool supports only the deployment
 platforms it actually contains; do not infer that all six platform directories are
-mandatory.
+mandatory. Standards for every README in this tree are owned by `$documentation`, and
+the web-ui site renders them verbatim.
 
 ## Web UI
 
-`web-ui/` owns the application source, configuration, static assets, tests, and local
-documentation once present. Inspect its live files and use `$web-ui` for its current
-stack, bootstrap state, and implementation contract.
+`web-ui/` owns the static documentation-showcase website: a GitHub Pages site generated
+at build time from the root catalog and every image/deployment README. It holds the
+application source, configuration, static assets, tests, and local documentation once
+present. Inspect its live files and use `$web-ui` for its settled product and technical
+contract; document standards for the content it renders live in `$documentation`.
 
 ## Exact-inventory commands
 

@@ -32,6 +32,6 @@ Read only the selected platform guide:
 - Keep names, image paths, commands, arguments, environment variables, ports, volumes,
   and secrets consistent with the Dockerfile and tool README.
 
-Each platform README explains prerequisites, exact commands, required variables or
-secrets, workspace behavior, file map, cleanup, and limitations. Render or lint the
-artifact with the actual platform tooling when available.
+Document structure, cross-links, and quality for each platform README are owned by
+`$documentation`. Render or lint the artifact with the actual platform tooling when
+available.
