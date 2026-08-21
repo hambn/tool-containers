@@ -10,7 +10,7 @@ on:
     paths:
       - "images/base/agentimg/images/**"
       - ".github/workflows/base-agentimg.yml"
-      - ".github/scripts/**"
+      - ".github/scripts/registry-inspect.sh"
   schedule:
     - cron: "0 4 * * 0"
   workflow_dispatch:
@@ -19,17 +19,23 @@ concurrency:
   group: publish-${{ github.workflow }}
   cancel-in-progress: false
 
+permissions: {}
+
 env:
   THING: base/agentimg
   IMAGE: agentimg
+  OWNER: ${{ github.repository_owner }}
   PRIMARY: ubuntu-browser
 
 jobs:
   plan:
+    name: Plan publish candidates
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    permissions: { contents: read, packages: read }
+    permissions:
+      contents: read
+      packages: read # Needed to inspect current GHCR image metadata.
     outputs:
       variants: ${{ steps.plan.outputs.variants }}
       build: ${{ steps.plan.outputs.build }}
@@ -39,7 +45,9 @@ jobs:
       short_sha: ${{ steps.plan.outputs.short_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -113,7 +121,8 @@ jobs:
               else
                 diff=$(git diff --name-only "$BEFORE" "$SHA")
               fi
-              if grep -q '^\.github/workflows/base-agentimg\.yml$' <<<"$diff"; then
+              if grep -q '^\.github/workflows/base-agentimg\.yml$' <<<"$diff" ||
+                 grep -q '^\.github/scripts/registry-inspect\.sh$' <<<"$diff"; then
                 selected=("${all[@]}")
               else
                 selected=()
@@ -159,17 +168,22 @@ jobs:
           echo "Will build: $variants"
 
   build:
+    name: Build and scan ${{ matrix.variant }}
     needs: plan
     if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
-    permissions: { contents: read, packages: write, id-token: write, attestations: write }
+    permissions:
+      contents: read
+      packages: write # Needed to push the untagged digest for validation.
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       # ponytail: amd64 only. Add arm64 through a native runner and manifest merge after
       # validating every Ubuntu and Alpine package plus the headless browser on arm64.
@@ -186,7 +200,7 @@ jobs:
           context: images/${{ env.THING }}/images
           file: images/${{ env.THING }}/images/${{ matrix.variant }}.Dockerfile
           platforms: linux/amd64
-          provenance: true
+          provenance: mode=max
           sbom: true
           pull: true
           no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
@@ -356,21 +370,31 @@ jobs:
           exit-code: "1"
 
       - name: Save digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          VARIANT: ${{ matrix.variant }}
         run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$VARIANT" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
           mkdir -p /tmp/digests
-          echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
+          printf '%s\n' "$DIGEST" >"/tmp/digests/$VARIANT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digest-${{ matrix.variant }}
           path: /tmp/digests/${{ matrix.variant }}
           if-no-files-found: error
+          retention-days: 1
 
   push:
+    name: Publish to ${{ matrix.registry }}
     needs: [plan, build]
     if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-    permissions: { contents: read, packages: write }
+    environment: ${{ matrix.registry }}
+    permissions:
+      packages: write # Needed to promote the validated digest to GHCR tags.
     strategy:
       fail-fast: false
       matrix:
@@ -403,10 +427,11 @@ jobs:
           COMMIT_TAG: ${{ needs.plan.outputs.commit_tag }}
           SHORT_SHA: ${{ needs.plan.outputs.short_sha }}
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY: ${{ matrix.registry }}
         run: |
           set -euo pipefail
-          source_image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
-          case "${{ matrix.registry }}" in
+          source_image="ghcr.io/$OWNER/$IMAGE"
+          case "$REGISTRY" in
             ghcr) target="$source_image" ;;
             dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
           esac

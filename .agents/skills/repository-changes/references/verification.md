@@ -33,6 +33,7 @@ also checked.
 
 Report the exact command and outcome. If Docker, Helm, network access, credentials, or
 another dependency is unavailable, name the skipped check and the reason. Do not imply
-that static PR CI runtime-tested an image: current PR automation covers policy,
-dependency review, labeling, and static repository validation. Image build, smoke test,
-Trivy scan, and publication happen in image workflows after changes reach `main`.
+that static PR CI runtime-tested an image: the single `Pull request gate` covers metadata
+policy, dependency review, and static repository validation; labeling remains separate.
+Image build, smoke test, Trivy scan, and publication happen in image workflows after
+changes reach `main`.

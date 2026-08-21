@@ -1,42 +1,67 @@
 name: Bug report
 description: Report a reproducible image, deployment, or automation defect.
-title: "fix: "
+title: "[Bug]: "
 labels:
   - bug
 body:
   - type: markdown
     attributes:
       value: Thanks for helping improve the repository. Do not include secrets.
-  - type: input
-    id: image
+  - type: dropdown
+    id: area
     attributes:
-      label: Image and tag
-      description: Include the registry, image, variant, and tag or digest.
-      placeholder: ghcr.io/hambn/agentimg:ubuntu-browser
+      label: Affected area
+      options:
+        - Image build or runtime
+        - Deployment example
+        - Publishing or repository automation
+        - Documentation
+        - Repository tooling
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Affected image, tag, or workflow
+      description: Include an image reference or the workflow name and run URL, as applicable.
+      placeholder: ghcr.io/hambn/agentimg:ubuntu-browser or base/agentimg run URL
     validations:
       required: true
   - type: textarea
-    id: description
+    id: actual
     attributes:
-      label: Problem
-      description: Describe what happened and what you expected.
+      label: Current behavior
+      description: Describe what happened, including the exact error when useful.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe what should have happened instead.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
       label: Reproduction
-      description: Provide the smallest safe command or deployment that reproduces the issue.
-      render: shell
+      description: Provide the smallest safe command, deployment, or workflow run that reproduces the issue.
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: Include the container runtime, host OS, architecture, and relevant versions.
+      description: Include the container runtime or runner, host OS, architecture, and relevant versions.
     validations:
       required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste the smallest useful, redacted log excerpt. Do not include credentials.
+      render: shell
   - type: checkboxes
     id: checks
     attributes:
