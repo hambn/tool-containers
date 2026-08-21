@@ -23,7 +23,7 @@ Pull moving tags from `ghcr.io/hambn/omnigent:<tag>` or
 `docker.io/hambn/omnigent:<tag>`. Omnigent releases repoint all moving tags and
 add `omnigent-v<version>` to the primary image. `agentbloat` base refreshes and
 repository edits repoint moving tags only. See the repository's
-[registry and tag policy](../../../.agents/references/repo/registries-and-tags.md).
+[registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
 
 Omnigent discovers credentials and harness logins at runtime. No credentials are
 stored in the image or deployment files.

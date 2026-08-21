@@ -13,6 +13,6 @@
 ## Checklist
 
 - [ ] I kept this change focused and preserved unrelated work.
-- [ ] I updated documentation and `.agents/references/memory.md` when required.
-- [ ] I ran `bash .agents/commands/check-agent-workspace.sh`.
-- [ ] I ran `git diff --check`.
+- [ ] I updated affected documentation and repository skills when required.
+- [ ] I ran `bash .agents/skills/repository-changes/scripts/validate-change.sh` or
+      documented exactly why a check was unavailable.

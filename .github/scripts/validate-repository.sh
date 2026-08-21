@@ -4,6 +4,9 @@ set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 
+bash .agents/skills/maintain-agent-workspace/scripts/check-agent-workspace.sh
+bash .agents/skills/maintain-agent-workspace/scripts/test-check-agent-workspace.sh
+
 command -v python3 >/dev/null
 python3 - <<'PY'
 import pathlib
@@ -18,9 +21,64 @@ except ImportError:
     raise SystemExit(1)
 
 workflows = sorted(pathlib.Path(".github/workflows").glob("*.yml"))
-publish = [p for p in workflows if p.name.startswith(("ai-", "base-"))]
-if len(publish) != 8:
-    raise SystemExit(f"expected eight publish workflows, found {len(publish)}")
+web_ui_files = [
+    path
+    for path in pathlib.Path("web-ui").rglob("*")
+    if path.is_file() and path.name != ".gitkeep"
+]
+if web_ui_files:
+    web_ui_workflows = [
+        path
+        for path in workflows
+        if path.stem.startswith("web-ui") and "web-ui/**" in path.read_text()
+    ]
+    if not web_ui_workflows:
+        raise SystemExit(
+            "a scaffolded web-ui requires a dedicated web-ui*.yml workflow "
+            "with web-ui/** path coverage"
+        )
+
+image_projects = {
+    f"{category.name}-{tool.name}": tool
+    for category in pathlib.Path("images").iterdir()
+    if category.is_dir()
+    for tool in category.iterdir()
+    if tool.is_dir()
+}
+publish_by_name = {
+    path.stem: path
+    for path in workflows
+    if re.search(r"^\s+IMAGE:\s*\S+", path.read_text(), re.MULTILINE)
+    and re.search(r"^\s+PRIMARY:\s*\S+", path.read_text(), re.MULTILINE)
+}
+missing_publishers = sorted(image_projects.keys() - publish_by_name.keys())
+unexpected_publishers = sorted(publish_by_name.keys() - image_projects.keys())
+if missing_publishers or unexpected_publishers:
+    raise SystemExit(
+        "image project/workflow mismatch: "
+        f"missing={missing_publishers}, unexpected={unexpected_publishers}"
+    )
+publish = sorted(publish_by_name.values())
+
+for name, project in sorted(image_projects.items()):
+    for required in (project / "README.md", project / "images", project / "deployment"):
+        if not required.exists():
+            raise SystemExit(f"{name}: missing required project path {required}")
+
+catalog_targets = [
+    target.removeprefix("./").rstrip("/")
+    for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", pathlib.Path("README.md").read_text())
+    if target.removeprefix("./").startswith("images/")
+]
+expected_catalog = {project.as_posix() for project in image_projects.values()}
+if len(catalog_targets) != len(set(catalog_targets)):
+    raise SystemExit("root README contains a duplicate image-project catalog link")
+if set(catalog_targets) != expected_catalog:
+    raise SystemExit(
+        "image project/catalog mismatch: "
+        f"missing={sorted(expected_catalog - set(catalog_targets))}, "
+        f"unexpected={sorted(set(catalog_targets) - expected_catalog)}"
+    )
 
 for path in workflows:
     document = yaml.safe_load(path.read_text())
@@ -67,6 +125,9 @@ for path in pathlib.Path("images/ai").glob("*/images/*/Dockerfile"):
     users = [line.strip() for line in text.splitlines() if line.strip().startswith("USER ")]
     if not users or users[-1] != "USER sysadmin":
         raise SystemExit(f"{path}: derived image must restore USER sysadmin")
+    workdirs = [line.strip() for line in text.splitlines() if line.strip().startswith("WORKDIR ")]
+    if not workdirs or workdirs[-1] != "WORKDIR /workspace":
+        raise SystemExit(f"{path}: derived image must end in WORKDIR /workspace")
 
 for path in pathlib.Path("images/base/agentimg/images").glob("*.Dockerfile"):
     text = path.read_text()
@@ -78,6 +139,9 @@ for path in pathlib.Path("images/base/agentimg/images").glob("*.Dockerfile"):
     users = [line.strip() for line in text.splitlines() if line.strip().startswith("USER ")]
     if not users or users[-1] != "USER sysadmin":
         raise SystemExit(f"{path}: foundation image must run as USER sysadmin")
+    workdirs = [line.strip() for line in text.splitlines() if line.strip().startswith("WORKDIR ")]
+    if not workdirs or workdirs[-1] != "WORKDIR /home/sysadmin":
+        raise SystemExit(f"{path}: foundation image must end in WORKDIR /home/sysadmin")
 PY
 
 while IFS= read -r -d '' file; do

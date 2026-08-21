@@ -22,6 +22,8 @@ Pull from `ghcr.io/hambn/t3code` or `docker.io/hambn/t3code` (Quay pending). T3 
 
 The moving variant tags and `latest` are repointed for every selected rebuild. A base-only refresh or repository edit creates no additional version tag. When the inherited agent CLIs or T3 release changes, the primary image also receives `t3code-stable-v<version>` (or `t3code-nightly-v<version>` for a nightly release). The four profiles keep the matching browser and distribution behavior from `agentbloat`. The images run `t3 serve --host=0.0.0.0 --port=3773` so the published port works behind a reverse proxy or via `ip:3773`.
 
+See the repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
+
 ## Use cases
 
 - **Local GUI over your repo** — [`deployment/docker/run.sh`](./deployment/docker/run.sh), then open `http://localhost:3773`.

@@ -22,7 +22,7 @@ agent packaged on the reusable [`agentimg`](../../base/agentimg/) foundations.
 Pull moving tags from `ghcr.io/hambn/pi-agent:<tag>` or
 `docker.io/hambn/pi-agent:<tag>`. Pi package updates repoint all moving tags and add
 `pi-v<version>` to the primary image. `agentimg` base refreshes and repository edits
-repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/references/repo/registries-and-tags.md).
+repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
 
 Pi can authenticate through its provider login flow or supported runtime API-key
 environment variables. No credentials are stored in the image or deployment files.
