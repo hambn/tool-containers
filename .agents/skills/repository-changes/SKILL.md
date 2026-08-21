@@ -12,16 +12,17 @@ for the current phase:
   worktree, and whenever multiple agents or existing changes are involved.
 - Read [verification](references/verification.md) before deciding or reporting which
   checks are required.
-- Read [commits and pull requests](references/commits-and-prs.md) only when the user asks
-  to commit, push, open or update a pull request, or follow CI.
+- Read [commits and pull requests](references/commits-and-prs.md) when delivering an
+  assigned task (commit, push, pull request) or following CI.
 
 ## Workflow
 
 1. Inspect `git status --short --branch`, the target files, neighboring conventions,
    and relevant tests before editing. Preserve unrelated work.
-2. Establish safe ownership of the checkout using the isolation guide. Base new work on
-   a freshly fetched `origin/main` when publication is authorized and network access is
-   available.
+2. Isolate the task using the isolation guide. A newly assigned task defaults to its own
+   linked worktree and branch based on freshly fetched `origin/main`, so concurrent
+   agents never share a checkout or branch; work in place only in the exceptions the
+   guide allows.
 3. Make the smallest coherent change. Load `$repository-map` or the matching domain
    skill for repository-specific placement and authoring rules.
 4. Review the full diff for correctness, scope, credentials, generated files, and
@@ -30,7 +31,9 @@ for the current phase:
    when a durable contract changed.
 6. Run [the change validator](scripts/validate-change.sh) plus any targeted checks from
    the verification guide. State every skipped check and its reason.
-7. Commit and publish only to the extent explicitly requested.
+7. Deliver the task: commit on the task branch, push it, and open a pull request to
+   `main` as described in the commits and pull requests guide. Skip publication only
+   when the user explicitly asks for uncommitted or local-only work.
 
 Answering, explaining, diagnosing, or reviewing does not by itself authorize edits,
 commits, pushes, pull requests, merges, workflow dispatches, or repository-setting

@@ -16,3 +16,11 @@ Use the repository skills under `.agents/skills/` through progressive disclosure
 Load only the selected `SKILL.md` files and the references they route to. Preserve
 unrelated work, keep secrets and generated state out of Git, and treat the repository
 and its validation scripts as the source of truth for facts that can be discovered.
+
+## Task isolation and delivery
+
+When the user assigns a new implementation task, do not work in a checkout another task
+owns. Create a dedicated linked worktree with its own branch based on freshly fetched
+`origin/main`, implement there, then finish the task by committing, pushing the branch,
+and opening a pull request to `main`. This lets multiple agents run at the same time
+without interrupting each other. `$repository-changes` owns the exact procedure.

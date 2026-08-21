@@ -1,7 +1,8 @@
 # Commits and pull requests
 
-Read this guide only when the user has authorized the corresponding Git or GitHub
-mutation.
+Read this guide when delivering an assigned repository-changing task or following CI.
+Delivering an assigned task means commit, push, and pull request to `main`; only leave
+work uncommitted or unpushed when the user explicitly asks for local-only work.
 
 ## Commit safely
 
@@ -22,8 +23,8 @@ mutation.
 
 ## Push
 
-Push only when requested. Resolve and verify the branch first; stop if it is detached or
-`main`:
+Pushing the task branch is part of standard delivery. Resolve and verify the branch
+first; stop if it is detached or `main`:
 
 ```sh
 branch="$(git branch --show-current)"
@@ -39,6 +40,8 @@ On rejection, inspect the remote branch and reconcile safely. Never force-push u
 the user separately authorizes the exact history rewrite.
 
 ## Pull request to main
+
+Opening the pull request is the final step of delivering an assigned task.
 
 - Search for an existing open pull request from the same head branch and update it
   instead of opening a duplicate.
