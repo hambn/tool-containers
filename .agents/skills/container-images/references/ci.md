@@ -30,9 +30,10 @@ only when the owning upstream version actually changes.
    arguments, builds from the correct context, labels source/upstream/base metadata,
    pushes content to GHCR by digest, emits SBOM and provenance attestations, smoke-tests
    the runtime, and blocks on HIGH/CRITICAL Trivy findings. The vulnerability gate ignores
-   unfixed findings and excludes vendored upstream release binaries (CLIs, language
-   runtimes, npm's own bundled dependencies) that this repository does not compile; OS
-   packages, application dependency trees, and everything else stay gated. A second
+   unfixed findings and excludes vendored upstream release artifacts (CLIs, language
+   runtimes, npm's own bundled dependencies, and the internal dependency trees of prebuilt
+   third-party npm packages) that this repository does not compile; OS packages,
+   application dependency trees, and everything else stay gated. A second
    unfiltered secret-only Trivy scan of the same image runs beside it so the vendored-file
    exclusions never reduce secret coverage.
 3. **Push** downloads the recorded digests and applies registry tags without rebuilding.
