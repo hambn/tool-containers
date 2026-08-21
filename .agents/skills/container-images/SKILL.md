@@ -11,8 +11,10 @@ current task.
 ## Route the task
 
 - **Add or reorganize a tool:** read [project layout](references/project-layout.md),
-  [documentation](references/documentation.md), the relevant image and deployment
-  guides, then [CI](references/ci.md).
+  use `$documentation` for every written document, read the relevant image and
+  deployment guides, then [CI](references/ci.md).
+- **Write or review a README or other document:** follow `$documentation`; this skill
+  owns only the mechanics behind the documents.
 - **Choose or rename a profile:** read [variants](references/images/variants.md), then
   [base images](references/images/base-images.md) when the runtime base is in question.
 - **Write or review a Dockerfile:** read

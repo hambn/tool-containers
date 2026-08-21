@@ -11,6 +11,7 @@ Each durable fact has one canonical owner:
 | Agent-system lifecycle and integrity | `maintain-agent-workspace` |
 | Repository orientation and file placement | `repository-map` |
 | Container projects, deployments, and image delivery | `container-images` |
+| Written README and documentation standards and cross-links | `documentation` |
 | The application under `web-ui/` | `web-ui` |
 | Change isolation, validation, commits, and pull requests | `repository-changes` |
 
