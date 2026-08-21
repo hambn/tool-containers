@@ -1,56 +1,113 @@
-# agentimg interactive Zsh defaults. Keep this portable across Ubuntu and Alpine.
-zsh_config_dir="${ZDOTDIR:-$HOME}"
-[[ -r "$zsh_config_dir/.zprofile" ]] && source "$zsh_config_dir/.zprofile"
+# ═════════════════════════════════════════════════════════════════════════════
+#  ~/.zshrc — agentimg interactive shell configuration
+#
+#  Layout:
+#    ~/.config/zsh/conf.d/   image defaults and Oh My Zsh libraries
+#    ~/.config/zsh/plugins/  selected Oh My Zsh plugins
+# ════════════════════════════════════════════════════════════════════════════
 
-if [[ -o interactive ]]; then
-  setopt AUTO_CD AUTO_PUSHD HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS
-  setopt INTERACTIVE_COMMENTS PROMPT_SUBST SHARE_HISTORY
+zsh_dot_dir="${ZDOTDIR:-$HOME}"
+[[ -r "$zsh_dot_dir/.zprofile" ]] && source "$zsh_dot_dir/.zprofile"
+[[ -o interactive ]] || return
 
-  HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
-  HISTSIZE=10000
-  SAVEHIST=10000
-  KEYTIMEOUT=1
+# ── Core ──────────────────────────────────────────────────────────────────────
+export ZSH_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
+export ZSH_PLUGINS="$ZSH_CONFIG/plugins"
+export ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 
-  fpath=(/usr/local/share/zsh/site-functions $fpath)
-  autoload -Uz colors compinit
-  colors
-  mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
-  compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+# Several Oh My Zsh libraries use these paths without requiring the framework loader.
+export ZSH="$ZSH_CONFIG"
+export ZSH_CUSTOM="$ZSH_CONFIG"
+export CASE_SENSITIVE=true
 
-  zstyle ':completion:*' menu select
-  zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+mkdir -p "$ZSH_CACHE_DIR"
+fpath=(/usr/local/share/zsh/site-functions $fpath)
 
-  PROMPT='%F{242}[%F{250}%D{%H:%M:%S}%F{242}]%f %F{242}[%F{250}%1~%F{242}]%f %F{255}❯%f '
+# Keep this list aligned with configure-zsh.sh. Add plugin completion functions
+# before compinit builds its cache.
+plugins=(git kubectl)
+for plugin ($plugins); do
+  [[ -d "$ZSH_PLUGINS/$plugin" ]] && fpath=("$ZSH_PLUGINS/$plugin" $fpath)
+done
 
-  bindkey -e
-  alias ll='ls -alF'
-  alias la='ls -A'
-  alias g='git'
-  alias gs='git status --short --branch'
+autoload -Uz colors compinit
+colors
+compinit -d "$ZSH_CACHE_DIR/zcompdump"
 
-  if (( $+commands[kubectl] )); then
-    alias k='kubectl'
-    alias kc='kubectl config current-context'
-    alias kn='kubectl config set-context --current --namespace'
-    compdef kubectl k
+# ── Source helper ─────────────────────────────────────────────────────────────
+# Keep aliases by default. A file can opt out with, for example:
+#   zstyle ':omz:plugins:git' aliases no
+_zsh_source() {
+  local filepath="$1"
+  local context
+  local alias_setting
+  local disable_aliases=0
+
+  case "$filepath" in
+    "$ZSH_CONFIG"/conf.d/*) context="lib:${filepath:t:r}" ;;
+    "$ZSH_PLUGINS"/*/*) context="plugins:${filepath:h:t}" ;;
+    *) context="$filepath" ;;
+  esac
+
+  if zstyle -s ":omz:${context}" aliases alias_setting \
+    && [[ "$alias_setting" == no ]]; then
+    disable_aliases=1
   fi
 
-  for plugin in \
-    /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
-    /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh; do
-    if [[ -r "$plugin" ]]; then
-      source "$plugin"
-      break
-    fi
-  done
+  local -A aliases_pre galiases_pre
+  if (( disable_aliases )); then
+    aliases_pre=("${(@kv)aliases}")
+    galiases_pre=("${(@kv)galiases}")
+  fi
 
-  # Syntax highlighting must be loaded after widgets and other plugins.
-  for plugin in \
-    /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
-    /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
-    if [[ -r "$plugin" ]]; then
-      source "$plugin"
-      break
+  [[ -r "$filepath" ]] && source "$filepath"
+
+  if (( disable_aliases )); then
+    if (( #aliases_pre )); then
+      aliases=("${(@kv)aliases_pre}")
+    else
+      (( #aliases )) && unalias "${(@k)aliases}"
     fi
-  done
-fi
+    if (( #galiases_pre )); then
+      galiases=("${(@kv)galiases_pre}")
+    else
+      (( #galiases )) && unalias "${(@k)galiases}"
+    fi
+  fi
+}
+
+# ── conf.d ────────────────────────────────────────────────────────────────────
+# Oh My Zsh libraries and image-owned overrides load alphabetically.
+for conf_file ("$ZSH_CONFIG"/conf.d/*.zsh(N)); do
+  _zsh_source "$conf_file"
+done
+unset conf_file
+
+# ── Oh My Zsh plugins ───────────────────────────────────────────────────────
+for plugin ($plugins); do
+  _zsh_source "$ZSH_PLUGINS/$plugin/$plugin.plugin.zsh"
+done
+unset plugin
+
+# These plugins are installed independently of Oh My Zsh. Syntax highlighting
+# must remain last because it wraps widgets created by the earlier configuration.
+for plugin_file (
+  /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+  /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+); do
+  if [[ -r "$plugin_file" ]]; then
+    _zsh_source "$plugin_file"
+    break
+  fi
+done
+
+for plugin_file (
+  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+); do
+  if [[ -r "$plugin_file" ]]; then
+    _zsh_source "$plugin_file"
+    break
+  fi
+done
+unset plugin_file

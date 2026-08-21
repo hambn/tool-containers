@@ -16,6 +16,7 @@ RUN --mount=type=bind,source=alpine/scripts/install-cli-tools.sh,target=/tmp/ins
 RUN --mount=type=bind,source=alpine/scripts/configure.sh,target=/tmp/configure.sh \
     bash /tmp/configure.sh
 RUN --mount=type=bind,source=alpine/scripts/configure-zsh.sh,target=/tmp/configure-zsh.sh \
+    --mount=type=bind,source=common/zsh/conf.d,target=/tmp/agentimg-conf.d \
     --mount=type=bind,source=common/zshenv,target=/tmp/zshenv \
     --mount=type=bind,source=common/zshrc,target=/tmp/zshrc \
     --mount=type=bind,source=common/zprofile,target=/tmp/zprofile \
