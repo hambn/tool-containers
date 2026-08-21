@@ -1,5 +1,6 @@
 # ubuntu-browser: agentimg Ubuntu foundation with Chromium and the current agent CLIs.
-FROM ghcr.io/hambn/agentimg:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser
+FROM ${BASE_IMAGE}
 
 USER root
 
@@ -42,7 +43,7 @@ RUN if [ "${CURSOR_AGENT_VERSION}" = latest ]; then \
 
 # acp-agent is the CLI companion for browsing, searching, and running the official
 # ACP Registry. The registry itself is a hosted JSON index, not an installable binary.
-RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
       --with agent-client-protocol==0.7.1 \
       "acp-agent==${ACP_AGENT_VERSION}" && \
     rm -rf /root/.cache/uv

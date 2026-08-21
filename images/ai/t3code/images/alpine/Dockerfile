@@ -1,5 +1,6 @@
 # alpine: T3 Code on the Alpine agentbloat foundation, without a browser.
-FROM ghcr.io/hambn/agentbloat:alpine
+ARG BASE_IMAGE=ghcr.io/hambn/agentbloat:alpine
+FROM ${BASE_IMAGE}
 
 USER root
 

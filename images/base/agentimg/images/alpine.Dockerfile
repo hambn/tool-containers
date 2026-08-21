@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # alpine: Alpine 3.21 developer/agent foundation without a browser.
-FROM docker.io/library/alpine:3.21
+ARG RUNTIME_BASE=docker.io/library/alpine:3.21
+FROM ${RUNTIME_BASE}
 
 RUN --mount=type=bind,source=alpine/scripts/update.sh,target=/tmp/update.sh \
     /bin/sh /tmp/update.sh

@@ -9,12 +9,17 @@ on:
     paths:
       - "images/ai/open-code-review/**"
       - ".github/workflows/ai-open-code-review.yml"
+      - ".github/scripts/**"
   schedule:
-    - cron: "0 * * * *"
+    - cron: "40 * * * *"
   workflow_run:
     workflows: ["base/agentimg"]
     types: [completed]
   workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.workflow }}
+  cancel-in-progress: false
 
 env:
   THING: ai/open-code-review
@@ -24,8 +29,9 @@ env:
 
 jobs:
   plan:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions: { contents: read, packages: read }
     outputs:
       variants: ${{ steps.plan.outputs.variants }}
@@ -34,10 +40,10 @@ jobs:
       ocr_version: ${{ steps.plan.outputs.ocr_version }}
       release_tag: ${{ steps.plan.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
@@ -50,13 +56,13 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          source .github/scripts/registry-inspect.sh
           image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
           variants=(alpine alpine-browser ubuntu ubuntu-browser)
           ocr_version=$(npm view "$PKG" version)
 
           resolve_base() {
-            awk 'toupper($1) == "FROM" { ref=$2 } END { print ref }' \
-              "images/$THING/images/$1/Dockerfile"
+            sed -n 's/^ARG BASE_IMAGE=//p' "images/$THING/images/$1/Dockerfile" | head -n1
           }
 
           basedigests='{}'
@@ -91,9 +97,7 @@ jobs:
               fi
               ;;
             schedule|workflow_run)
-              old_ocr=$(docker buildx imagetools inspect "$image:latest" \
-                --format '{{ index .Image.Config.Labels "io.tool-containers.open-code-review-version" }}' \
-                2>/dev/null || echo missing)
+              old_ocr=$(registry_inspect "$image:latest" '{{ index .Image.Config.Labels "io.tool-containers.open-code-review-version" }}')
               if [ "$ocr_version" != "$old_ocr" ]; then
                 echo "open-code-review: $old_ocr -> $ocr_version"
                 selected=("${variants[@]}")
@@ -101,9 +105,7 @@ jobs:
               else
                 for variant in "${variants[@]}"; do
                   current=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$basedigests")
-                  old=$(docker buildx imagetools inspect "$image:$variant" \
-                    --format '{{ index .Image.Config.Labels "io.tool-containers.agentimg-digest" }}' \
-                    2>/dev/null || echo missing)
+                  old=$(registry_inspect "$image:$variant" '{{ index .Image.Config.Labels "io.tool-containers.agentimg-digest" }}')
                   if [ "$current" != "$old" ]; then
                     echo "$variant agentimg base: $old -> $current"
                     selected+=("$variant")
@@ -131,17 +133,18 @@ jobs:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
-    permissions: { contents: read, packages: write }
+    timeout-minutes: 90
+    permissions: { contents: read, packages: write, id-token: write, attestations: write }
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       # ponytail: amd64 only. The agentimg images and OCR package need
       # native-runner validation before adding arm64.
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
@@ -149,12 +152,14 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: images/${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
-          provenance: false
+          provenance: true
+          sbom: true
           build-args: |
+            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/agentimg:${{ matrix.variant }}@${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
             OCR_VERSION=${{ needs.plan.outputs.ocr_version }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
@@ -163,8 +168,8 @@ jobs:
             io.tool-containers.agentimg-digest=${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
             io.tool-containers.open-code-review-version=${{ needs.plan.outputs.ocr_version }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+          cache-from: type=gha,scope=${{ env.IMAGE }}-${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ env.IMAGE }}-${{ matrix.variant }}
 
       - name: Smoke-test inherited runtime and Open Code Review
         env:
@@ -182,17 +187,17 @@ jobs:
           '
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
           severity: HIGH,CRITICAL
-          exit-code: "0"
+          exit-code: "1"
 
       - name: Save digest
         run: |
           mkdir -p /tmp/digests
           echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: digest-${{ matrix.variant }}
           path: /tmp/digests/${{ matrix.variant }}
@@ -202,14 +207,15 @@ jobs:
     needs: [plan, build]
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions: { contents: read, packages: write }
     strategy:
       fail-fast: false
       matrix:
         registry: [ghcr, dockerhub]
     steps:
-      - uses: docker/setup-buildx-action@v3
-      - uses: actions/download-artifact@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: digest-*
           merge-multiple: true
@@ -217,14 +223,14 @@ jobs:
 
       - name: Login GHCR
         if: matrix.registry == 'ghcr'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
           password: "${{ secrets.GITHUB_TOKEN }}"
       - name: Login Docker Hub
         if: matrix.registry == 'dockerhub'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: "${{ secrets.DOCKERHUB_USERNAME }}"
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
@@ -243,12 +249,22 @@ jobs:
             dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
           esac
 
+          check_immutable() {
+            local ref="$1" expected="$2" output status
+            output=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2>&1) && {
+              [ "$output" = "$expected" ] || { echo "Immutable tag collision: $ref" >&2; return 1; }; return 0; }
+            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found|does not exist' <<<"$output" && return 0
+            echo "Registry inspection failed for $ref: $output" >&2; return "$status"
+          }
+
           for variant in $(jq -r '.[]' <<<"$VARIANTS"); do
             digest=$(cat "/tmp/digests/$variant")
             tags="$variant"
             [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
             [ "$RELEASE_TAG" = true ] && [ "$variant" = "$PRIMARY" ] && \
               tags="$tags ocr-v$OCR_VERSION"
+            [ "$RELEASE_TAG" = true ] && [ "$variant" = "$PRIMARY" ] && \
+              check_immutable "$target:ocr-v$OCR_VERSION" "$digest"
 
             args=()
             for tag in $tags; do args+=(--tag "$target:$tag"); done

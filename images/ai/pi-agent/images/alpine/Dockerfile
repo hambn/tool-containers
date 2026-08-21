@@ -1,5 +1,6 @@
 # alpine: Pi coding agent on the Alpine agentimg foundation without a browser.
-FROM ghcr.io/hambn/agentimg:alpine
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine
+FROM ${BASE_IMAGE}
 
 USER root
 

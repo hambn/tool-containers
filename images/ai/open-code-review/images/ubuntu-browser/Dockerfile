@@ -1,5 +1,6 @@
 # ubuntu-browser: Alibaba Open Code Review on the Ubuntu browser-enabled agentimg base.
-FROM ghcr.io/hambn/agentimg:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser
+FROM ${BASE_IMAGE}
 
 USER root
 
@@ -11,3 +12,4 @@ RUN npm install --global --no-fund --no-audit \
 
 USER sysadmin
 WORKDIR /workspace
+ENTRYPOINT ["ocr"]

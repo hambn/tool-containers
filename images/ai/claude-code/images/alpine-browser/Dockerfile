@@ -1,5 +1,6 @@
 # alpine-browser: Claude Code on the Alpine agentimg foundation with Chromium.
-FROM ghcr.io/hambn/agentimg:alpine-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine-browser
+FROM ${BASE_IMAGE}
 
 USER root
 

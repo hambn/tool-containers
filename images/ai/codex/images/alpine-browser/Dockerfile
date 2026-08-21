@@ -1,5 +1,6 @@
 # alpine-browser: OpenAI Codex CLI on the Alpine browser-enabled agentimg foundation.
-FROM ghcr.io/hambn/agentimg:alpine-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine-browser
+FROM ${BASE_IMAGE}
 
 USER root
 

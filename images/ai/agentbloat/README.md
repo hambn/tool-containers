@@ -104,5 +104,5 @@ CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../../.github/workfl
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli)
 - [ACP Registry](https://agentclientprotocol.com/get-started/registry)
 - [ACP Agent CLI](https://pypi.org/project/acp-agent/)
-- [Pi coding agent](https://github.com/badlogic/pi-mono)
+- [Pi coding agent](https://github.com/earendil-works/pi)
 - [agentimg foundation](../../base/agentimg/)

@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # ubuntu: broad Ubuntu 24.04 developer/agent foundation without a browser.
-FROM docker.io/library/ubuntu:24.04
+ARG RUNTIME_BASE=docker.io/library/ubuntu:24.04
+FROM ${RUNTIME_BASE}
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive

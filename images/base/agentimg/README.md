@@ -16,10 +16,10 @@ agents or Exe-specific components.
 
 | Variant | Contents | Base | Tags |
 |---------|----------|------|------|
-| `ubuntu-browser` | full toolset, systemd, headless Chromium | Ubuntu 24.04 | `latest`, `ubuntu-browser`, and `ubuntu-browser-<commit-sha>` on source changes |
-| `ubuntu` | full toolset and systemd, no browser | Ubuntu 24.04 | `ubuntu` and `ubuntu-<commit-sha>` on source changes |
-| `alpine-browser` | Alpine-equivalent toolset, OpenRC, Chromium | Alpine 3.21 | `alpine-browser` and `alpine-browser-<commit-sha>` on source changes |
-| `alpine` | Alpine-equivalent toolset and OpenRC, no browser | Alpine 3.21 | `alpine` and `alpine-<commit-sha>` on source changes |
+| `ubuntu-browser` | full toolset, systemd, headless Chromium | Ubuntu 24.04 | `latest`, `ubuntu-browser`, and `ubuntu-browser-<12-char-commit-sha>` on source changes |
+| `ubuntu` | full toolset and systemd, no browser | Ubuntu 24.04 | `ubuntu` and `ubuntu-<12-char-commit-sha>` on source changes |
+| `alpine-browser` | Alpine-equivalent toolset, OpenRC, Chromium | Alpine 3.21 | `alpine-browser` and `alpine-browser-<12-char-commit-sha>` on source changes |
+| `alpine` | Alpine-equivalent toolset and OpenRC, no browser | Alpine 3.21 | `alpine` and `alpine-<12-char-commit-sha>` on source changes |
 
 Pull from `ghcr.io/hambn/agentimg:<tag>` or `docker.io/hambn/agentimg:<tag>`.
 Only a Git push that changes a variant creates its commit tag. Scheduled base-image
@@ -66,7 +66,7 @@ Every build resolves the current `gh`, `glab`, stable Go, Node.js LTS, Helm, Kus
 yq, zsh-autosuggestions, and stable kubectl releases directly from their upstream
 release services; there are no tool-version build arguments or fallback version
 literals. npm installs the current pnpm and Yarn releases. GitHub Actions rebuilds all
-variants every day.
+variants every week.
 Scheduled and manual builds bypass layer caches and refresh base images so those release
 lookups and distribution package installs actually run. The CLI downloads are
 checksum-verified, and each built digest must pass command, passwordless-sudo, shell,

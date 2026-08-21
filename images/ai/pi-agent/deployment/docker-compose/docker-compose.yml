@@ -5,7 +5,7 @@ services:
   pi-agent:
     image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [pi-agent]

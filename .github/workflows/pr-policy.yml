@@ -1,0 +1,53 @@
+name: pull-request/policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate title and description
+        env:
+          ACTOR: ${{ github.actor }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+
+          actor = os.environ["ACTOR"]
+          body = os.environ.get("PR_BODY", "")
+          title = os.environ["PR_TITLE"]
+
+          title_pattern = re.compile(
+              r"^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)"
+              r"(\([a-z0-9][a-z0-9._/-]*\))?!?: .+"
+          )
+          if not title_pattern.fullmatch(title):
+              raise SystemExit(
+                  "PR title must follow Conventional Commits, for example "
+                  "'fix(agentimg): preserve runtime ownership'."
+              )
+
+          if actor != "dependabot[bot]":
+              missing = [heading for heading in ("## Summary", "## Validation") if heading not in body]
+              if missing:
+                  raise SystemExit(f"PR body is missing required sections: {', '.join(missing)}")
+
+              meaningful = [
+                  line.strip()
+                  for line in body.splitlines()
+                  if line.strip()
+                  and not line.lstrip().startswith(("#", "<!--", "- ["))
+                  and line.strip() != "-"
+              ]
+              if len(meaningful) < 2:
+                  raise SystemExit("PR Summary and Validation must contain meaningful details.")
+          PY

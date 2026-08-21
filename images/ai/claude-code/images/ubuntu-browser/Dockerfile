@@ -1,5 +1,6 @@
 # ubuntu-browser: Claude Code on the Ubuntu agentimg foundation with Chromium.
-FROM ghcr.io/hambn/agentimg:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser
+FROM ${BASE_IMAGE}
 
 USER root
 

@@ -8,3 +8,11 @@ args: ["-p", "review the workspace"]
 
 # Name of an existing Secret holding key ANTHROPIC_API_KEY.
 apiKeySecret: claude-code
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi

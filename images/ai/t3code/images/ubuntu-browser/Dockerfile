@@ -1,5 +1,6 @@
 # ubuntu-browser: T3 Code on the Ubuntu browser-enabled agentbloat foundation.
-FROM ghcr.io/hambn/agentbloat:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentbloat:ubuntu-browser
+FROM ${BASE_IMAGE}
 
 USER root
 

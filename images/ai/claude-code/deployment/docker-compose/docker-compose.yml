@@ -10,7 +10,7 @@ services:
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
 

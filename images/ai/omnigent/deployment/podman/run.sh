@@ -3,6 +3,6 @@
 set -euo pipefail
 
 IMAGE="${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}"
-podman run -it --rm \
+podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
   "$IMAGE" "$@"

@@ -1,5 +1,6 @@
 # ubuntu: OpenAI Codex CLI on the Ubuntu agentimg foundation without a browser.
-FROM ghcr.io/hambn/agentimg:ubuntu
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu
+FROM ${BASE_IMAGE}
 
 USER root
 

@@ -1,8 +1,5 @@
-.agents/
 .claude/
 .codex/
 .mcp.json
-AGENTS.md
-CLAUDE.md
 
 .tmp/

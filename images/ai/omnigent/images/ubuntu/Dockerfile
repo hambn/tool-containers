@@ -1,5 +1,6 @@
 # ubuntu: Omnigent on the Ubuntu agentbloat foundation without a browser.
-FROM ghcr.io/hambn/agentbloat:ubuntu
+ARG BASE_IMAGE=ghcr.io/hambn/agentbloat:ubuntu
+FROM ${BASE_IMAGE}
 
 USER root
 
