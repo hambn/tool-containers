@@ -182,7 +182,13 @@ for skill_dir in skill_dirs:
         errors.append(f"{path}: supporting resource is not linked from SKILL.md")
 
 routed_names = set(re.findall(r"\$([a-z0-9]+(?:-[a-z0-9]+)*)", agents_text))
-mandatory_routes = {"repository-changes", "maintain-agent-workspace"}
+mandatory_routes = {
+    "repository-changes",
+    "maintain-agent-workspace",
+    "repository-map",
+    "container-images",
+    "web-ui",
+}
 for name in sorted(mandatory_routes - routed_names):
     errors.append(f"AGENTS.md must route mandatory skill ${name}")
 for name in sorted(routed_names - seen_names):

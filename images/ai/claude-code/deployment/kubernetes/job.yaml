@@ -19,6 +19,7 @@ spec:
       containers:
         - name: claude
           image: ghcr.io/hambn/claude-code:latest
+          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

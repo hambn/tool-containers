@@ -10,7 +10,10 @@ parameterization or repeated releases.
   only for an actual long-running service.
 - Mount `/workspace` from `emptyDir` for ephemeral work or a PVC for deliberately
   persistent work. State which data survives pod replacement.
-- Use a real default `ghcr.io/<owner>/<tool>:<tag>` and set an intentional pull policy.
+- Use a real default `ghcr.io/<owner>/<tool>:<tag>` and declare `imagePullPolicy`
+  explicitly instead of relying on the `:latest` default. A pull policy cannot make a
+  moving tag reproducible; pin an immutable version tag or digest when a workload must
+  keep running one exact image.
 - Set non-root security context, dropped capabilities, resource requests/limits, and
   service account behavior compatible with the image. Do not add cluster-wide RBAC when
   the tool does not require it.

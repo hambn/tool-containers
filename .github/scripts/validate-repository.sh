@@ -27,15 +27,21 @@ web_ui_files = [
     if path.is_file() and path.name != ".gitkeep"
 ]
 if web_ui_files:
-    web_ui_workflows = [
-        path
-        for path in workflows
-        if path.stem.startswith("web-ui") and "web-ui/**" in path.read_text()
-    ]
+    web_ui_workflows = []
+    for path in workflows:
+        if not path.stem.startswith("web-ui"):
+            continue
+        document = yaml.safe_load(path.read_text()) or {}
+        triggers = document.get("on", document.get(True, {})) or {}
+        paths = (triggers.get("pull_request") or {}).get("paths") or []
+        if isinstance(paths, str):
+            paths = [paths]
+        if "web-ui/**" in paths:
+            web_ui_workflows.append(path)
     if not web_ui_workflows:
         raise SystemExit(
             "a scaffolded web-ui requires a dedicated web-ui*.yml workflow "
-            "with web-ui/** path coverage"
+            "with web-ui/** in its pull_request.paths filter"
         )
 
 image_projects = {

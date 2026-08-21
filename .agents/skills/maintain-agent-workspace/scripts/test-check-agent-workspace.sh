@@ -64,9 +64,11 @@ mkdir -p "$memory_root/.agents/skills/web-ui/references"
 printf '# Legacy memory\n' >"$memory_root/.agents/skills/web-ui/references/memory.md"
 expect_failure memory "$memory_root"
 
-routing_root="$(new_case routing)"
-sed -i 's/\$repository-changes/repository-changes/' "$routing_root/AGENTS.md"
-expect_failure routing "$routing_root"
+for route in repository-changes maintain-agent-workspace repository-map container-images web-ui; do
+  routing_root="$(new_case "routing-$route")"
+  sed -i "s/\\\$${route}/${route}/" "$routing_root/AGENTS.md"
+  expect_failure "routing-$route" "$routing_root"
+done
 
 stale_route_root="$(new_case stale-route)"
 printf '\n- Use $removed-skill for removed behavior.\n' >>"$stale_route_root/AGENTS.md"

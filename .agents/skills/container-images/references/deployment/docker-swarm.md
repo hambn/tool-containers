@@ -11,7 +11,9 @@ Compose when appropriate.
 - Declare an overlay network and attach each service that needs it.
 - Define intentional replicas, restart policy, update behavior, and CPU/memory limits
   under `deploy:`.
-- Use `ghcr.io/<owner>/<tool>:<tag>` with a deliberately chosen tag or digest.
+- Use `ghcr.io/<owner>/<tool>:<tag>` with a deliberately chosen tag or digest. Moving
+  variant tags are repointed by releases and re-resolved on redeploy; pin a version tag
+  or digest when a stack must keep running one exact image across updates.
 - Do not claim `security_opt` hardening: `docker stack deploy` does not reliably apply
   that field to Swarm services. Document the platform limitation when
   `no-new-privileges` is required.

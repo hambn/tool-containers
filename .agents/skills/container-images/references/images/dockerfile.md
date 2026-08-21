@@ -11,8 +11,10 @@ shared `images/` context for its flat Dockerfiles and common assets.
   multi-stage browser source, `BROWSER_BASE`.
 - Give direct-build defaults a usable supported reference; keep digest-pinned defaults
   where the repository's air-gapped/direct-build contract depends on reproducibility.
-- Pass upstream tool versions as build arguments with a usable default. CI resolves
-  release versions and digest-pinned bases.
+- In derived images, pass upstream tool versions as build arguments with a usable
+  default; CI resolves release versions and digest-pinned bases. The `agentimg`
+  foundation is an explicit exception: it resolves current releases at build time and
+  uses no tool-version build arguments or fallback version literals.
 - State the functional profile and chosen base in the opening comment. Keep dependency
   versions visible to the repository's updater.
 
