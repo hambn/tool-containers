@@ -27,10 +27,12 @@ only when the owning upstream version actually changes.
 2. **Build** runs the selected variant matrix for `linux/amd64`, passes digest-pinned base
    arguments, builds from the correct context, labels source/upstream/base metadata,
    pushes content to GHCR by digest, emits SBOM and provenance attestations, smoke-tests
-   the runtime, and blocks on HIGH/CRITICAL Trivy findings. The gate ignores unfixed
-   findings and excludes vendored upstream release binaries (CLIs, language runtimes,
-   npm's own bundled dependencies) that this repository does not compile; OS packages,
-   application dependency trees, and everything else stay gated.
+   the runtime, and blocks on HIGH/CRITICAL Trivy findings. The vulnerability gate ignores
+   unfixed findings and excludes vendored upstream release binaries (CLIs, language
+   runtimes, npm's own bundled dependencies) that this repository does not compile; OS
+   packages, application dependency trees, and everything else stay gated. A second
+   unfiltered secret-only Trivy scan of the same image runs beside it so the vendored-file
+   exclusions never reduce secret coverage.
 3. **Push** downloads the recorded digests and applies registry tags without rebuilding.
    Each job authenticates only to its target registry; GHCR is the digest source for
    Docker Hub fan-out.
