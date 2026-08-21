@@ -13,7 +13,7 @@ for the current phase:
 - Read [verification](references/verification.md) before deciding or reporting which
   checks are required.
 - Read [commits and pull requests](references/commits-and-prs.md) when delivering an
-  assigned task (commit, push, pull request) or following CI.
+  assigned task (commit, push, pull request) or following its CI and review to merge.
 
 ## Workflow
 
@@ -34,7 +34,11 @@ for the current phase:
 7. Deliver the task: commit on the task branch, push it, and open a pull request to
    `main` as described in the commits and pull requests guide. Skip publication only
    when the user explicitly asks for uncommitted or local-only work.
+8. Own the opened pull request to completion: watch its checks, resolve review
+   feedback on the branch, then squash-merge it yourself as described in the guide.
+   Do not merge another person's or agent's pull request.
 
 Answering, explaining, diagnosing, or reviewing does not by itself authorize edits,
-commits, pushes, pull requests, merges, workflow dispatches, or repository-setting
-changes. Never discard another person's work to make a checkout clean.
+commits, pushes, pull requests, workflow dispatches, or repository-setting changes;
+merges happen only as the completion of this delivery workflow. Never discard another
+person's work to make a checkout clean.

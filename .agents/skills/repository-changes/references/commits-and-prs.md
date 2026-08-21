@@ -55,6 +55,25 @@ Opening the pull request is the final step of delivering an assigned task.
 - Inspect the initial `Pull request gate` and labeling results and address in-scope
   failures. Do not repeatedly rerun an unchanged failure.
 
-Repository convention is squash merge. Opening a pull request does not authorize
-merging it, deleting its branch, dispatching publication workflows, or changing
-repository settings.
+## Own the pull request to completion
+
+Following the opened pull request through review and merge is part of standard
+delivery, authorized by the user as a standing rule:
+
+1. Inspect the initial `Pull request gate` and labeling results and fix in-scope
+   failures on the task branch.
+2. When review feedback arrives, answer every comment and resolve each in-scope issue
+   with follow-up commits pushed to the same branch; re-request review where the
+   reviewer asked for it.
+3. Once required checks pass and no unresolved change request remains, squash-merge
+   the pull request yourself (repository convention), delete the merged branch, remove
+   your task worktree, and confirm `origin/main` contains the squashed commit.
+
+Never merge with failing required checks or an unresolved change request; treat
+out-of-scope feedback by answering it, not implementing it silently, and ask when the
+intended result is ambiguous. Never merge a pull request you did not open for this
+workflow. Merging does not authorize dispatching publication workflows or changing
+repository settings unless the user separately authorizes it.
+
+Skip any part of this section only when the user explicitly asks to keep work local,
+uncommitted, or unmerged.
