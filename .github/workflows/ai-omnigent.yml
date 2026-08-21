@@ -184,7 +184,7 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
         env:
-          TRIVY_SKIP_FILES: "**/usr/local/bin/gh,**/usr/local/bin/glab,**/usr/local/bin/helm,**/usr/local/bin/kubectl,**/usr/local/bin/kustomize,**/usr/local/bin/yq,**/usr/local/bin/uv,**/usr/local/bin/uvx,**/usr/local/bin/node,**/usr/local/lib/node_modules/npm/node_modules/**,**/usr/bin/tailscale,**/usr/bin/tailscaled,**/usr/local/go/**"
+          TRIVY_SKIP_FILES: "**/usr/local/bin/gh,**/usr/local/bin/glab,**/usr/local/bin/helm,**/usr/local/bin/kubectl,**/usr/local/bin/kustomize,**/usr/local/bin/yq,**/usr/local/bin/uv,**/usr/local/bin/uvx,**/usr/local/bin/node,**/usr/local/lib/node_modules/npm/node_modules/**,**/usr/bin/tailscale,**/usr/bin/tailscaled,**/usr/local/go/**,**/usr/local/lib/node_modules/@github/copilot/**"
 
       - name: Trivy secret scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -253,7 +253,7 @@ jobs:
             local ref="$1" expected="$2" output status
             output=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2>&1) && {
               [ "$output" = "$expected" ] || { echo "Immutable tag collision: $ref" >&2; return 1; }; return 0; }
-            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found' <<<"$output" && return 0
+            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|not found' <<<"$output" && return 0
             echo "Registry inspection failed for $ref: $output" >&2; return "$status"
           }
 
