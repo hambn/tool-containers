@@ -22,7 +22,7 @@ Immutable primary release tags currently are:
 | Tool | Release tag |
 |---|---|
 | `agentbloat` | `<agent>-v<version>` for each changed packaged agent |
-| `claude-code` | `cc-v<version>` |
+| `claude-code` | `claude-code-v<version>` |
 | `codex` | `codex-v<version>` |
 | `open-code-review` | `ocr-v<version>` |
 | `pi-agent` | `pi-v<version>` |
