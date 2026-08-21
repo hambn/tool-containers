@@ -1,0 +1,8 @@
+# Preserve agentimg's interactive shell and history behavior after Oh My Zsh loads.
+setopt AUTO_CD AUTO_PUSHD HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS
+setopt INTERACTIVE_COMMENTS PROMPT_SUBST SHARE_HISTORY
+
+HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+HISTSIZE=10000
+SAVEHIST=10000
+KEYTIMEOUT=1

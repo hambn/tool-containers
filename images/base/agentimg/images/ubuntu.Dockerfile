@@ -23,6 +23,7 @@ RUN --mount=type=bind,source=ubuntu/scripts/configure-systemd.sh,target=/tmp/con
 RUN --mount=type=bind,source=ubuntu/scripts/configure.sh,target=/tmp/configure.sh \
     bash /tmp/configure.sh
 RUN --mount=type=bind,source=ubuntu/scripts/configure-zsh.sh,target=/tmp/configure-zsh.sh \
+    --mount=type=bind,source=common/zsh/conf.d,target=/tmp/agentimg-conf.d \
     --mount=type=bind,source=common/zshenv,target=/tmp/zshenv \
     --mount=type=bind,source=common/zshrc,target=/tmp/zshrc \
     --mount=type=bind,source=common/zprofile,target=/tmp/zprofile \
