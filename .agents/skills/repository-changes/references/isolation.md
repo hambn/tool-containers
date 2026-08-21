@@ -17,17 +17,16 @@ overwrite, clean, or move it merely to start another task.
 
 ## Choose the workspace
 
-- Work in place when the branch is intended for this task, no other agent is using it,
-  and any uncommitted changes are either absent or explicitly the task-owned changes the
-  user asked to continue or commit.
-- Use a linked worktree when uncommitted changes are unrelated or owned by someone else,
-  the branch belongs to another task, or agents are working concurrently.
-- Before creating a publishable branch, fetch `origin main` and branch from
+Default for a newly assigned task: give it its own linked worktree and branch. This is
+what lets multiple agents run at the same time without interrupting each other, and it
+keeps the primary checkout available for whatever occupies it.
+
+- Before creating the branch, fetch `origin main` and base the worktree on
   `origin/main`, not a potentially stale local `main`.
 - Name feature branches `<type>/<kebab-case-slug>`, for example
   `chore/agent-skills-overhaul`.
 
-A safe linked-worktree shape is:
+A safe default shape is:
 
 ```sh
 task_branch="chore/example-change"
@@ -39,11 +38,17 @@ git fetch origin main && \
 Use an explicit, narrow temporary or sibling path. Do not create a recursive worktree
 inside the repository.
 
+Work in place only when all of these hold: the user explicitly directs it or the current
+branch is already this task's branch, no other agent or task owns that branch, and any
+uncommitted changes are absent or explicitly the task-owned changes the user asked to
+continue or commit. Otherwise use a linked worktree.
+
 ## Multiple agents
 
-Prefer one writable integration worktree and read-only specialist audits. If independent
-parallel implementation is useful, give each writer a unique branch, worktree, and
-non-overlapping file ownership; integrate exact reviewed commits and stop on conflicts.
+One worktree and branch per agent per task is the rule; never share either. If
+independent parallel implementation is useful, give each writer a unique branch,
+worktree, and non-overlapping file ownership; integrate exact reviewed commits and stop
+on conflicts.
 
 Never let two agents edit one worktree, share one branch across worktrees, remove a
 worktree another agent owns, or force cleanup. Keep a recovery worktree until its branch
