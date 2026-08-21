@@ -6,14 +6,16 @@ memory.
 
 ## Events and selection
 
-- A push to `main` selects variants affected by changes to the project, its workflow, or
-  shared `.github/scripts/` helpers.
+- A push to `main` selects variants affected by changes to the project's `images/`
+  build contexts, its workflow, or `.github/scripts/registry-inspect.sh`. Documentation
+  and deployment-only changes do not rebuild images.
 - Manual dispatch is permitted only from `main` and normally builds all variants.
-- Derived tools schedule update detection and react to successful upstream foundation or
-  parent-image workflow completion.
+- Derived tools use staggered hourly schedules to detect upstream foundation,
+  parent-image, and packaged-tool updates without privileged workflow chaining.
 - `base/agentimg` uses a weekly refresh that selects all variants so base and package
   repository updates are not missed.
-- Pull requests never publish images. They use static repository validation only.
+- Pull requests never build or publish images. The pull-request gate validates image
+  contracts statically.
 
 Keep path filters synchronized with every input that can alter output. A source-only or
 parent-base refresh normally repoints moving tags; emit a primary immutable release tag
@@ -45,6 +47,12 @@ runner, then merge architecture digests into a multi-platform manifest.
 
 - Declare one `PRIMARY` variant; only it owns `latest` and normal release tags.
 - Serialize each publisher with non-canceling concurrency and finite job timeouts.
+- Use an explicit supported runner image and disable persisted checkout credentials.
+- Deny token permissions at workflow scope, then grant only each job's required package
+  and content access.
+- Bind registry-promotion jobs to the registry-named GitHub Environment. Keep
+  `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as `dockerhub` environment secrets rather
+  than repository-wide secrets; GHCR publishing uses the job-scoped `GITHUB_TOKEN`.
 - Pin every third-party action to a full 40-character commit SHA with a readable version
   comment; keep GitHub Actions Dependabot enabled.
 - Grant the narrowest job permissions and secrets. Never echo credentials or pass them as

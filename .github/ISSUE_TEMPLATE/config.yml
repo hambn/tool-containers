@@ -3,3 +3,6 @@ contact_links:
   - name: Report a security vulnerability
     url: https://github.com/hambn/tool-containers/security/advisories/new
     about: Report security issues privately instead of opening a public issue.
+  - name: Read image and deployment documentation
+    url: https://github.com/hambn/tool-containers#catalog
+    about: Check the tool catalog and its linked usage guides before requesting support.

@@ -7,32 +7,35 @@ on:
   push:
     branches: [main]
     paths:
-      - "images/ai/omnigent/**"
+      - "images/ai/omnigent/images/**"
       - ".github/workflows/ai-omnigent.yml"
-      - ".github/scripts/**"
+      - ".github/scripts/registry-inspect.sh"
   schedule:
     - cron: "30 * * * *"
-  workflow_run:
-    workflows: ["ai/agentbloat"]
-    types: [completed]
   workflow_dispatch:
 
 concurrency:
   group: publish-${{ github.workflow }}
   cancel-in-progress: false
 
+permissions: {}
+
 env:
   THING: ai/omnigent
   IMAGE: omnigent
+  OWNER: ${{ github.repository_owner }}
   PRIMARY: ubuntu-browser
   PKG: omnigent
 
 jobs:
   plan:
-    if: (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
+    name: Plan publish candidates
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    permissions: { contents: read, packages: read }
+    permissions:
+      contents: read
+      packages: read # Needed to inspect current GHCR image metadata.
     outputs:
       variants: ${{ steps.plan.outputs.variants }}
       build: ${{ steps.plan.outputs.build }}
@@ -41,7 +44,9 @@ jobs:
       release_tag: ${{ steps.plan.outputs.release_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -57,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           source .github/scripts/registry-inspect.sh
-          image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          image="ghcr.io/$OWNER/$IMAGE"
           variants=(alpine alpine-browser ubuntu ubuntu-browser)
           omnigent_version=$(curl -fsSL "https://pypi.org/pypi/$PKG/json" | jq -er '.info.version')
 
@@ -90,8 +95,8 @@ jobs:
                 diff=$(git diff --name-only "$BEFORE" "$SHA")
               fi
 
-              if grep -q '^\.github/workflows/ai-omnigent\.yml$' <<<"$diff" || \
-                 grep -q '^images/ai/omnigent/\(README\.md\|deployment/\)' <<<"$diff"; then
+              if grep -q '^\.github/workflows/ai-omnigent\.yml$' <<<"$diff" ||
+                 grep -q '^\.github/scripts/registry-inspect\.sh$' <<<"$diff"; then
                 selected=("${variants[@]}")
               else
                 for variant in "${variants[@]}"; do
@@ -100,7 +105,7 @@ jobs:
                 done
               fi
               ;;
-            schedule|workflow_run)
+            schedule)
               old_omnigent=$(registry_inspect "$image:latest" '{{ index .Image.Config.Labels "io.tool-containers.omnigent-version" }}')
               if [ "$old_omnigent" != "$omnigent_version" ]; then
                 echo "omnigent: $old_omnigent -> $omnigent_version"
@@ -135,17 +140,22 @@ jobs:
           echo "Will build: $variants_json"
 
   build:
+    name: Build and scan ${{ matrix.variant }}
     needs: plan
     if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
-    permissions: { contents: read, packages: write, id-token: write, attestations: write }
+    permissions:
+      contents: read
+      packages: write # Needed to push the untagged digest for validation.
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       # ponytail: amd64 only. Add arm64 through a native runner after validating
       # Omnigent's Python dependencies and the agentbloat browser variants.
@@ -161,7 +171,7 @@ jobs:
         with:
           context: images/${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
-          provenance: true
+          provenance: mode=max
           sbom: true
           build-args: |
             BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/agentbloat:${{ matrix.variant }}@${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
@@ -194,21 +204,31 @@ jobs:
           exit-code: "1"
 
       - name: Save digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          VARIANT: ${{ matrix.variant }}
         run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$VARIANT" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
           mkdir -p /tmp/digests
-          echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
+          printf '%s\n' "$DIGEST" >"/tmp/digests/$VARIANT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digest-${{ matrix.variant }}
           path: /tmp/digests/${{ matrix.variant }}
           if-no-files-found: error
+          retention-days: 1
 
   push:
+    name: Publish to ${{ matrix.registry }}
     needs: [plan, build]
     if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-    permissions: { contents: read, packages: write }
+    environment: ${{ matrix.registry }}
+    permissions:
+      packages: write # Needed to promote the validated digest to GHCR tags.
     strategy:
       fail-fast: false
       matrix:
@@ -241,10 +261,11 @@ jobs:
           OMNIGENT_VERSION: ${{ needs.plan.outputs.omnigent_version }}
           RELEASE_TAG: ${{ needs.plan.outputs.release_tag }}
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY: ${{ matrix.registry }}
         run: |
           set -euo pipefail
-          source_image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
-          case "${{ matrix.registry }}" in
+          source_image="ghcr.io/$OWNER/$IMAGE"
+          case "$REGISTRY" in
             ghcr) target="$source_image" ;;
             dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
           esac

@@ -1,0 +1,46 @@
+name: pull-request/gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: pull-request-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  gate:
+    name: Pull request gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate pull request title and description
+        if: github.event_name == 'pull_request'
+        env:
+          ACTOR: ${{ github.actor }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python3 .github/scripts/validate_pr_metadata.py
+
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+      - name: Install validation dependency
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir -r .github/requirements.txt
+
+      - name: Validate repository contracts
+        run: .github/scripts/validate-repository.sh

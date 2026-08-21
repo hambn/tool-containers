@@ -7,9 +7,11 @@ Before opening a pull request:
 
 1. Read [`AGENTS.md`](../AGENTS.md) and follow the routed repository guidance.
 2. Keep credentials and generated runtime state out of the repository.
-3. Update affected documentation and run the agent-maintenance audit described by
-   `$maintain-agent-workspace`.
+3. Update affected documentation and agent guidance when a reusable repository
+   contract changes.
 4. Run `bash .agents/skills/repository-changes/scripts/validate-change.sh`.
 
-Describe the change and list exact validation in the pull request body. Resolve review
-threads before merge, and use squash merge so `main` retains a concise history.
+Describe the change and list exact validation in the pull request body. The single
+`Pull request gate` check validates PR metadata, dependency changes, and repository
+contracts. Resolve review threads and require that gate to pass before squash merging
+so `main` retains a concise history.

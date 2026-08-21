@@ -52,8 +52,8 @@ Opening the pull request is the final step of delivering an assigned task.
 - Open a ready-for-review pull request when implementation and required validation are
   complete. Use draft only when the user requests it or the work is explicitly
   incomplete or blocked.
-- Inspect initial CI state and address in-scope failures. Do not repeatedly rerun an
-  unchanged failure.
+- Inspect the initial `Pull request gate` and labeling results and address in-scope
+  failures. Do not repeatedly rerun an unchanged failure.
 
 Repository convention is squash merge. Opening a pull request does not authorize
 merging it, deleting its branch, dispatching publication workflows, or changing
