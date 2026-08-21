@@ -1,4 +1,4 @@
-# docker compose run --rm pi-agent
+# WORKSPACE="$PWD" ./compose.sh run --rm pi-agent
 name: pi-agent
 
 services:

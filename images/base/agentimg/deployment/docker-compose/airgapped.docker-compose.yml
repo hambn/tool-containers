@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm agentimg
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm agentimg
 name: agentimg-airgapped
 
 services:

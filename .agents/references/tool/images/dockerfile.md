@@ -7,8 +7,11 @@ can reuse distro-local scripts and common shell assets.
 
 ## Versions and bases
 
-- Use build arguments for upstream and base major versions, with a usable default such as
-  `latest` or the current supported major.
+- Use build arguments for upstream and base versions. When a Dockerfile is a supported
+  direct or air-gapped build entrypoint, pin its default base reference to an immutable
+  digest while allowing CI to pass a freshly resolved digest-pinned override.
+- Give upstream tool-version arguments a usable default such as `latest` or the current
+  supported major.
 - Let CI resolve the upstream release and pass it as a build argument.
 - State the chosen base and functional profile in the first comment.
 - Keep the base version visible to Renovate or the repository's chosen update tool.

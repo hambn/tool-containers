@@ -9,8 +9,6 @@ services:
     image: ghcr.io/hambn/claude-code:latest
     user: "1000:1000"
     cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
     hostname: claude-code
     environment:
       # Claude Code reads the key from the file the secret is mounted at.

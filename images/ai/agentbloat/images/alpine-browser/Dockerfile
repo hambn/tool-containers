@@ -1,5 +1,5 @@
 # alpine-browser: agentimg Alpine foundation with Chromium and the current agent CLIs.
-ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine-browser@sha256:b68362dc638ca6d68e04eb2329b1d54502fa5253fba54823a13b53797efa89b8
 FROM ${BASE_IMAGE}
 
 USER root

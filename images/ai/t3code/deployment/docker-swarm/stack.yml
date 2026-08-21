@@ -8,8 +8,6 @@ services:
     image: ghcr.io/hambn/t3code:ubuntu-browser
     user: "1000:1000"
     cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
     hostname: t3code
     ports:
       - "3773:3773"

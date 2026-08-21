@@ -1,4 +1,4 @@
-# docker compose run --rm codex
+# WORKSPACE="$PWD" ./compose.sh run --rm codex
 name: codex
 
 services:

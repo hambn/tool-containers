@@ -1,4 +1,4 @@
-# docker compose run --rm agentimg
+# WORKSPACE="$PWD" ./compose.sh run --rm agentimg
 name: agentimg
 
 services:

@@ -317,3 +317,19 @@ unverified assumptions.
   all Swarm renders, `bash .agents/commands/check-agent-workspace.sh`, and
   `git diff --check`. No local image build, pull, or runtime execution was performed per
   the task constraint.
+
+### 2026-08-21 — Resolve repository-hardening review findings
+
+- Scope: corrected agent documentation paths, made registry absence detection fail closed,
+  rejected missing foundation bases during planning, and required meaningful content in
+  each PR description section.
+- Deployment decisions: route Compose examples through executable launchers that reject
+  missing or relative workspace paths; build air-gapped run images explicitly; use a
+  permission-restricted temporary env file for Claude credentials; and remove unsupported
+  Swarm `security_opt` declarations. T3 Code's air-gapped service uses the build pull
+  policy.
+- Image decision: Codex and AgentBloat direct-build defaults pin the current published
+  `agentimg` variant digests while release workflows retain digest-pinned overrides.
+- Validation: focused PR-policy, registry-classification, workspace-launcher, Swarm, and
+  Dockerfile-pin regressions passed, followed by `.github/scripts/validate-repository.sh`,
+  `bash .agents/commands/check-agent-workspace.sh`, and `git diff --check`.

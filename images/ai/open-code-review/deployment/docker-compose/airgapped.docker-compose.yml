@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm open-code-review review
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm open-code-review review
 name: open-code-review-airgapped
 
 services:

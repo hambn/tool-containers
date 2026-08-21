@@ -1,4 +1,4 @@
-# docker compose up  → open http://localhost:3773
+# WORKSPACE="$PWD" ./compose.sh up  → open http://localhost:3773
 # Auth the agent from inside the T3 Code UI — no API key env needed.
 name: t3code
 

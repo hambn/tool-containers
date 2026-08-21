@@ -10,5 +10,7 @@ Use `stack.yml` with `docker stack deploy` for detached, long-running cluster se
   document the `docker secret create` command.
 - Declare an overlay network and attach the service to it.
 - Define replicas, a restart policy, and CPU/memory limits under `deploy:`.
+- Do not use `security_opt` for Swarm hardening; `docker stack deploy` does not apply it
+  to services. Document the limitation when `no-new-privileges` is required.
 - Reference `ghcr.io/<owner>/<tool>:latest` or a deliberately pinned tag.
 - If the tool is interactive, say so and point users to Docker or Compose instead.

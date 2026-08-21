@@ -1,4 +1,4 @@
-# docker compose run --rm open-code-review review
+# WORKSPACE="$PWD" ./compose.sh run --rm open-code-review review
 name: open-code-review
 
 services:

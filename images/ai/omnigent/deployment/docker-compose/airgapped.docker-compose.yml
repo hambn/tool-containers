@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm omnigent
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm omnigent
 name: omnigent-airgapped
 
 services:

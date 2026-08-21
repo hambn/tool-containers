@@ -12,7 +12,7 @@ registry_inspect() {
     fi
     [ "$attempt" -lt 3 ] && sleep $((attempt * 2))
   done
-  if grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found|does not exist' <<<"$output"; then
+  if grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found' <<<"$output"; then
     printf 'missing\n'
     return 0
   fi

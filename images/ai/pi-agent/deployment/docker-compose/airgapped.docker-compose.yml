@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm pi-agent
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm pi-agent
 name: pi-agent-airgapped
 
 services:

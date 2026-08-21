@@ -11,11 +11,12 @@ directory. Detailed tool behavior belongs in the tool README.
 
    | Tool | Description |
    |------|-------------|
-   | [`<tool>`](../../../<category>/<tool>/) | one-line description |
+   | [`<tool>`](../../../images/<category>/<tool>/) | one-line description |
 
 ## Rules
 
 - Every tool appears exactly once in the catalog.
+- In the actual root `README.md`, use `images/<category>/<tool>/` for each tool link.
 - Group tools by category and keep category order stable.
 - Show an empty category with `_None yet._` so the catalog remains explicit.
 - Adding a tool always includes its catalog row in the same change.

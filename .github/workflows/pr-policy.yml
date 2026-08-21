@@ -37,17 +37,34 @@ jobs:
               )
 
           if actor != "dependabot[bot]":
-              missing = [heading for heading in ("## Summary", "## Validation") if heading not in body]
+              required = ("Summary", "Validation")
+              headings = list(re.finditer(r"^##[ \t]+(.+?)[ \t]*$", body, re.MULTILINE))
+              sections = {}
+              for index, match in enumerate(headings):
+                  name = match.group(1)
+                  if name not in required:
+                      continue
+                  end = headings[index + 1].start() if index + 1 < len(headings) else len(body)
+                  sections[name] = body[match.end():end]
+
+              missing = [f"## {name}" for name in required if name not in sections]
               if missing:
                   raise SystemExit(f"PR body is missing required sections: {', '.join(missing)}")
 
-              meaningful = [
-                  line.strip()
-                  for line in body.splitlines()
-                  if line.strip()
-                  and not line.lstrip().startswith(("#", "<!--", "- ["))
-                  and line.strip() != "-"
-              ]
-              if len(meaningful) < 2:
-                  raise SystemExit("PR Summary and Validation must contain meaningful details.")
+              empty = []
+              for name in required:
+                  content = re.sub(r"<!--.*?-->", "", sections[name], flags=re.DOTALL)
+                  meaningful = [
+                      line.strip()
+                      for line in content.splitlines()
+                      if line.strip()
+                      and not line.lstrip().startswith(("#", "- ["))
+                      and line.strip() != "-"
+                  ]
+                  if not meaningful:
+                      empty.append(f"## {name}")
+              if empty:
+                  raise SystemExit(
+                      f"PR body sections must contain meaningful details: {', '.join(empty)}"
+                  )
           PY

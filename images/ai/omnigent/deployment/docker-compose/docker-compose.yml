@@ -1,4 +1,4 @@
-# docker compose run --rm omnigent
+# WORKSPACE="$PWD" ./compose.sh run --rm omnigent
 name: omnigent
 
 services:

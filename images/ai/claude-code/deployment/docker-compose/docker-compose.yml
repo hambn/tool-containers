@@ -1,4 +1,4 @@
-# docker compose run --rm claude
+# WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" run --rm claude
 name: claude-code
 
 services:

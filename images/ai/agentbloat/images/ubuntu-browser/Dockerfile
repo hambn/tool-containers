@@ -1,5 +1,5 @@
 # ubuntu-browser: agentimg Ubuntu foundation with Chromium and the current agent CLIs.
-ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser@sha256:4f0fd79ab90a5d34c810b8aaa493ba4b7cf493f3d12b95f64451e162920b4c8c
 FROM ${BASE_IMAGE}
 
 USER root

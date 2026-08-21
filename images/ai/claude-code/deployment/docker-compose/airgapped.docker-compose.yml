@@ -1,6 +1,6 @@
 # Offline: build from the repo's Dockerfile instead of pulling a registry image.
-# Run from repo root so the build context resolves:
-#   docker compose -f images/ai/claude-code/deployment/docker-compose/airgapped.docker-compose.yml run --rm claude
+# Run with the credential file created in README.md:
+#   WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" -f airgapped.docker-compose.yml run --build --rm claude
 name: claude-code
 
 services:

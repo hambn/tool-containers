@@ -243,7 +243,7 @@ jobs:
             local ref="$1" expected="$2" output status
             output=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2>&1) && {
               [ "$output" = "$expected" ] || { echo "Immutable tag collision: $ref" >&2; return 1; }; return 0; }
-            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found|does not exist' <<<"$output" && return 0
+            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found' <<<"$output" && return 0
             echo "Registry inspection failed for $ref: $output" >&2; return "$status"
           }
 

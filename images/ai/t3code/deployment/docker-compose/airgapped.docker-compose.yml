@@ -1,6 +1,6 @@
 # Offline: build from the repo's Dockerfile instead of pulling a registry image.
-# Run from repo root so the build context resolves:
-#   docker compose -f images/ai/t3code/deployment/docker-compose/airgapped.docker-compose.yml up
+# Run from this directory:
+#   WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
 name: t3code
 
 services:
@@ -8,7 +8,7 @@ services:
     build:
       context: ../../images/ubuntu-browser
     image: t3code:airgapped
-    pull_policy: never
+    pull_policy: build
     container_name: t3code
     hostname: t3code
     networks: [t3code]
