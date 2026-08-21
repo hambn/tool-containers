@@ -8,32 +8,35 @@ on:
   push:
     branches: [main]
     paths:
-      - "images/ai/t3code/**"
+      - "images/ai/t3code/images/**"
       - ".github/workflows/ai-t3code.yml"
-      - ".github/scripts/**"
+      - ".github/scripts/registry-inspect.sh"
   schedule:
     - cron: "55 * * * *"
-  workflow_run:
-    workflows: ["ai/agentbloat"]
-    types: [completed]
   workflow_dispatch:
 
 concurrency:
   group: publish-${{ github.workflow }}
   cancel-in-progress: false
 
+permissions: {}
+
 env:
   THING: ai/t3code
   IMAGE: t3code
+  OWNER: ${{ github.repository_owner }}
   PRIMARY: ubuntu-browser
   PKG: t3
 
 jobs:
   plan:
-    if: (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
+    name: Plan publish candidates
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    permissions: { contents: read, packages: read }
+    permissions:
+      contents: read
+      packages: read # Needed to inspect current GHCR image metadata.
     outputs:
       variants: ${{ steps.plan.outputs.variants }}
       build: ${{ steps.plan.outputs.build }}
@@ -44,7 +47,9 @@ jobs:
       release_tag: ${{ steps.plan.outputs.release_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -60,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           source .github/scripts/registry-inspect.sh
-          image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
+          image="ghcr.io/$OWNER/$IMAGE"
           variants=(alpine alpine-browser ubuntu ubuntu-browser)
           agent_labels=(codex claude-code cursor-agent grok opencode github-copilot gemini-cli pi-agent acp-agent)
 
@@ -119,8 +124,8 @@ jobs:
                   echo "Unable to compute push diff; refusing to publish" >&2
                   exit 1
                 fi
-                if grep -q '^\.github/workflows/ai-t3code\.yml$' <<<"$diff" || \
-                   grep -q '^images/ai/t3code/\(README.md\|deployment/\)' <<<"$diff"; then
+                if grep -q '^\.github/workflows/ai-t3code\.yml$' <<<"$diff" ||
+                   grep -q '^\.github/scripts/registry-inspect\.sh$' <<<"$diff"; then
                   selected=("${variants[@]}")
                 else
                   for variant in "${variants[@]}"; do
@@ -129,7 +134,7 @@ jobs:
                 fi
               fi
               ;;
-            schedule|workflow_run)
+            schedule)
               for variant in "${variants[@]}"; do
                 previous="${image}:$(tag_of "$variant")"
                 current_digest=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$basedigests")
@@ -164,7 +169,7 @@ jobs:
           esac
 
           selected_json=$(printf '%s\n' "${selected[@]}" | sed '/^$/d' | jq -R . | jq -cs 'unique')
-          if [ "$agent_update" = true ] || [ "$EVENT" = schedule ] || [ "$EVENT" = workflow_run ]; then
+          if [ "$agent_update" = true ] || [ "$EVENT" = schedule ]; then
             # Only the primary image receives the channel/version release tag. This
             # avoids collisions between the four profiles while all moving tags update.
             for variant in "${variants[@]}"; do
@@ -186,17 +191,22 @@ jobs:
           } >>"$GITHUB_OUTPUT"
 
   build:
+    name: Build and scan ${{ matrix.variant }}
     needs: plan
     if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
-    permissions: { contents: read, packages: write, id-token: write, attestations: write }
+    permissions:
+      contents: read
+      packages: write # Needed to push the untagged digest for validation.
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -210,7 +220,7 @@ jobs:
         with:
           context: images/${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
-          provenance: true
+          provenance: mode=max
           sbom: true
           build-args: |
             BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/agentbloat:${{ matrix.variant }}@${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
@@ -253,21 +263,31 @@ jobs:
           exit-code: "1"
 
       - name: Save digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          VARIANT: ${{ matrix.variant }}
         run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$VARIANT" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
           mkdir -p /tmp/digests
-          echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
+          printf '%s\n' "$DIGEST" >"/tmp/digests/$VARIANT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digest-${{ matrix.variant }}
           path: /tmp/digests/${{ matrix.variant }}
           if-no-files-found: error
+          retention-days: 1
 
   push:
+    name: Publish to ${{ matrix.registry }}
     needs: [plan, build]
     if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-    permissions: { contents: read, packages: write }
+    environment: ${{ matrix.registry }}
+    permissions:
+      packages: write # Needed to promote the validated digest to GHCR tags.
     strategy:
       fail-fast: false
       matrix:
@@ -299,10 +319,11 @@ jobs:
           VARIANTS: ${{ needs.plan.outputs.variants }}
           RELEASE_TAG: ${{ needs.plan.outputs.release_tag }}
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY: ${{ matrix.registry }}
         run: |
           set -euo pipefail
-          source_image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
-          case "${{ matrix.registry }}" in
+          source_image="ghcr.io/$OWNER/$IMAGE"
+          case "$REGISTRY" in
             ghcr) target="$source_image" ;;
             dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
           esac

@@ -1,0 +1,53 @@
+name: Usage question
+description: Ask for help using an image or one of its deployment examples.
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, registry credentials, or other private data.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Docker
+        - Docker Compose
+        - Docker Swarm
+        - Podman
+        - Kubernetes
+        - Helm
+        - Image runtime
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: image
+    attributes:
+      label: Image and tag
+      description: Include the registry, image, variant, and tag or digest.
+      placeholder: ghcr.io/hambn/agentimg:ubuntu-browser
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Explain what you are trying to accomplish and where you are stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: attempts
+    attributes:
+      label: What have you tried?
+      description: Include relevant commands, configuration, and redacted output.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I read the affected tool documentation, searched existing issues, and removed private data.
+          required: true

@@ -42,17 +42,18 @@ workflows, memory logs, or secondary router.
 ├── dependabot.yml                # dependency update configuration
 ├── labeler.yml                   # path-based pull-request labels
 ├── pull_request_template.md      # Summary/Validation PR shape
+├── requirements.txt              # Python dependency used by repository validation
 ├── ISSUE_TEMPLATE/               # issue forms and picker config
 ├── scripts/
 │   ├── registry-inspect.sh       # registry metadata helper used by publishers
-│   └── validate-repository.sh    # shared static validation entry point
+│   ├── validate-repository.sh    # shared static validation entry point
+│   ├── validate_pr_metadata.py   # PR title/body policy implementation
+│   └── test_validate_pr_metadata.py # PR metadata regression tests
 └── workflows/
     ├── ai-<tool>.yml             # one publisher for each AI image project
     ├── base-agentimg.yml         # foundation-image publisher
-    ├── validate-repository.yml   # pull-request static validation
-    ├── pr-policy.yml             # PR title/body policy
+    ├── pull-request.yml          # combined metadata, dependency, and static gate
     ├── pr-labeler.yml            # label automation
-    └── dependency-review.yml     # dependency review gate
 ```
 
 The current image publishers are `ai-agentbloat.yml`, `ai-claude-code.yml`,
