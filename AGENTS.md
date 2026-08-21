@@ -1,6 +1,18 @@
-# Agent workspace
+# Repository agent guidance
 
-Repository guidance is centralized in [`.agents/README.md`](./.agents/README.md).
+Use the repository skills under `.agents/skills/` through progressive disclosure:
 
-Read that file first. It routes the task to the smallest relevant rule, workflow,
-reference, or template and contains the validation required after repository changes.
+- Use `$repository-changes` for every task that adds, edits, moves, or removes a
+  repository file.
+- Use `$repository-map` when locating code, deciding where a new file belongs, or
+  changing the repository layout.
+- Use `$container-images` for anything under `images/`, the image catalog, deployment
+  examples, registries and tags, or image publication workflows.
+- Use `$web-ui` for product, design, implementation, testing, build, deployment, or CI
+  work whose primary target is `web-ui/`.
+- Use `$maintain-agent-workspace` after every repository-changing task and whenever
+  agent guidance is created, corrected, reorganized, or removed.
+
+Load only the selected `SKILL.md` files and the references they route to. Preserve
+unrelated work, keep secrets and generated state out of Git, and treat the repository
+and its validation scripts as the source of truth for facts that can be discovered.

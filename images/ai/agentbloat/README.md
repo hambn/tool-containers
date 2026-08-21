@@ -22,7 +22,8 @@
 Pull moving tags from `ghcr.io/hambn/agentbloat:<tag>` or
 `docker.io/hambn/agentbloat:<tag>`. Source edits and `agentimg` base refreshes repoint
 only moving tags. A scheduled agent release also repoints those tags and adds a version
-tag to the primary `ubuntu-browser` image, such as `claude-code-v1.2.3`.
+tag to the primary `ubuntu-browser` image, such as `claude-code-v1.2.3`. See the
+repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
 
 ## Included software
 

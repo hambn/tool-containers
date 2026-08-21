@@ -1,6 +1,5 @@
 # Agent workspace
 
-Repository guidance is centralized in [`.agents/README.md`](./.agents/README.md).
-
-Read that file first. It routes the task to the smallest relevant rule, workflow,
-reference, or template and contains the validation required after repository changes.
+Follow [`AGENTS.md`](./AGENTS.md). Repository skills live under `.agents/skills/`; if
+the client does not discover their frontmatter automatically, inspect the descriptions
+there and open only the `SKILL.md` files matching the task.

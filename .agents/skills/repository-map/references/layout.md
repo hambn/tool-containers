@@ -1,0 +1,99 @@
+# Repository layout
+
+This map describes what each area owns. Use `git ls-files` for the exact current file
+inventory and the root `README.md` catalog for the current public list of tools.
+
+```text
+tool-containers/
+├── AGENTS.md                     # mandatory skill trigger router
+├── CLAUDE.md                     # compatibility pointer to AGENTS.md
+├── README.md                     # public image catalog
+├── LICENSE                       # repository license
+├── .gitignore                    # local/generated state exclusions
+├── .agents/skills/               # repository-local agent capabilities
+├── .github/                      # GitHub collaboration, validation, and delivery
+├── images/                       # self-contained container image projects
+└── web-ui/                       # repository web application boundary
+```
+
+## Root files
+
+- `AGENTS.md` is the only always-loaded repository instruction surface.
+- `CLAUDE.md` points compatible clients to `AGENTS.md`; it does not duplicate policy.
+- `README.md` describes the repository and lists every image tool exactly once by
+  category.
+- `LICENSE` contains the repository's software license.
+- `.gitignore` excludes local agent configuration and generated local state.
+
+## Agent skills
+
+Each immediate `.agents/skills/<skill>/` directory is one discoverable capability and
+contains `SKILL.md`. Conditional detail belongs in that skill's `references/`; repeated
+deterministic mechanics belong in `scripts/`. There are no global agent references,
+workflows, memory logs, or secondary router.
+
+## GitHub controls
+
+```text
+.github/
+├── CODEOWNERS                    # review ownership
+├── CONTRIBUTING.md               # human contribution handoff
+├── SECURITY.md                   # vulnerability reporting
+├── dependabot.yml                # dependency update configuration
+├── labeler.yml                   # path-based pull-request labels
+├── pull_request_template.md      # Summary/Validation PR shape
+├── ISSUE_TEMPLATE/               # issue forms and picker config
+├── scripts/
+│   ├── registry-inspect.sh       # registry metadata helper used by publishers
+│   └── validate-repository.sh    # shared static validation entry point
+└── workflows/
+    ├── ai-<tool>.yml             # one publisher for each AI image project
+    ├── base-agentimg.yml         # foundation-image publisher
+    ├── validate-repository.yml   # pull-request static validation
+    ├── pr-policy.yml             # PR title/body policy
+    ├── pr-labeler.yml            # label automation
+    └── dependency-review.yml     # dependency review gate
+```
+
+The current image publishers are `ai-agentbloat.yml`, `ai-claude-code.yml`,
+`ai-codex.yml`, `ai-omnigent.yml`, `ai-open-code-review.yml`, `ai-pi-agent.yml`,
+`ai-t3code.yml`, and `base-agentimg.yml`.
+
+## Image projects
+
+The repeatable ownership boundary is `images/<category>/<tool>/`:
+
+```text
+images/<category>/<tool>/
+├── README.md                     # public tool contract and linked file map
+├── images/                       # build contexts and Dockerfiles
+└── deployment/<platform>/        # runnable examples plus platform README
+```
+
+Current categories and tools are:
+
+- `images/ai/`: `agentbloat`, `claude-code`, `codex`, `omnigent`,
+  `open-code-review`, `pi-agent`, and `t3code`.
+- `images/base/`: `agentimg`, the shared foundation project.
+- `ci` and `sandboxes` are catalog concepts with no project directories yet.
+
+Derived tools keep `images/<variant>/Dockerfile`. `images/base/agentimg` deliberately
+keeps four flat `images/*.Dockerfile` files because its variants share distro-local
+scripts and common shell assets in one build context. A tool supports only the deployment
+platforms it actually contains; do not infer that all six platform directories are
+mandatory.
+
+## Web UI
+
+`web-ui/` owns the application source, configuration, static assets, tests, and local
+documentation once present. Inspect its live files and use `$web-ui` for its current
+stack, bootstrap state, and implementation contract.
+
+## Exact-inventory commands
+
+```sh
+git ls-files
+git ls-files '.github/**' 'images/**' 'web-ui/**'
+find images -mindepth 2 -maxdepth 2 -type d -print
+find .agents/skills -mindepth 1 -maxdepth 1 -type d -print
+```

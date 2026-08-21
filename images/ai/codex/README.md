@@ -22,7 +22,7 @@
 Pull moving tags from `ghcr.io/hambn/codex:<tag>` or
 `docker.io/hambn/codex:<tag>`. A Codex npm release repoints all moving tags and adds
 `codex-v<version>` to the primary image. `agentimg` base refreshes and repository edits
-repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/references/repo/registries-and-tags.md).
+repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
 
 The deployment examples require `OPENAI_API_KEY` at runtime; credentials are not baked
 into the image.

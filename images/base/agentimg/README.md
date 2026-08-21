@@ -24,7 +24,7 @@ agents or Exe-specific components.
 Pull from `ghcr.io/hambn/agentimg:<tag>` or `docker.io/hambn/agentimg:<tag>`.
 Only a Git push that changes a variant creates its commit tag. Scheduled base-image
 refreshes replace `latest` and the affected stable variant tag without creating another
-tag. See the repository [registry and tag guidance](../../../.agents/references/repo/registries-and-tags.md).
+tag. See the repository [registry and tag guidance](../../../.agents/skills/container-images/references/registries-and-tags.md).
 
 ## Included software
 

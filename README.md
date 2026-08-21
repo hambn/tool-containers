@@ -2,7 +2,8 @@
 
 Docker images for many purposes — AI agents, CI builders, sandboxes, and more. Each image is a self-contained "tool" inside a category, with multiple build variants, per-platform deployment recipes, and its own CI pushing to GHCR and Docker Hub (Quay pending).
 
-Repository and agent guidance lives in [`.agents/`](./.agents/README.md).
+Repository guidance starts in [`AGENTS.md`](./AGENTS.md) and is implemented as
+on-demand [repository skills](./.agents/skills/).
 
 ## Catalog
 

@@ -9,3 +9,4 @@ enhancement:
           - ".agents/**"
           - ".github/**"
           - "images/**"
+          - "web-ui/**"
