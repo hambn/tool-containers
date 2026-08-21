@@ -6,7 +6,7 @@ version: "3.8"
 
 services:
   claude:
-    # Moving tag repointed by every Claude Code release; pin cc-v<version> to freeze one.
+    # Moving tag repointed by every Claude Code release; pin claude-code-v<version> to freeze one.
     image: ghcr.io/hambn/claude-code:ubuntu-browser
     user: "1000:1000"
     cap_drop: [ALL]

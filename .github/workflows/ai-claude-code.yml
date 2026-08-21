@@ -2,7 +2,7 @@ name: ai/claude-code
 
 # Pushes and manual runs publish moving variant tags only. The hourly schedule checks
 # the Claude Code package and all four agentimg base tags; a Claude release also adds
-# one primary-image tag, for example cc-v1.2.3. A successful agentimg workflow run
+# one primary-image tag, for example claude-code-v1.2.3. A successful agentimg workflow run
 # performs the same base-drift check immediately instead of waiting for the schedule.
 on:
   push:
@@ -264,9 +264,9 @@ jobs:
             tags="$variant"
             [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
             [ "$RELEASE_TAG" = true ] && [ "$variant" = "$PRIMARY" ] && \
-              tags="$tags cc-v$CLAUDE_VERSION"
+              tags="$tags claude-code-v$CLAUDE_VERSION"
             [ "$RELEASE_TAG" = true ] && [ "$variant" = "$PRIMARY" ] && \
-              check_immutable "$target:cc-v$CLAUDE_VERSION" "$digest"
+              check_immutable "$target:claude-code-v$CLAUDE_VERSION" "$digest"
 
             args=()
             for tag in $tags; do args+=(--tag "$target:$tag"); done

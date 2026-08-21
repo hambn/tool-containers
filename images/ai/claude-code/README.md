@@ -14,14 +14,14 @@
 
 | Variant | Contents | Base | Moving tags | Claude Code release tag |
 |---------|----------|------|-------------|-------------------------|
-| `ubuntu-browser` (primary) | Claude Code, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `cc-v<version>` |
+| `ubuntu-browser` (primary) | Claude Code, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `claude-code-v<version>` |
 | `ubuntu` | Claude Code and Ubuntu tools | `ghcr.io/hambn/agentimg:ubuntu` | `ubuntu` | primary-only tag is not repeated |
 | `alpine-browser` | Claude Code, Alpine tools, Chromium | `ghcr.io/hambn/agentimg:alpine-browser` | `alpine-browser` | primary-only tag is not repeated |
 | `alpine` | Claude Code and Alpine tools | `ghcr.io/hambn/agentimg:alpine` | `alpine` | primary-only tag is not repeated |
 
 Pull moving tags from `ghcr.io/hambn/claude-code:<tag>` or
 `docker.io/hambn/claude-code:<tag>`. A Claude Code npm release repoints all moving tags
-and adds `cc-v<version>` to the primary image. `agentimg` base refreshes and repository
+and adds `claude-code-v<version>` to the primary image. `agentimg` base refreshes and repository
 edits repoint moving tags only. See the repository's
 [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
 
