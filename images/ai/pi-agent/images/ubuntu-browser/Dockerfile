@@ -1,5 +1,6 @@
 # ubuntu-browser: Pi coding agent on the Ubuntu browser-enabled agentimg foundation.
-FROM ghcr.io/hambn/agentimg:ubuntu-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:ubuntu-browser
+FROM ${BASE_IMAGE}
 
 USER root
 

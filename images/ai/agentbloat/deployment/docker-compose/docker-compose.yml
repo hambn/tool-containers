@@ -1,4 +1,4 @@
-# docker compose run --rm agentbloat
+# WORKSPACE="$PWD" ./compose.sh run --rm agentbloat
 name: agentbloat
 
 services:
@@ -6,7 +6,7 @@ services:
     image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}
     command: ["zsh", "-l"]
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [agentbloat]

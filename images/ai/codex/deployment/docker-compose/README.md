@@ -3,10 +3,16 @@
 Run Codex against the current directory:
 
 ```sh
-docker compose run --rm codex
-CODEX_IMAGE=ghcr.io/hambn/codex:alpine docker compose run --rm codex --help
+WORKSPACE="$PWD" ./compose.sh run --rm codex
+WORKSPACE="$PWD" CODEX_IMAGE=ghcr.io/hambn/codex:alpine \
+  ./compose.sh run --rm codex --help
 ```
 
-Set `OPENAI_API_KEY` in the host environment. The air-gapped definition builds the
+`compose.sh` rejects a missing or relative `WORKSPACE` before invoking Compose. Set
+`OPENAI_API_KEY` in the host environment. The air-gapped definition builds the
 Ubuntu browser variant locally and requires its `agentimg` base and npm dependencies
-to be cached or reachable.
+to be cached or reachable:
+
+```sh
+WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm codex
+```

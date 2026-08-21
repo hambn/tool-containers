@@ -1,11 +1,11 @@
-# docker compose run --rm omnigent
+# WORKSPACE="$PWD" ./compose.sh run --rm omnigent
 name: omnigent
 
 services:
   omnigent:
     image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [omnigent]

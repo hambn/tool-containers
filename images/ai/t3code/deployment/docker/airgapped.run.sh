@@ -4,11 +4,12 @@
 set -euo pipefail
 
 TAR="${1:-t3code.tar}"
+if [ "$#" -gt 0 ]; then shift; fi
 [ -f "$TAR" ] || { echo "missing $TAR — docker save it on an online host first" >&2; exit 1; }
 
 docker load -i "$TAR"
 docker run -it --rm \
   --pull=never \
-  -p 3773:3773 \
+  -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser
+  ghcr.io/hambn/t3code:ubuntu-browser "$@"

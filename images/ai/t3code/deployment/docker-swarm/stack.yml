@@ -6,6 +6,8 @@ version: "3.8"
 services:
   t3:
     image: ghcr.io/hambn/t3code:ubuntu-browser
+    user: "1000:1000"
+    cap_drop: [ALL]
     hostname: t3code
     ports:
       - "3773:3773"

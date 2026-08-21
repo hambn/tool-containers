@@ -2,5 +2,5 @@ apiVersion: v2
 name: t3code
 description: T3 Code web GUI for coding agents as a Deployment + Service
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: latest

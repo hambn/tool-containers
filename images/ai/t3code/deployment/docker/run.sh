@@ -17,6 +17,6 @@ fi
 
 docker run -it --rm \
   "${docker_options[@]}" \
-  -p 3773:3773 \
+  -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/t3code:ubuntu-browser "$@"

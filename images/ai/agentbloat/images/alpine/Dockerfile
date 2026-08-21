@@ -1,5 +1,6 @@
 # alpine: agentimg Alpine foundation with the current agent CLIs, without a browser.
-FROM ghcr.io/hambn/agentimg:alpine
+ARG BASE_IMAGE=ghcr.io/hambn/agentimg:alpine@sha256:e4d01f9bda70bb1709b2992e2f075746278eef0a94e0915bee68f8e396e4c96c
+FROM ${BASE_IMAGE}
 
 USER root
 
@@ -11,7 +12,7 @@ ARG OPENCODE_VERSION=latest
 ARG GITHUB_COPILOT_VERSION=latest
 ARG GEMINI_CLI_VERSION=latest
 ARG PI_AGENT_VERSION=latest
-ARG ACP_AGENT_VERSION=latest
+ARG ACP_AGENT_VERSION=0.1.0
 
 RUN npm install --global --no-fund --no-audit \
       "@openai/codex@${CODEX_VERSION}" \
@@ -38,7 +39,7 @@ RUN if [ "${CURSOR_AGENT_VERSION}" = latest ]; then \
     ln -sf cursor-agent /usr/local/bin/agent && \
     rm -rf /root/.local
 
-RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
       --with agent-client-protocol==0.7.1 \
       "acp-agent==${ACP_AGENT_VERSION}" && \
     rm -rf /root/.cache/uv

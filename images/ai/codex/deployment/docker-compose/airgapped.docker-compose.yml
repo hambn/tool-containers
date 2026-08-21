@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm codex
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm codex
 name: codex-airgapped
 
 services:
@@ -10,7 +10,7 @@ services:
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [codex]

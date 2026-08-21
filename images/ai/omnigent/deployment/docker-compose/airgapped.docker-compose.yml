@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm omnigent
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm omnigent
 name: omnigent-airgapped
 
 services:
@@ -8,7 +8,7 @@ services:
     image: local/omnigent:ubuntu-browser
     pull_policy: never
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [omnigent]

@@ -7,10 +7,7 @@ kubectl create secret generic claude-code --from-literal=ANTHROPIC_API_KEY=sk-..
 helm install cc ./chart --set args='{-p,review the workspace}'
 ```
 
-Published chart (OCI):
-
-```sh
-helm install cc oci://ghcr.io/hambn/charts/claude-code
-```
+Chart publication is not enabled. Install the chart from this repository with
+`helm install cc ./chart` as shown above.
 
 Values: see [`chart/values.yaml`](./chart/values.yaml).

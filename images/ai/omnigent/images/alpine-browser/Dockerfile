@@ -1,5 +1,6 @@
 # alpine-browser: Omnigent on the Alpine browser-enabled agentbloat foundation.
-FROM ghcr.io/hambn/agentbloat:alpine-browser
+ARG BASE_IMAGE=ghcr.io/hambn/agentbloat:alpine-browser
+FROM ${BASE_IMAGE}
 
 USER root
 

@@ -4,6 +4,8 @@ version: "3.8"
 services:
   agentimg:
     image: ghcr.io/hambn/agentimg:latest
+    user: "1000:1000"
+    cap_drop: [ALL]
     command: ["sleep", "infinity"]
     networks: [agentimg]
     volumes:

@@ -1,4 +1,4 @@
-# docker compose -f airgapped.docker-compose.yml run --rm open-code-review review
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm open-code-review review
 name: open-code-review-airgapped
 
 services:
@@ -7,10 +7,9 @@ services:
       context: ../../images/ubuntu-browser
     image: local/open-code-review:ubuntu-browser
     pull_policy: never
-    entrypoint: ["ocr"]
     command: ["--help"]
     volumes:
-      - ./:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
     networks: [open-code-review]

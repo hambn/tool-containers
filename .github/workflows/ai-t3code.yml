@@ -10,12 +10,17 @@ on:
     paths:
       - "images/ai/t3code/**"
       - ".github/workflows/ai-t3code.yml"
+      - ".github/scripts/**"
   schedule:
-    - cron: "0 * * * *"
+    - cron: "55 * * * *"
   workflow_run:
     workflows: ["ai/agentbloat"]
     types: [completed]
   workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.workflow }}
+  cancel-in-progress: false
 
 env:
   THING: ai/t3code
@@ -25,8 +30,9 @@ env:
 
 jobs:
   plan:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions: { contents: read, packages: read }
     outputs:
       variants: ${{ steps.plan.outputs.variants }}
@@ -37,10 +43,10 @@ jobs:
       agent_versions: ${{ steps.plan.outputs.agent_versions }}
       release_tag: ${{ steps.plan.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
@@ -53,20 +59,18 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          source .github/scripts/registry-inspect.sh
           image="ghcr.io/${{ github.repository_owner }}/$IMAGE"
           variants=(alpine alpine-browser ubuntu ubuntu-browser)
           agent_labels=(codex claude-code cursor-agent grok opencode github-copilot gemini-cli pi-agent acp-agent)
 
           resolve_base() {
-            awk 'toupper($1) == "FROM" { ref=$2 } END { print ref }' \
-              "images/$THING/images/$1/Dockerfile"
+            sed -n 's/^ARG BASE_IMAGE=//p' "images/$THING/images/$1/Dockerfile" | head -n1
           }
 
           inspect_label() {
             local ref="$1" label="$2" value
-            value=$(docker buildx imagetools inspect "$ref" \
-              --format "{{ index .Image.Config.Labels \"io.tool-containers.${label}-version\" }}" \
-              2>/dev/null || true)
+            value=$(registry_inspect "$ref" "{{ index .Image.Config.Labels \"io.tool-containers.${label}-version\" }}")
             [ -n "$value" ] && [ "$value" != "<no value>" ] || value=missing
             printf '%s' "$value"
           }
@@ -111,7 +115,10 @@ jobs:
               if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
                 selected=("${variants[@]}")
               else
-                diff=$(git diff --name-only "$BEFORE" "$SHA" 2>/dev/null || true)
+                if ! diff=$(git diff --name-only "$BEFORE" "$SHA"); then
+                  echo "Unable to compute push diff; refusing to publish" >&2
+                  exit 1
+                fi
                 if grep -q '^\.github/workflows/ai-t3code\.yml$' <<<"$diff" || \
                    grep -q '^images/ai/t3code/\(README.md\|deployment/\)' <<<"$diff"; then
                   selected=("${variants[@]}")
@@ -126,17 +133,13 @@ jobs:
               for variant in "${variants[@]}"; do
                 previous="${image}:$(tag_of "$variant")"
                 current_digest=$(jq -r --arg variant "$variant" '.[$variant]' <<<"$basedigests")
-                old_digest=$(docker buildx imagetools inspect "$previous" \
-                  --format '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}' \
-                  2>/dev/null || echo missing)
+                old_digest=$(registry_inspect "$previous" '{{ index .Image.Config.Labels "io.tool-containers.base-digest" }}')
                 if [ "$current_digest" != "$old_digest" ]; then
                   echo "$variant base: $old_digest -> $current_digest"
                   selected+=("$variant")
                 fi
 
-                old_t3=$(docker buildx imagetools inspect "$previous" \
-                  --format '{{ index .Image.Config.Labels "io.tool-containers.t3-version" }}' \
-                  2>/dev/null || echo missing)
+                old_t3=$(registry_inspect "$previous" '{{ index .Image.Config.Labels "io.tool-containers.t3-version" }}')
                 if [ "$old_t3" != "$t3_version" ]; then
                   echo "$variant t3: $old_t3 -> $t3_version"
                   selected+=("$variant")
@@ -145,9 +148,7 @@ jobs:
                 for label in "${agent_labels[@]}"; do
                   current_agent=$(jq -r --arg variant "$variant" --arg label "$label" \
                     '.[$variant][$label]' <<<"$agent_versions")
-                  old_agent=$(docker buildx imagetools inspect "$previous" \
-                    --format "{{ index .Image.Config.Labels \"io.tool-containers.${label}-version\" }}" \
-                    2>/dev/null || echo missing)
+                  old_agent=$(registry_inspect "$previous" "{{ index .Image.Config.Labels \"io.tool-containers.${label}-version\" }}")
                   if [ "$current_agent" != "$old_agent" ]; then
                     echo "$variant $label: $old_agent -> $current_agent"
                     selected+=("$variant")
@@ -168,9 +169,7 @@ jobs:
             # avoids collisions between the four profiles while all moving tags update.
             for variant in "${variants[@]}"; do
               previous="${image}:$(tag_of "$variant")"
-              old_t3=$(docker buildx imagetools inspect "$previous" \
-                --format '{{ index .Image.Config.Labels "io.tool-containers.t3-version" }}' \
-                2>/dev/null || echo missing)
+              old_t3=$(registry_inspect "$previous" '{{ index .Image.Config.Labels "io.tool-containers.t3-version" }}')
               [ "$old_t3" != "$t3_version" ] && release_tag="t3code-${t3_channel}-v${t3_version}" && break
             done
           fi
@@ -190,15 +189,16 @@ jobs:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
-    permissions: { contents: read, packages: write }
+    timeout-minutes: 90
+    permissions: { contents: read, packages: write, id-token: write, attestations: write }
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(needs.plan.outputs.variants) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
@@ -206,12 +206,15 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: images/${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
-          provenance: false
-          build-args: T3_VERSION=${{ needs.plan.outputs.t3_version }}
+          provenance: true
+          sbom: true
+          build-args: |
+            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/agentbloat:${{ matrix.variant }}@${{ fromJSON(needs.plan.outputs.basedigests)[matrix.variant] }}
+            T3_VERSION=${{ needs.plan.outputs.t3_version }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
@@ -229,24 +232,21 @@ jobs:
             io.tool-containers.pi-agent-version=${{ fromJSON(needs.plan.outputs.agent_versions)[matrix.variant]['pi-agent'] }}
             io.tool-containers.acp-agent-version=${{ fromJSON(needs.plan.outputs.agent_versions)[matrix.variant]['acp-agent'] }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }},push-by-digest=true,push=true
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+          cache-from: type=gha,scope=${{ env.IMAGE }}-${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ env.IMAGE }}-${{ matrix.variant }}
 
       - name: Trivy scan
-        # The scan is report-only (exit-code 0). Do not block publication when Trivy
-        # cannot read a remote layer because of a transient registry/HTTP2 reset.
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
           severity: HIGH,CRITICAL
-          exit-code: "0"
+          exit-code: "1"
 
       - name: Save digest
         run: |
           mkdir -p /tmp/digests
           echo "${{ steps.build.outputs.digest }}" >"/tmp/digests/${{ matrix.variant }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: digest-${{ matrix.variant }}
           path: /tmp/digests/${{ matrix.variant }}
@@ -256,14 +256,15 @@ jobs:
     needs: [plan, build]
     if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions: { contents: read, packages: write }
     strategy:
       fail-fast: false
       matrix:
         registry: [ghcr, dockerhub]
     steps:
-      - uses: docker/setup-buildx-action@v3
-      - uses: actions/download-artifact@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: digest-*
           merge-multiple: true
@@ -271,14 +272,14 @@ jobs:
 
       - name: Login GHCR
         if: matrix.registry == 'ghcr'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: "${{ github.actor }}"
           password: "${{ secrets.GITHUB_TOKEN }}"
       - name: Login Docker Hub
         if: matrix.registry == 'dockerhub'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: "${{ secrets.DOCKERHUB_USERNAME }}"
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
@@ -296,11 +297,21 @@ jobs:
             dockerhub) target="docker.io/$DOCKERHUB_USER/$IMAGE" ;;
           esac
 
+          check_immutable() {
+            local ref="$1" expected="$2" output status
+            output=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2>&1) && {
+              [ "$output" = "$expected" ] || { echo "Immutable tag collision: $ref" >&2; return 1; }; return 0; }
+            status=$?; grep -Eiq 'manifest[[:space:]]+unknown|MANIFEST_UNKNOWN|NAME_UNKNOWN|status code: 404|404 Not Found' <<<"$output" && return 0
+            echo "Registry inspection failed for $ref: $output" >&2; return "$status"
+          }
+
           for variant in $(jq -r '.[]' <<<"$VARIANTS"); do
             digest=$(cat "/tmp/digests/$variant")
             tags="$variant"
             [ "$variant" = "$PRIMARY" ] && tags="latest $tags"
             [ "$variant" = "$PRIMARY" ] && [ -n "$RELEASE_TAG" ] && tags="$tags $RELEASE_TAG"
+            [ "$variant" = "$PRIMARY" ] && [ -n "$RELEASE_TAG" ] && \
+              check_immutable "$target:$RELEASE_TAG" "$digest"
 
             args=()
             for tag in $tags; do args+=(--tag "$target:$tag"); done

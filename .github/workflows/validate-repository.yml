@@ -1,0 +1,28 @@
+name: validate/repository
+
+on:
+  pull_request:
+    paths:
+      - ".agents/**"
+      - ".github/**"
+      - ".gitignore"
+      - "images/**"
+      - "**/*.md"
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Install validation dependency
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir pyyaml==6.0.2
+      - name: Validate repository contracts
+        run: .github/scripts/validate-repository.sh

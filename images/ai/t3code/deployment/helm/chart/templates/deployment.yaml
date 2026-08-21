@@ -11,12 +11,37 @@ spec:
     metadata:
       labels: { app: {{ .Release.Name }}-t3code }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: t3
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           ports:
             - containerPort: 3773
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3773
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3773
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: workspace
               mountPath: /workspace

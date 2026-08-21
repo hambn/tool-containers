@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible image, deployment, or automation defect.
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve the repository. Do not include secrets.
+  - type: input
+    id: image
+    attributes:
+      label: Image and tag
+      description: Include the registry, image, variant, and tag or digest.
+      placeholder: ghcr.io/hambn/agentimg:ubuntu-browser
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Describe what happened and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe command or deployment that reproduces the issue.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the container runtime, host OS, architecture, and relevant versions.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and removed credentials and private data.
+          required: true
