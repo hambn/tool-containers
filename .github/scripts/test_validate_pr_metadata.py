@@ -36,20 +36,23 @@ class PullRequestMetadataTests(unittest.TestCase):
         self.assertIn("PR body is missing required sections: ## Validation", errors)
 
     def test_rejects_placeholder_only_sections(self) -> None:
-        body = """## Summary
+        for marker in ("-", "*", "+"):
+            with self.subTest(marker=marker):
+                body = f"""## Summary
 
 <!-- Explain what changed. -->
--
+{marker}
 
 ## Validation
 
-- [ ] Run checks.
+{marker} [ ] Run checks.
 """
-        errors = validate("docs: explain policy", body, "hambn")
-        self.assertIn(
-            "PR body sections must contain meaningful details: ## Summary, ## Validation",
-            errors,
-        )
+                errors = validate("docs: explain policy", body, "hambn")
+                self.assertIn(
+                    "PR body sections must contain meaningful details: "
+                    "## Summary, ## Validation",
+                    errors,
+                )
 
     def test_rejects_duplicate_required_section(self) -> None:
         body = VALID_BODY + "\n## Summary\n\n- A second summary.\n"

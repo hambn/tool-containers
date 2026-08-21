@@ -14,6 +14,7 @@ TITLE_PATTERN = re.compile(
 )
 REQUIRED_SECTIONS = ("Summary", "Validation")
 BODY_EXEMPT_ACTORS = {"dependabot[bot]"}
+TASK_LIST_PLACEHOLDER = re.compile(r"^[-*+]\s+\[[ xX]\](?:\s|$)")
 
 
 def validate(title: str, body: str, actor: str) -> list[str]:
@@ -54,8 +55,9 @@ def validate(title: str, body: str, actor: str) -> list[str]:
             line.strip()
             for line in content.splitlines()
             if line.strip()
-            and not line.lstrip().startswith(("#", "- ["))
-            and line.strip() != "-"
+            and not line.lstrip().startswith("#")
+            and not TASK_LIST_PLACEHOLDER.match(line.strip())
+            and line.strip() not in {"-", "*", "+"}
         ]
         if not meaningful:
             empty.append(f"## {name}")

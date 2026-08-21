@@ -59,8 +59,8 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Relevant logs
-      description: Paste the smallest useful, redacted log excerpt. Do not include credentials.
+      label: Relevant logs (optional)
+      description: If logs exist, paste the smallest useful, redacted excerpt. Do not include credentials.
       render: shell
   - type: checkboxes
     id: checks
