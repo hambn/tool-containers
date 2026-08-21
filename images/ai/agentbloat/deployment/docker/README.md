@@ -9,7 +9,7 @@ AGENTBLOAT_IMAGE=ghcr.io/hambn/agentbloat:alpine ./run.sh
 
 Opt in to the host Docker daemon with
 `AGENTBLOAT_DOCKER_SOCKET=/var/run/docker.sock ./run.sh`. The script mounts the socket
-and adds its GID for the non-root `agent` user; socket access is root-equivalent on the
+and adds its GID for the non-root `sysadmin` user; socket access is root-equivalent on the
 host.
 
 For an offline host, save `ghcr.io/hambn/agentbloat:latest` on a connected host, copy

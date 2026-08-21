@@ -18,7 +18,7 @@ developer tooling, including Docker CLI.
 
 To make the inherited Docker CLI use the host daemon, run
 `T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh`. The script mounts the socket and
-adds its GID for the non-root `agent` user. Docker socket access is root-equivalent on
+adds its GID for the non-root `sysadmin` user. Docker socket access is root-equivalent on
 the host, so keep this opt-in.
 
 Airgapped: on an online host run `docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar`,

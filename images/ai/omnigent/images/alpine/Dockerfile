@@ -17,6 +17,6 @@ RUN if [ "${OMNIGENT_VERSION}" = latest ]; then \
     rm -rf /root/.cache/uv
 
 ENV PATH=/usr/local/bin:/usr/local/go/bin:$PATH
-USER agent
+USER sysadmin
 WORKDIR /workspace
 ENTRYPOINT ["omnigent"]

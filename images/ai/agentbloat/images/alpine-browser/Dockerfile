@@ -43,6 +43,6 @@ RUN UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --python python3 --force \
       "acp-agent==${ACP_AGENT_VERSION}" && \
     rm -rf /root/.cache/uv
 
-USER agent
+USER sysadmin
 WORKDIR /workspace
 CMD ["/bin/zsh", "-l"]

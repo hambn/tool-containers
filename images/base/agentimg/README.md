@@ -49,12 +49,12 @@ Deliberately excluded from all variants:
 
 Docker, nginx, SSH, and Tailscale are installed but not enabled automatically. Derived
 images or privileged runtimes can opt into those daemons. Every variant defaults to the
-unprivileged UID/GID-1000 `agent` user and starts in `/home/agent`; `/workspace` remains
+unprivileged UID/GID-1000 `sysadmin` user and starts in `/home/sysadmin`; `/workspace` remains
 available as an optional project mount for deployment examples.
 
 Ubuntu systemd remains available when a privileged runtime explicitly selects root and
 `/sbin/init`. Its container profile uses `multi-user.target`, console logging, a bounded
-volatile journal, preserved `/tmp`, and lingering support for `agent`. Hardware, boot,
+volatile journal, preserved `/tmp`, and lingering support for `sysadmin`. Hardware, boot,
 getty, unattended-update, and host-managed resolver/udev units that do not belong in an
 OCI container are masked. This is systemd support, not an attempt to start systemd from
 the default non-root shell.
@@ -72,6 +72,13 @@ lookups and distribution package installs actually run. The CLI downloads are
 checksum-verified, and each built digest must pass command, passwordless-sudo, shell,
 agent-home, Docker CLI/Buildx/Compose, and browser-presence smoke checks before any
 moving tag is published.
+
+Each distro keeps its setup scripts in its own `scripts/` directory. Distribution
+updates, common packages, language runtimes, downloaded CLIs, system/user configuration,
+and Zsh configuration use separate Dockerfile layers; uv, Go, and Node share one
+language layer, while tool and user setup share one configuration layer. Build-only
+scripts and configuration are bind-mounted into each `RUN`, so they are not stored in
+image layers.
 
 Docker CLI, Buildx, Compose, and the daemon binary are installed, but a daemon is not
 started in the default non-root shell. Use an opt-in mounted socket or `DOCKER_HOST` for
@@ -94,28 +101,37 @@ provide.
 agentimg/
 ├── README.md
 ├── images/
+│   ├── alpine-browser.Dockerfile
+│   ├── alpine.Dockerfile
+│   ├── ubuntu-browser.Dockerfile
+│   ├── ubuntu.Dockerfile
 │   ├── alpine/
-│   │   ├── Dockerfile
+│   │   └── scripts/
+│   │       ├── browser-packages.sh
+│   │       ├── configure-zsh.sh
+│   │       ├── configure.sh
+│   │       ├── install-cli-tools.sh
+│   │       ├── languages.sh
+│   │       ├── packages.sh
+│   │       └── update.sh
+│   ├── common/
 │   │   ├── zprofile
+│   │   ├── zshenv
 │   │   └── zshrc
-│   ├── alpine-browser/
-│   │   ├── Dockerfile
-│   │   ├── zprofile
-│   │   └── zshrc
-│   ├── ubuntu/
-│   │   ├── Dockerfile
-│   │   ├── journald-container.conf
-│   │   ├── systemd-container.conf
-│   │   ├── tmpfiles-tmp.conf
-│   │   ├── zprofile
-│   │   └── zshrc
-│   └── ubuntu-browser/
-│       ├── Dockerfile
+│   └── ubuntu/
 │       ├── journald-container.conf
 │       ├── systemd-container.conf
 │       ├── tmpfiles-tmp.conf
-│       ├── zprofile
-│       └── zshrc
+│       └── scripts/
+│           ├── browser-packages.sh
+│           ├── configure-systemd.sh
+│           ├── configure-zsh.sh
+│           ├── configure.sh
+│           ├── install-cli-tools.sh
+│           ├── install-tailscale.sh
+│           ├── languages.sh
+│           ├── packages.sh
+│           └── update.sh
 └── deployment/
     ├── docker/
     │   ├── README.md

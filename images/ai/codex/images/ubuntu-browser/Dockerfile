@@ -9,6 +9,6 @@ RUN npm install --global --no-fund --no-audit \
       "@openai/codex@${CODEX_VERSION}" && \
     npm cache clean --force
 
-USER agent
+USER sysadmin
 WORKDIR /workspace
 ENTRYPOINT ["codex"]

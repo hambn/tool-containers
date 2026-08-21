@@ -171,7 +171,7 @@ jobs:
           docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lc '
             set -eux
             test "$(id -u)" = 1000
-            test "$(id -un)" = agent
+            test "$(id -un)" = sysadmin
             node --version
             npm --version
             test -s /usr/local/share/agentimg/node.version

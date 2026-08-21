@@ -10,7 +10,7 @@ AGENTIMG_IMAGE=ghcr.io/hambn/agentimg:alpine ./run.sh
 
 The image contains a verified Docker CLI, Buildx, and Compose. To connect it to the
 host daemon, opt in to mounting the socket; `run.sh` also adds the socket GID so the
-non-root `agent` user can access it:
+non-root `sysadmin` user can access it:
 
 ```sh
 AGENTIMG_DOCKER_SOCKET=/var/run/docker.sock ./run.sh

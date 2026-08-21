@@ -187,10 +187,10 @@ jobs:
           docker run --rm --entrypoint /bin/zsh "$IMAGE_REF" -lic '
             set -eux
             test "$(id -u)" = 1000
-            test "$(id -un)" = agent
-            test "$HOME" = /home/agent
-            test "$ZDOTDIR" = /home/agent
-            test "$PWD" = /home/agent
+            test "$(id -un)" = sysadmin
+            test "$HOME" = /home/sysadmin
+            test "$ZDOTDIR" = /home/sysadmin
+            test "$PWD" = /home/sysadmin
             test "$SHELL" = /bin/zsh
             test "$EDITOR" = nvim
             test "$LANG" = C.UTF-8
@@ -249,7 +249,7 @@ jobs:
             docker compose version
             if command -v systemctl >/dev/null; then
               test "$(systemctl --root=/ get-default)" = multi-user.target
-              test -e /var/lib/systemd/linger/agent
+              test -e /var/lib/systemd/linger/sysadmin
               grep -qx "Storage=volatile" /etc/systemd/journald.conf.d/agentimg-container.conf
               grep -qx "d /tmp 1777 root root 30d" /etc/tmpfiles.d/tmp.conf
               test "$(readlink /etc/systemd/system/systemd-resolved.service)" = /dev/null
