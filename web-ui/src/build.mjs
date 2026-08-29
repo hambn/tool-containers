@@ -10,10 +10,11 @@ import { renderDocsIndexPage, docsBody, docsJsonLd } from "./pages/docs/docs.mjs
 
 const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = path.join(uiRoot, "dist");
+const publicSiteUrl = process.env.SITE_URL ?? process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers";
 
 configureSite({
-  base: process.env.BASE_PATH ?? "/tool-containers",
-  origin: process.env.SITE_ORIGIN ?? "https://hambn.github.io",
+  base: process.env.BASE_PATH ?? "",
+  url: publicSiteUrl,
 });
 
 /** Conservative CSS minifier: comments, whitespace runs, punct spacing, trailing semicolons. */
@@ -121,7 +122,7 @@ for (const { repoRelPath, page, contentHtml, structuredData, title, description 
   fs.writeFileSync(path.join(outDir, "index.html"), html);
   const modified = lastmod(repoRelPath);
   sitemapUrls.push(
-    `\t<url><loc>${process.env.SITE_ORIGIN ?? "https://hambn.github.io"}${basePath}${page.route}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ""}</url>`,
+    `\t<url><loc>${publicSiteUrl.replace(/\/+$/, "")}${page.route}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ""}</url>`,
   );
   console.log(`built ${page.route}`);
 }
@@ -150,11 +151,10 @@ const notFoundHtml = shell({
 fs.writeFileSync(path.join(distRoot, "404.html"), notFoundHtml);
 console.log("built /404.html");
 
-const siteUrl = `${process.env.SITE_ORIGIN ?? "https://hambn.github.io"}${basePath}`;
 fs.writeFileSync(
   path.join(distRoot, "sitemap.xml"),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls.join("\n")}\n</urlset>\n`,
 );
-fs.writeFileSync(path.join(distRoot, "robots.txt"), `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`);
+fs.writeFileSync(path.join(distRoot, "robots.txt"), `User-agent: *\nAllow: /\n\nSitemap: ${publicSiteUrl.replace(/\/+$/, "")}/sitemap.xml\n`);
 
 console.log(`done: ${pages.size} pages`);

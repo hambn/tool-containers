@@ -1,4 +1,4 @@
-import { repoUrl, basePath as base, siteOrigin } from "./catalog.mjs";
+import { repoUrl, basePath as base, siteUrl } from "./catalog.mjs";
 import { escapeHtml } from "./markdown.mjs";
 import { sprite, icon } from "./icons.mjs";
 
@@ -83,7 +83,7 @@ heads.forEach(function(h){obs.observe(h)})
  */
 export function shell({ page, contentHtml, title, description, css, structuredData = null }) {
   const fullTitle = page.kind === "home" ? title : `${title} \u00b7 tool-containers`;
-  const canonical = `${siteOrigin}${base}${page.route}`;
+  const canonical = `${siteUrl}${page.route}`;
   const openGraphType = page.kind === "tool" || page.kind === "example" ? "article" : "website";
   return `<!doctype html>
 <html lang="en">

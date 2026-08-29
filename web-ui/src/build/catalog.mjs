@@ -6,11 +6,12 @@ export const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathn
 
 /** Deployment config, set once by the build entry before any rendering. */
 export let basePath = "";
-export let siteOrigin = "";
+export let siteUrl = "";
 
-export function configureSite({ base = "", origin = "" } = {}) {
-  basePath = base.replace(/\/+$/, "");
-  siteOrigin = origin.replace(/\/+$/, "");
+export function configureSite({ base = "", url = "" } = {}) {
+  const cleanBase = base.trim().replace(/^\/+|\/+$/g, "");
+  basePath = cleanBase ? `/${cleanBase}` : "";
+  siteUrl = url.trim().replace(/\/+$/, "");
 }
 
 const platformOrder = ["docker", "docker-compose", "podman", "docker-swarm", "kubernetes", "helm"];
