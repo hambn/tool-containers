@@ -26,10 +26,10 @@ See the repository's [registry and tag policy](../../../.agents/skills/container
 
 ## Use cases
 
-- **Local GUI over your repo** — [`deployment/docker/run.sh`](./deployment/docker/run.sh), then open `http://localhost:3773`.
-- **Compose service** — [`deployment/docker-compose/docker-compose.yml`](./deployment/docker-compose/docker-compose.yml) for a persistent local instance.
-- **Airgapped host** — [`deployment/docker/airgapped.run.sh`](./deployment/docker/airgapped.run.sh) loads a saved tar, no registry.
-- **Shared cluster instance** — [`deployment/kubernetes/deployment.yaml`](./deployment/kubernetes/deployment.yaml) Deployment + Service, port-forward to reach it.
+- **Local GUI over your repo** — [`examples/docker/run.sh`](./examples/docker/run.sh), then open `http://localhost:3773`.
+- **Compose service** — [`examples/docker-compose/docker-compose.yml`](./examples/docker-compose/docker-compose.yml) for a persistent local instance.
+- **Airgapped host** — [`examples/docker/airgapped.run.sh`](./examples/docker/airgapped.run.sh) loads a saved tar, no registry.
+- **Shared cluster instance** — [`examples/kubernetes/deployment.yaml`](./examples/kubernetes/deployment.yaml) Deployment + Service, port-forward to reach it.
 
 ## File map
 
@@ -38,13 +38,13 @@ See the repository's [registry and tag policy](../../../.agents/skills/container
   - [`ubuntu/Dockerfile`](./images/ubuntu/Dockerfile) — T3 Code on Ubuntu without a browser
   - [`alpine-browser/Dockerfile`](./images/alpine-browser/Dockerfile) — T3 Code on Alpine with Chromium
   - [`alpine/Dockerfile`](./images/alpine/Dockerfile) — T3 Code on Alpine without a browser
-- **deployment/** — one subdir per platform
-  - [`docker/`](./deployment/docker/) — [`run.sh`](./deployment/docker/run.sh), [`airgapped.run.sh`](./deployment/docker/airgapped.run.sh)
-  - [`docker-compose/`](./deployment/docker-compose/) — [`docker-compose.yml`](./deployment/docker-compose/docker-compose.yml), [`airgapped.docker-compose.yml`](./deployment/docker-compose/airgapped.docker-compose.yml)
-  - [`podman/`](./deployment/podman/) — [`run.sh`](./deployment/podman/run.sh)
-  - [`docker-swarm/`](./deployment/docker-swarm/) — [`stack.yml`](./deployment/docker-swarm/stack.yml)
-  - [`kubernetes/`](./deployment/kubernetes/) — [`deployment.yaml`](./deployment/kubernetes/deployment.yaml)
-  - [`helm/`](./deployment/helm/) — [`chart/`](./deployment/helm/chart/)
+- **examples/** — one subdir per platform
+  - [`docker/`](./examples/docker/) — [`run.sh`](./examples/docker/run.sh), [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
+  - [`docker-compose/`](./examples/docker-compose/) — [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml), [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
+  - [`podman/`](./examples/podman/) — [`run.sh`](./examples/podman/run.sh)
+  - [`docker-swarm/`](./examples/docker-swarm/) — [`stack.yml`](./examples/docker-swarm/stack.yml)
+  - [`kubernetes/`](./examples/kubernetes/) — [`deployment.yaml`](./examples/kubernetes/deployment.yaml)
+  - [`helm/`](./examples/helm/) — [`chart/`](./examples/helm/chart/)
 - CI: [`.github/workflows/ai-t3code.yml`](../../../.github/workflows/ai-t3code.yml) — detects agent/base/T3 updates and pushes both registries
 
 ## Sources

@@ -68,7 +68,7 @@ The repeatable ownership boundary is `images/<category>/<tool>/`:
 images/<category>/<tool>/
 ├── README.md                     # public tool contract and linked file map
 ├── images/                       # build contexts and Dockerfiles
-└── deployment/<platform>/        # runnable examples plus platform README
+└── examples/<platform>/          # runnable examples plus platform README
 ```
 
 Current categories and tools are:
@@ -88,7 +88,7 @@ the web-ui site renders them verbatim.
 ## Web UI
 
 `web-ui/` owns the static documentation-showcase website: a GitHub Pages site generated
-at build time from the root catalog and every image/deployment README. It holds the
+at build time from the root catalog and every image/example README. It holds the
 application source, configuration, static assets, tests, and local documentation once
 present. Inspect its live files and use `$web-ui` for its settled product and technical
 contract; document standards for the content it renders live in `$documentation`.

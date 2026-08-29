@@ -29,9 +29,9 @@ environment variables. No credentials are stored in the image or deployment file
 
 ## Use cases
 
-- **Interactive local coding** — [`deployment/docker/`](./deployment/docker/).
-- **Repeatable local sessions** — [`deployment/docker-compose/`](./deployment/docker-compose/).
-- **Rootless development** — [`deployment/podman/`](./deployment/podman/).
+- **Interactive local coding** — [`examples/docker/`](./examples/docker/).
+- **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
+- **Rootless development** — [`examples/podman/`](./examples/podman/).
 
 ## File map
 
@@ -47,7 +47,7 @@ pi-agent/
 │   │   └── Dockerfile
 │   └── ubuntu-browser/
 │       └── Dockerfile
-└── deployment/
+└── examples/
     ├── docker/
     │   ├── README.md
     │   ├── airgapped.run.sh

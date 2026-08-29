@@ -17,7 +17,7 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 |---|---|---|
 | Root catalog | `README.md` | Public index of every tool |
 | Tool README | `images/<category>/<tool>/README.md` | One tool's full public contract |
-| Deployment README | `images/<category>/<tool>/deployment/<platform>/README.md` | Runnable recipes for one platform |
+| Deployment README | `images/<category>/<tool>/examples/<platform>/README.md` | Runnable recipes for one platform |
 
 ## Root catalog
 
@@ -48,7 +48,7 @@ materially helps operation:
 
 For example, a concise "Included software" section may follow Images for a bundle whose
 contents are part of its contract. Do not duplicate `docker run` instructions in the
-tool README; runnable commands belong under `deployment/`. Do not add a generic build or
+tool README; runnable commands belong under `examples/`. Do not add a generic build or
 update section when CI is the sole supported build/update path.
 
 ## Deployment README

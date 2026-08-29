@@ -30,9 +30,9 @@ stored in the image or deployment files.
 
 ## Use cases
 
-- **Interactive local orchestration** — [`deployment/docker/`](./deployment/docker/).
-- **Repeatable local sessions** — [`deployment/docker-compose/`](./deployment/docker-compose/).
-- **Rootless development** — [`deployment/podman/`](./deployment/podman/).
+- **Interactive local orchestration** — [`examples/docker/`](./examples/docker/).
+- **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
+- **Rootless development** — [`examples/podman/`](./examples/podman/).
 
 ## File map
 
@@ -48,7 +48,7 @@ omnigent/
 │   │   └── Dockerfile
 │   └── ubuntu-browser/
 │       └── Dockerfile
-└── deployment/
+└── examples/
     ├── docker/
     │   ├── README.md
     │   ├── airgapped.run.sh

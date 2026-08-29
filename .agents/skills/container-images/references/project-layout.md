@@ -15,7 +15,7 @@ tool-containers/
     ├── README.md
     ├── images/
     │   └── <variant>/Dockerfile
-    └── deployment/
+    └── examples/
         └── <platform>/
             ├── README.md
             └── runnable files
@@ -32,7 +32,7 @@ the tool's `images/` build context.
 
 ## Naming
 
-- Use lowercase kebab-case category, tool, profile, and deployment directory names.
+- Use lowercase kebab-case category, tool, profile, and platform directory names.
 - Treat tool and variant names as public registry identifiers; rename with an explicit
   compatibility and tag migration plan.
 - Keep one workflow per tool at `.github/workflows/<category>-<tool>.yml`.

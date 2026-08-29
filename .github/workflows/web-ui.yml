@@ -1,0 +1,42 @@
+name: web-ui/validation
+
+on:
+  pull_request:
+    paths:
+      - "web-ui/**"
+      - "README.md"
+      - "images/**/README.md"
+  push:
+    branches: [main]
+    paths:
+      - "web-ui/**"
+      - "README.md"
+      - "images/**/README.md"
+
+concurrency:
+  group: web-ui-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build web UI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install dependencies
+        working-directory: web-ui
+        run: npm ci
+      - name: Build site
+        working-directory: web-ui
+        run: npm run build
+      - name: Verify generated site
+        working-directory: web-ui
+        run: npm test

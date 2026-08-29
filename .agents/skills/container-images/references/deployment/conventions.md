@@ -1,6 +1,6 @@
 # Deployment conventions
 
-Each supported platform lives at `images/<category>/<tool>/deployment/<platform>/` and
+Each supported platform lives at `images/<category>/<tool>/examples/<platform>/` and
 contains a README plus runnable examples. Add only the platform required by the tool's
 real use cases.
 

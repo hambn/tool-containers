@@ -4,5 +4,8 @@
 
 .tmp/
 
+web-ui/node_modules/
+web-ui/dist/
+
 __pycache__/
 *.py[cod]

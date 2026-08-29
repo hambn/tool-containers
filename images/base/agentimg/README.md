@@ -88,12 +88,12 @@ provide.
 
 ## Use cases
 
-- Start an interactive workspace with [Docker](deployment/docker/).
-- Run through a reusable local definition with [Docker Compose](deployment/docker-compose/).
-- Use a rootless container engine with [Podman](deployment/podman/).
-- Run a long-lived development pod with [Kubernetes](deployment/kubernetes/) or
-  [Helm](deployment/helm/).
-- Deploy a shared long-lived environment with [Docker Swarm](deployment/docker-swarm/).
+- Start an interactive workspace with [Docker](examples/docker/).
+- Run through a reusable local definition with [Docker Compose](examples/docker-compose/).
+- Use a rootless container engine with [Podman](examples/podman/).
+- Run a long-lived development pod with [Kubernetes](examples/kubernetes/) or
+  [Helm](examples/helm/).
+- Deploy a shared long-lived environment with [Docker Swarm](examples/docker-swarm/).
 
 ## File map
 
@@ -132,7 +132,7 @@ agentimg/
 │           ├── languages.sh
 │           ├── packages.sh
 │           └── update.sh
-└── deployment/
+└── examples/
     ├── docker/
     │   ├── README.md
     │   ├── airgapped.run.sh
