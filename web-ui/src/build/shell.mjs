@@ -84,6 +84,7 @@ heads.forEach(function(h){obs.observe(h)})
 export function shell({ page, contentHtml, title, description, css, structuredData = null }) {
   const fullTitle = page.kind === "home" ? title : `${title} \u00b7 tool-containers`;
   const canonical = `${siteOrigin}${base}${page.route}`;
+  const openGraphType = page.kind === "tool" || page.kind === "example" ? "article" : "website";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -93,7 +94,7 @@ export function shell({ page, contentHtml, title, description, css, structuredDa
 <meta name="description" content="${escapeHtml(description)}">
 ${page.kind === "404" ? '<meta name="robots" content="noindex">\n' : ""}<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b">
-<meta property="og:type" content="article">
+<meta property="og:type" content="${openGraphType}">
 <meta property="og:site_name" content="tool-containers">
 <meta property="og:title" content="${escapeHtml(fullTitle)}">
 <meta property="og:description" content="${escapeHtml(description)}">
@@ -102,8 +103,7 @@ ${page.kind === "404" ? '<meta name="robots" content="noindex">\n' : ""}<meta na
 <meta name="twitter:title" content="${escapeHtml(fullTitle)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${canonical}">
-<link rel="preload" href="${base}/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="${base}/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2318181b'/%3E%3Ctext x='5' y='21' fill='white' font-family='monospace' font-size='14'%3E%26gt;_%3C/text%3E%3C/svg%3E">
 ${structuredData ? `<script type="application/ld+json">${JSON.stringify(structuredData).replaceAll("<", "\\u003c")}</script>` : ""}
 <style>${css}</style>
 <script>${headScript()}</script>

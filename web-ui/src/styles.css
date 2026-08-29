@@ -630,6 +630,11 @@ input {
   font-family: var(--font-mono);
 }
 
+.prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .prose blockquote {
   margin: 1rem 0;
   padding-left: 1em;

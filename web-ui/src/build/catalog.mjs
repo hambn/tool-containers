@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 export const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..");
 
@@ -23,7 +23,7 @@ export const platformLabels = {
   helm: "Helm",
 };
 
-const remoteUrl = execSync("git remote get-url origin", { cwd: repoRoot }).toString().trim();
+const remoteUrl = execFileSync("git", ["remote", "get-url", "origin"], { cwd: repoRoot }).toString().trim();
 const remoteParts = remoteUrl.replace(/\.git$/, "").split("/");
 export const githubOwner = remoteParts.at(-2);
 export const githubRepo = remoteParts.at(-1);

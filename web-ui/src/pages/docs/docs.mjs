@@ -155,11 +155,11 @@ export function renderDocsIndexPage() {
           const examples = platforms
             .map((platform) => {
               const page = pages.get(`images/${category}/${tool}/examples/${platform}/README.md`);
-              return `<a class="docs-example-link" href="${page.route}">${platformLabels[platform] ?? platform}</a>`;
+              return `<a class="docs-example-link" href="${base}${page.route}">${platformLabels[platform] ?? platform}</a>`;
             })
             .join("");
           return `<li class="docs-tool">
-<a class="docs-tool-name font-mono" href="${toolPage.route}">${escapeHtml(tool)}</a>
+<a class="docs-tool-name font-mono" href="${base}${toolPage.route}">${escapeHtml(tool)}</a>
 <p class="docs-tool-desc">${escapeHtml(description)}</p>
 ${examples ? `<div class="docs-tool-examples">${examples}</div>` : ""}
 </li>`;
@@ -182,7 +182,7 @@ ${sections}
 
 /* --------------------------------------------------------- structured data */
 
-export function docsJsonLd(page) {
+export function docsJsonLd(page, { title = "Docs", description = "", dateModified = "" } = {}) {
   if (page.kind === "docs-index") {
     return {
       "@context": "https://schema.org",
@@ -204,5 +204,20 @@ export function docsJsonLd(page) {
       item: `${siteOrigin}${base}${page.route}`,
     });
   }
-  return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement };
+  const url = `${siteOrigin}${base}${page.route}`;
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", itemListElement },
+      {
+        "@type": "TechArticle",
+        headline: title,
+        description,
+        url,
+        mainEntityOfPage: url,
+        articleSection: page.kind === "example" ? `${page.category} / ${platformLabels[page.platform] ?? page.platform}` : page.category,
+        ...(dateModified ? { dateModified } : {}),
+      },
+    ],
+  };
 }

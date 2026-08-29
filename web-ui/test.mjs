@@ -4,7 +4,7 @@ import path from "node:path";
 const uiRoot = path.dirname(new URL(import.meta.url).pathname);
 const repoRoot = path.resolve(uiRoot, "..");
 const distRoot = path.join(uiRoot, "dist");
-const basePath = (process.env.BASE_PATH ?? "").replace(/\/+$/, "");
+const basePath = (process.env.BASE_PATH ?? "/tool-containers").replace(/\/+$/, "");
 
 // Re-derive the expected page set straight from the repository tree so the
 // check does not trust the generator's own bookkeeping: the landing page, the
@@ -61,7 +61,7 @@ for (const file of distFiles) {
 }
 
 const sitemap = fs.readFileSync(path.join(distRoot, "sitemap.xml"), "utf8");
-const sitemapOrigin = process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers";
+const sitemapOrigin = process.env.SITE_ORIGIN ?? "https://hambn.github.io";
 const sitemapRoutes = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map((m) => m[1])
@@ -98,8 +98,15 @@ for (const route of [...expected, "/404.html"]) {
 
   check(/<link rel="canonical" href="[^"]+">/.test(html), `${label}: missing canonical link`);
   check(/<meta property="og:url" content="[^"]+">/.test(html), `${label}: missing og:url`);
+  check(/<link rel="icon" href="data:image\/svg\+xml,/.test(html), `${label}: missing self-contained favicon`);
+  if (route !== "/404.html") {
+    check(
+      html.includes(`<link rel="canonical" href="${sitemapOrigin}${basePath}${route}">`),
+      `${label}: canonical URL does not match its GitHub Pages route`,
+    );
+  }
   check(html.includes("<style>") && html.includes("--background:"), `${label}: missing inline design-system styles`);
-  check(/<link rel="preload" href="[^"]*fonts\/inter-latin\.woff2"/.test(html), `${label}: missing font preload`);
+  check(!/<link rel="preload"[^>]+as="font"/.test(html), `${label}: fonts should load on demand, not compete as preloads`);
   if (route === "/404.html") {
     check(/<meta name="robots" content="noindex">/.test(html), "404: missing noindex");
   } else {
@@ -112,9 +119,13 @@ for (const route of [...expected, "/404.html"]) {
         check(html.includes(`>${dir}</h2>`), `home: category "${dir}" from images/ not rendered`);
       }
     }
-    check(html.includes('href="/docs/"'), "home: missing Docs link");
+    check(html.includes(`href="${basePath}/docs/"`), "home: missing base-aware Docs link");
     check(!html.includes(".toc-link{"), "home: must not ship docs-only CSS (toc)");
     check(!html.includes(".sidebar{"), "home: must not ship docs-only CSS (sidebar)");
+  }
+
+  if (route.startsWith("/docs/") && route !== "/docs/") {
+    check(html.includes('"@type":"TechArticle"'), `${label}: missing TechArticle structured data`);
   }
 
   if (route === "/docs/") {
@@ -124,15 +135,19 @@ for (const route of [...expected, "/404.html"]) {
 
   if (route !== "/" && route !== "/404.html") {
     check(!html.includes(".hero-dots{"), `${label}: must not ship home-only CSS (hero)`);
-    check(html.includes('href="/docs/"'), `${label}: missing top-nav Docs link`);
+    check(html.includes(`href="${basePath}/docs/"`), `${label}: missing base-aware top-nav Docs link`);
   }
 
   for (const match of html.matchAll(/href="(#[^"]*|[^"#:]+)"/g)) {
     const href = match[1];
     if (href.startsWith("#")) continue;
     if (/^(https?:|mailto:|\/\/)/i.test(href)) continue;
-    const clean = href.split("#", 2)[0].split("?", 2)[0];
+    if (href.startsWith("/") && basePath) {
+      check(href === basePath || href.startsWith(`${basePath}/`), `${label}: root-relative link bypasses base path: ${href}`);
+    }
+    let clean = href.split("#", 2)[0].split("?", 2)[0];
     if (!clean) continue;
+    if (basePath && clean.startsWith(`${basePath}/`)) clean = clean.slice(basePath.length);
     const abs = path.join(distRoot, path.posix.normalize(clean.replace(/^\//, "")));
     const target = fs.existsSync(abs) && fs.statSync(abs).isDirectory() ? path.join(abs, "index.html") : abs;
     check(fs.existsSync(target), `${label}: broken internal link ${href}`);

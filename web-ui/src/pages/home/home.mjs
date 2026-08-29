@@ -14,7 +14,7 @@ import { icon } from "../../build/icons.mjs";
 
 function toolCard({ category, tool, description }) {
   const page = pages.get(`images/${category}/${tool}/README.md`);
-  return `<a class="tool-card" href="${page.route}">
+  return `<a class="tool-card" href="${base}${page.route}">
 <div class="tool-head">
 <div class="tool-id"><span class="tool-icon">${icon("box")}</span><span class="tool-name">${escapeHtml(tool)}</span></div>
 ${icon("arrow", "tool-arrow")}
@@ -53,8 +53,8 @@ export function renderHomePage() {
 <h1>tool-containers</h1>
 ${lead ? `<p class="lead">${escapeHtml(lead)}</p>` : ""}
 <div class="hero-actions">
-<a class="btn btn-primary" href="/#tools">Browse tools</a>
-<a class="btn btn-outline" href="/docs/">Open the docs</a>
+<a class="btn btn-primary" href="${base}/#tools">Browse tools</a>
+<a class="btn btn-outline" href="${base}/docs/">Open the docs</a>
 </div>
 <dl class="hero-stats">
 <div><dt>Tools</dt><dd>${toolCount}</dd></div>

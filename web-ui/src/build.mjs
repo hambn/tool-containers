@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { repoRoot, repoUrl, pages, platformLabels, configureSite, basePath } from "./build/catalog.mjs";
 import { extractMeta, buildToc, renderMarkdown, tokenCss, truncate } from "./build/markdown.mjs";
@@ -12,8 +12,8 @@ const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = path.join(uiRoot, "dist");
 
 configureSite({
-  base: process.env.BASE_PATH ?? "",
-  origin: process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers",
+  base: process.env.BASE_PATH ?? "/tool-containers",
+  origin: process.env.SITE_ORIGIN ?? "https://hambn.github.io",
 });
 
 /** Conservative CSS minifier: comments, whitespace runs, punct spacing, trailing semicolons. */
@@ -68,12 +68,11 @@ async function renderPage(page, repoRelPath) {
     return { contentHtml: home.content, structuredData: home.jsonLd, tocEntries: [] };
   }
   if (page.kind === "docs-index") {
-    return { contentHtml: docsBody({ page, contentHtml: renderDocsIndexPage() }), structuredData: docsJsonLd(page), tocEntries: [] };
+    return { contentHtml: docsBody({ page, contentHtml: renderDocsIndexPage() }), tocEntries: [] };
   }
   const markdown = await renderMarkdown(repoRelPath);
   return {
     contentHtml: docsBody({ page, contentHtml: markdown, tocEntries: buildToc(markdown) }),
-    structuredData: docsJsonLd(page),
     tocEntries: buildToc(markdown),
   };
 }
@@ -83,7 +82,12 @@ const rendered = [];
 for (const [repoRelPath, page] of pages) {
   const markdown = page.kind === "docs-index" ? "Generated docs index." : fs.readFileSync(path.join(repoRoot, repoRelPath), "utf8");
   const body = await renderPage(page, repoRelPath);
-  rendered.push({ repoRelPath, page, markdown, ...body, ...pageMeta(page, markdown) });
+  const meta = pageMeta(page, markdown);
+  const structuredData =
+    page.kind === "home"
+      ? body.structuredData
+      : docsJsonLd(page, { ...meta, dateModified: lastmod(repoRelPath) });
+  rendered.push({ repoRelPath, page, markdown, ...body, ...meta, structuredData });
 }
 
 const tokensCss = tokenCss();
@@ -91,7 +95,9 @@ const tokensCss = tokenCss();
 /** Honest lastmod: the last commit that touched the page's source document. */
 function lastmod(repoRelPath) {
   try {
-    const date = execSync(`git log -1 --format=%cI -- ${repoRelPath}`, { cwd: repoRoot }).toString().trim();
+    const date = execFileSync("git", ["log", "-1", "--format=%cI", "--", repoRelPath], { cwd: repoRoot })
+      .toString()
+      .trim();
     return /^\d{4}-\d{2}-\d{2}/.test(date) ? date.slice(0, 10) : "";
   } catch {
     return "";
@@ -115,7 +121,7 @@ for (const { repoRelPath, page, contentHtml, structuredData, title, description 
   fs.writeFileSync(path.join(outDir, "index.html"), html);
   const modified = lastmod(repoRelPath);
   sitemapUrls.push(
-    `\t<url><loc>${process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers"}${basePath}${page.route}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ""}</url>`,
+    `\t<url><loc>${process.env.SITE_ORIGIN ?? "https://hambn.github.io"}${basePath}${page.route}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ""}</url>`,
   );
   console.log(`built ${page.route}`);
 }
@@ -144,7 +150,7 @@ const notFoundHtml = shell({
 fs.writeFileSync(path.join(distRoot, "404.html"), notFoundHtml);
 console.log("built /404.html");
 
-const siteUrl = `${process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers"}${basePath}`;
+const siteUrl = `${process.env.SITE_ORIGIN ?? "https://hambn.github.io"}${basePath}`;
 fs.writeFileSync(
   path.join(distRoot, "sitemap.xml"),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls.join("\n")}\n</urlset>\n`,
