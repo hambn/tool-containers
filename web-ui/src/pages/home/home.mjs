@@ -7,7 +7,7 @@ import {
   catalog,
   pages,
   basePath as base,
-  siteOrigin,
+  siteUrl,
 } from "../../build/catalog.mjs";
 import { escapeHtml, extractMeta, firstParagraph, catalogDescriptions, rewriteTargets } from "../../build/markdown.mjs";
 import { icon } from "../../build/icons.mjs";
@@ -94,5 +94,5 @@ ${intro ? `<div class="prose intro">${intro}</div>` : ""}
 ${sections}
 </div>
 </main>`;
-  return { content, jsonLd: { "@context": "https://schema.org", "@type": "WebSite", name: "tool-containers", url: `${siteOrigin}${base}/` } };
+  return { content, jsonLd: { "@context": "https://schema.org", "@type": "WebSite", name: "tool-containers", url: `${siteUrl}/` } };
 }

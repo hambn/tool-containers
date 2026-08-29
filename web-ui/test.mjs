@@ -4,7 +4,9 @@ import path from "node:path";
 const uiRoot = path.dirname(new URL(import.meta.url).pathname);
 const repoRoot = path.resolve(uiRoot, "..");
 const distRoot = path.join(uiRoot, "dist");
-const basePath = (process.env.BASE_PATH ?? "/tool-containers").replace(/\/+$/, "");
+const cleanBasePath = (process.env.BASE_PATH ?? "").trim().replace(/^\/+|\/+$/g, "");
+const basePath = cleanBasePath ? `/${cleanBasePath}` : "";
+const siteUrl = (process.env.SITE_URL ?? process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers").replace(/\/+$/, "");
 
 // Re-derive the expected page set straight from the repository tree so the
 // check does not trust the generator's own bookkeeping: the landing page, the
@@ -61,12 +63,11 @@ for (const file of distFiles) {
 }
 
 const sitemap = fs.readFileSync(path.join(distRoot, "sitemap.xml"), "utf8");
-const sitemapOrigin = process.env.SITE_ORIGIN ?? "https://hambn.github.io";
 const sitemapRoutes = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map((m) => m[1])
-    .filter((loc) => loc.startsWith(sitemapOrigin + basePath))
-    .map((loc) => loc.slice((sitemapOrigin + basePath).length) || "/"),
+    .filter((loc) => loc.startsWith(siteUrl))
+    .map((loc) => loc.slice(siteUrl.length) || "/"),
 );
 for (const route of expected) {
   check(sitemapRoutes.has(route), `sitemap is missing route ${route}`);
@@ -101,8 +102,8 @@ for (const route of [...expected, "/404.html"]) {
   check(/<link rel="icon" href="data:image\/svg\+xml,/.test(html), `${label}: missing self-contained favicon`);
   if (route !== "/404.html") {
     check(
-      html.includes(`<link rel="canonical" href="${sitemapOrigin}${basePath}${route}">`),
-      `${label}: canonical URL does not match its GitHub Pages route`,
+      html.includes(`<link rel="canonical" href="${siteUrl}${route}">`),
+      `${label}: canonical URL does not match SITE_URL`,
     );
   }
   check(html.includes("<style>") && html.includes("--background:"), `${label}: missing inline design-system styles`);
@@ -131,11 +132,19 @@ for (const route of [...expected, "/404.html"]) {
   if (route === "/docs/") {
     check(html.includes("<h1>Docs</h1>"), "docs index: missing h1");
     check(html.includes("docs-tool-name"), "docs index: tool list not rendered");
+    check(
+      html.includes(`href="${basePath}/docs/ai/codex/docker/"`),
+      "docs index: Codex Docker route does not match BASE_PATH",
+    );
   }
 
   if (route !== "/" && route !== "/404.html") {
     check(!html.includes(".hero-dots{"), `${label}: must not ship home-only CSS (hero)`);
     check(html.includes(`href="${basePath}/docs/"`), `${label}: missing base-aware top-nav Docs link`);
+  }
+
+  if (!basePath) {
+    check(!html.includes('href="/tool-containers/'), `${label}: default links must not include /tool-containers`);
   }
 
   for (const match of html.matchAll(/href="(#[^"]*|[^"#:]+)"/g)) {

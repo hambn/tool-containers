@@ -9,7 +9,7 @@ import {
   readingOrder,
   platformLabels,
   basePath as base,
-  siteOrigin,
+  siteUrl,
 } from "../../build/catalog.mjs";
 import { escapeHtml, extractMeta } from "../../build/markdown.mjs";
 import { icon } from "../../build/icons.mjs";
@@ -188,12 +188,12 @@ export function docsJsonLd(page, { title = "Docs", description = "", dateModifie
       "@context": "https://schema.org",
       "@type": "CollectionPage",
       name: "Docs",
-      url: `${siteOrigin}${base}/docs/`,
+      url: `${siteUrl}/docs/`,
     };
   }
-  const toolUrl = `${siteOrigin}${base}/docs/${page.category}/${page.tool}/`;
+  const toolUrl = `${siteUrl}/docs/${page.category}/${page.tool}/`;
   const itemListElement = [
-    { "@type": "ListItem", position: 1, name: "Docs", item: `${siteOrigin}${base}/docs/` },
+    { "@type": "ListItem", position: 1, name: "Docs", item: `${siteUrl}/docs/` },
     { "@type": "ListItem", position: 2, name: page.tool, item: toolUrl },
   ];
   if (page.kind === "example") {
@@ -201,10 +201,10 @@ export function docsJsonLd(page, { title = "Docs", description = "", dateModifie
       "@type": "ListItem",
       position: 3,
       name: platformLabels[page.platform] ?? page.platform,
-      item: `${siteOrigin}${base}${page.route}`,
+      item: `${siteUrl}${page.route}`,
     });
   }
-  const url = `${siteOrigin}${base}${page.route}`;
+  const url = `${siteUrl}${page.route}`;
   return {
     "@context": "https://schema.org",
     "@graph": [
