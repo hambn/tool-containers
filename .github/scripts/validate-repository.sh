@@ -269,7 +269,7 @@ if missing_publishers or unexpected_publishers:
 publish = sorted(publish_by_name.values())
 
 for name, project in sorted(image_projects.items()):
-    for required in (project / "README.md", project / "images", project / "deployment"):
+    for required in (project / "README.md", project / "images", project / "examples"):
         if not required.exists():
             raise SystemExit(f"{name}: missing required project path {required}")
 
@@ -418,13 +418,16 @@ done < <(find .github/scripts -type f -name '*.sh' -print0)
 while IFS= read -r -d '' file; do
     mode=$(stat -c '%A' "$file")
     [[ "$mode" == -*x* ]] || { echo "not executable: $file" >&2; exit 1; }
-done < <(find images -path '*/deployment/*' -type f -name '*.sh' -print0)
+done < <(find images -path '*/examples/*' -type f -name '*.sh' -print0)
 
 python3 - <<'PY'
 import pathlib, re, sys
 
 for path in pathlib.Path(".").rglob("*.md"):
-    if any(part in {".git", ".tmp", ".codex", ".claude"} for part in path.parts):
+    if any(
+        part in {".git", ".tmp", ".codex", ".claude", "node_modules", "dist", "build", "coverage", ".venv"}
+        for part in path.parts
+    ):
         continue
     for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", path.read_text()):
         if target.startswith(("http://", "https://", "#", "mailto:")) or "<" in target:

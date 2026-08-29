@@ -13,7 +13,7 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 | GitHub automation | `.github/workflows/` |
 | One containerized tool | `images/<category>/<tool>/` |
 | One derived image variant | `images/<category>/<tool>/images/<variant>/Dockerfile` |
-| One deployment platform | `images/<category>/<tool>/deployment/<platform>/` |
+| One deployment platform | `images/<category>/<tool>/examples/<platform>/` |
 | Web application source, config, assets, and tests | `web-ui/` |
 
 ## Coupled changes

@@ -25,9 +25,9 @@ repoint moving tags only. See the repository's [registry and tag policy](../../.
 
 ## Use cases
 
-- **Review the current workspace** — [`deployment/docker/`](./deployment/docker/) with `./run.sh review`.
-- **Repeatable local reviews** — [`deployment/docker-compose/`](./deployment/docker-compose/) with `docker compose run --rm open-code-review review`.
-- **Rootless review environment** — [`deployment/podman/`](./deployment/podman/) with `./run.sh review`.
+- **Review the current workspace** — [`examples/docker/`](./examples/docker/) with `./run.sh review`.
+- **Repeatable local reviews** — [`examples/docker-compose/`](./examples/docker-compose/) with `docker compose run --rm open-code-review review`.
+- **Rootless review environment** — [`examples/podman/`](./examples/podman/) with `./run.sh review`.
 
 The CLI reads the mounted repository and requires an LLM provider configured through its
 supported `ocr config` flow or runtime environment variables. No credentials are stored
@@ -47,7 +47,7 @@ open-code-review/
 │   │   └── Dockerfile
 │   └── ubuntu-browser/
 │       └── Dockerfile
-└── deployment/
+└── examples/
     ├── docker/
     │   ├── README.md
     │   ├── airgapped.run.sh

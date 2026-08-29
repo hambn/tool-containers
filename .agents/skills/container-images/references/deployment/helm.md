@@ -1,6 +1,6 @@
 # Helm charts
 
-Use `deployment/helm/chart/` for a parameterized Kubernetes install.
+Use `examples/helm/chart/` for a parameterized Kubernetes install.
 
 - `Chart.yaml` uses `apiVersion: v2`, a tool-matching `name`, a chart `version` bumped for
   chart changes, and an `appVersion` representing the packaged tool when meaningful.

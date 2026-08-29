@@ -32,12 +32,12 @@ external to the image.
 
 ## Use cases
 
-- **Interactive local coding** — [`deployment/docker/`](./deployment/docker/).
-- **Repeatable local sessions** — [`deployment/docker-compose/`](./deployment/docker-compose/).
-- **Rootless development** — [`deployment/podman/`](./deployment/podman/).
-- **Cluster batch jobs** — [`deployment/kubernetes/`](./deployment/kubernetes/) or
-  [`deployment/helm/`](./deployment/helm/).
-- **Shared Swarm jobs** — [`deployment/docker-swarm/`](./deployment/docker-swarm/).
+- **Interactive local coding** — [`examples/docker/`](./examples/docker/).
+- **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
+- **Rootless development** — [`examples/podman/`](./examples/podman/).
+- **Cluster batch jobs** — [`examples/kubernetes/`](./examples/kubernetes/) or
+  [`examples/helm/`](./examples/helm/).
+- **Shared Swarm jobs** — [`examples/docker-swarm/`](./examples/docker-swarm/).
 
 ## File map
 
@@ -53,7 +53,7 @@ claude-code/
 │   │   └── Dockerfile
 │   └── ubuntu-browser/
 │       └── Dockerfile
-└── deployment/
+└── examples/
     ├── docker/
     │   ├── README.md
     │   ├── airgapped.run.sh

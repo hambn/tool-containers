@@ -1,0 +1,214 @@
+/* Landing page styles: hero, stats, and the generated tool catalog. */
+
+.hero {
+  position: relative;
+  padding: 3rem 0 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero-dots {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 140%;
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 55% 70% at 50% 0%, #000 20%, transparent 70%);
+  mask-image: radial-gradient(ellipse 55% 70% at 50% 0%, #000 20%, transparent 70%);
+}
+
+.hero > * {
+  position: relative;
+}
+
+.hero h1 {
+  margin-top: 1rem;
+  font-size: clamp(2.375rem, 5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.hero .lead {
+  max-width: 40rem;
+  margin-top: 1.125rem;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.hero-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2.25rem;
+}
+
+.hero-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.hero-stats dt {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.hero-stats dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------- tool catalog */
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.section-head h2 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.tool-section {
+  margin-top: 3rem;
+  scroll-margin-top: calc(var(--header-h) + 1.5rem);
+}
+
+.tool-section > .empty {
+  margin-top: 1rem;
+}
+
+.tool-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1120px) {
+  .tool-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, translate 0.15s ease;
+}
+
+.tool-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  translate: 0 -1px;
+}
+
+.tool-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tool-id {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.tool-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--muted-a50);
+  color: var(--muted-foreground);
+}
+
+.tool-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-name {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.tool-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transition: opacity 0.15s ease, translate 0.15s ease;
+}
+
+.tool-card:hover .tool-arrow {
+  opacity: 0.6;
+  translate: 2px -2px;
+}
+
+.tool-desc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+/* ---------------------------------------------------------------- print */
+
+@media print {
+  .tool-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hero-dots {
+    display: none;
+  }
+}

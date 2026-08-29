@@ -15,7 +15,7 @@ The site automatically showcases the repository's markdown as pages — nothing 
 
 - Content source of truth is the tracked documents themselves: root `README.md`, every
   `images/<category>/<tool>/README.md`, and every
-  `images/<category>/<tool>/deployment/<platform>/README.md`. Document standards live
+  `images/<category>/<tool>/examples/<platform>/README.md`. Document standards live
   in `$documentation`.
 - Generate pages at build time from those files. Never copy catalog rows, commands, or
   README text into UI code or data files by hand. Adding, editing, or removing anything

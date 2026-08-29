@@ -46,11 +46,11 @@ variables.
 
 ## Use cases
 
-- **Interactive multi-agent workspace** — [`deployment/docker/`](./deployment/docker/).
-- **Repeatable local environment** — [`deployment/docker-compose/`](./deployment/docker-compose/).
-- **Rootless host** — [`deployment/podman/`](./deployment/podman/).
-- **Long-lived cluster workspace** — [`deployment/kubernetes/`](./deployment/kubernetes/) or [`deployment/helm/`](./deployment/helm/).
-- **Shared development service** — [`deployment/docker-swarm/`](./deployment/docker-swarm/).
+- **Interactive multi-agent workspace** — [`examples/docker/`](./examples/docker/).
+- **Repeatable local environment** — [`examples/docker-compose/`](./examples/docker-compose/).
+- **Rootless host** — [`examples/podman/`](./examples/podman/).
+- **Long-lived cluster workspace** — [`examples/kubernetes/`](./examples/kubernetes/) or [`examples/helm/`](./examples/helm/).
+- **Shared development service** — [`examples/docker-swarm/`](./examples/docker-swarm/).
 
 ## File map
 
@@ -66,7 +66,7 @@ agentbloat/
 │   │   └── Dockerfile
 │   └── ubuntu-browser/
 │       └── Dockerfile
-└── deployment/
+└── examples/
     ├── docker/
     │   ├── README.md
     │   ├── airgapped.run.sh
