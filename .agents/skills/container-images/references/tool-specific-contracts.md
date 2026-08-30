@@ -22,7 +22,7 @@ signal for each direct child workflow.
 - The four flat Dockerfiles share distro-specific setup scripts and common Zsh assets.
 - They create the UID/GID-1000 `sysadmin` runtime user, default to
   `WORKDIR /home/sysadmin`, and provide the shared Node.js and developer-tool runtime
-  used downstream. Deployment recipes mount user work at `/workspace`; derived tool
+  used downstream. Platform examples mount user work at `/workspace`; derived tool
   images set that as their work directory.
 - Browser profiles may use a separate global `BROWSER_BASE`; all profiles accept global
   `RUNTIME_BASE`. The workflow resolves those bases to digests.

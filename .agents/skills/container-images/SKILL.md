@@ -1,6 +1,6 @@
 ---
 name: container-images
-description: Add, change, review, or troubleshoot a container project under images/ and its coupled README, Dockerfiles, variants, deployment examples, root catalog entry, publication workflow, registries, and tags. Use for any images/ change or its matching image-delivery automation; do not use for the application under web-ui/.
+description: Add, change, review, or troubleshoot a container project under images/ and its coupled README, Dockerfiles, variants, platform examples, root catalog entry, publication workflow, registries, and tags. Use for any images/ change or its matching image-delivery automation; do not use for the application under web-ui/.
 ---
 
 # Container images
@@ -12,7 +12,7 @@ current task.
 
 - **Add or reorganize a tool:** read [project layout](references/project-layout.md),
   use `$documentation` for every written document, read the relevant image and
-  deployment guides, then [CI](references/ci.md).
+  platform-example guides, then [CI](references/ci.md).
 - **Write or review a README or other document:** follow `$documentation`; this skill
   owns only the mechanics behind the documents.
 - **Choose or rename a profile:** read [variants](references/images/variants.md), then
@@ -20,9 +20,9 @@ current task.
 - **Write or review a Dockerfile:** read
   [Dockerfiles](references/images/dockerfile.md) and, when applicable, the variants and
   base-image guides.
-- **Add or change deployment:** read
-  [deployment conventions](references/deployment/conventions.md), then only the selected
-  platform guide linked there.
+- **Add or change a platform example:** read
+  [platform example conventions](references/deployment/conventions.md), then only the
+  selected platform guide linked there.
 - **Change publishing, update detection, registries, or tags:** read
   [CI](references/ci.md) and [registries and tags](references/registries-and-tags.md).
 - **Touch a special inheritance or compatibility rule:** read
@@ -33,7 +33,7 @@ current task.
 1. Inspect the target project, its closest valid neighbor, root catalog row, matching
    `.github/workflows/<category>-<tool>.yml`, and actual published tag contract.
 2. Identify every coupled surface before editing: Dockerfiles, shared build assets,
-   deployment examples, tool README/file map, workflow planning and tags, and root
+   platform examples, tool README/file map, workflow planning and tags, and root
    catalog.
 3. Keep build contexts self-contained, runtime secrets external, deployment workspace
    mounts at `/workspace`, and published names backward-compatible unless the user

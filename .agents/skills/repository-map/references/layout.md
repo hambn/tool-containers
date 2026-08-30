@@ -80,8 +80,8 @@ Current categories and tools are:
 
 Derived tools keep `images/<variant>/Dockerfile`. `images/base/agentimg` deliberately
 keeps four flat `images/*.Dockerfile` files because its variants share distro-local
-scripts and common shell assets in one build context. A tool supports only the deployment
-platforms it actually contains; do not infer that all six platform directories are
+scripts and common shell assets in one build context. A tool supports only the platform
+examples it actually contains; do not infer that all six platform directories are
 mandatory. Standards for every README in this tree are owned by `$documentation`, and
 the web-ui site renders them verbatim.
 

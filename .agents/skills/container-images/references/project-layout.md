@@ -21,9 +21,13 @@ tool-containers/
             └── runnable files
 ```
 
-Every current tool owns a README, image sources, and deployment examples, but each tool
-supports only the platforms present in its directory. Do not create empty platform
-placeholders.
+Every current tool owns a README, image sources, and platform examples, but each tool
+supports only the platforms present in its `examples/` directory. Do not create empty
+platform placeholders.
+
+The repository directory is always `examples/`, never `deployment/` or `deployments/`.
+The `references/deployment/` directory belongs to this skill and contains platform
+guidance; it is not a path for image-project files.
 
 Derived variants use their own directory as build context and may not copy from outside
 it. `images/base/agentimg` is the deliberate exception: its four flat
@@ -41,10 +45,10 @@ the tool's `images/` build context.
 
 ## Adding a tool
 
-1. Select an existing project with the closest inheritance, runtime, and deployment
-   shape. Copy structure only after understanding every retained file.
-2. Create its README, at least one buildable image variant, and only the deployment
-   platforms that serve real use cases.
+1. Select an existing project with the closest inheritance, runtime, and platform-example
+   layout. Copy structure only after understanding every retained file.
+2. Create its README, at least one buildable image variant, and only the platform
+   examples that serve real use cases.
 3. Add one matching publication workflow with explicit upstream/base update detection,
    primary variant, registry namespace, and immutable tag rules.
 4. Add exactly one root `README.md` catalog row under the correct category. Create a new

@@ -1,8 +1,12 @@
-# Deployment conventions
+# Platform example conventions
 
 Each supported platform lives at `images/<category>/<tool>/examples/<platform>/` and
 contains a README plus runnable examples. Add only the platform required by the tool's
 real use cases.
+
+Use `examples/` for image-project files. The `deployment/` name in this skill's path
+(`references/deployment/`) is only an internal guide grouping and must not be copied into
+an image project.
 
 Read only the selected platform guide:
 

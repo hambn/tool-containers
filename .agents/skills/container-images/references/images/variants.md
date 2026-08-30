@@ -23,7 +23,7 @@ demonstrated use case.
 - Include a base distinction only when it changes runtime behavior or compatibility.
 - Keep one primary variant declared in CI. It owns `latest` and its own moving tag; every
   other variant owns its matching moving tag.
-- Treat renames and removals as public API changes. Update inheritance, tags, deployment
+- Treat renames and removals as public API changes. Update inheritance, tags, platform
   examples, documentation, and migration guidance together.
 - Do not assume a universal immutable version/base tag. Use the owning workflow's actual
   release mapping from [registry policy](../registries-and-tags.md).

@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Write and review the repository's written documents - the root catalog README, every images/<category>/<tool>/README.md, and every per-platform deployment README - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
+description: Write and review the repository's written documents - the root catalog README, every images/<category>/<tool>/README.md, and every per-platform example README - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
 ---
 
 # Documentation
@@ -17,7 +17,7 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 |---|---|---|
 | Root catalog | `README.md` | Public index of every tool |
 | Tool README | `images/<category>/<tool>/README.md` | One tool's full public contract |
-| Deployment README | `images/<category>/<tool>/examples/<platform>/README.md` | Runnable recipes for one platform |
+| Platform example README | `images/<category>/<tool>/examples/<platform>/README.md` | Runnable recipes for one platform |
 
 ## Root catalog
 
@@ -39,8 +39,8 @@ materially helps operation:
 2. **Contents** linking the remaining sections.
 3. **Images** with one table of variants, functional contents, bases, and owned moving
    and immutable tags; state GHCR and Docker Hub pull paths.
-4. **Use cases** with three to five concrete scenarios linking the relevant deployment
-   recipes.
+4. **Use cases** with three to five concrete scenarios linking the relevant platform
+   examples.
 5. **File map** as a linked nested map of every tracked file in the tool, plus its
    `.github/workflows/<category>-<tool>.yml` workflow.
 6. **Sources** linking upstream repository, package registry, and authoritative docs
@@ -51,7 +51,7 @@ contents are part of its contract. Do not duplicate `docker run` instructions in
 tool README; runnable commands belong under `examples/`. Do not add a generic build or
 update section when CI is the sole supported build/update path.
 
-## Deployment README
+## Platform example README
 
 Each present platform README explains, in this order where applicable: prerequisites,
 exact commands, required variables or secrets, workspace behavior, a file map, cleanup,
@@ -63,10 +63,9 @@ tool README; technical conventions live in `$container-images`.
 Every document must be reachable from every other document of the same tool, with no
 orphan pages:
 
-- Catalog → every tool README; tool README → every deployment README and back via its
-  file map; deployment README → its tool README.
-- Keep every present deployment platform reachable from the tool's Use cases or file
-  map.
+- Catalog → every tool README; tool README → every platform example README and back via
+  its file map; platform example README → its tool README.
+- Keep every present platform example reachable from the tool's Use cases or file map.
 - Update the file map in the same change that adds, moves, or removes any tracked file.
 - Use relative GitHub-compatible links between repository documents; verify claimed
   inventories against:
