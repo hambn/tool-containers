@@ -6,10 +6,10 @@ Use the repository skills under `.agents/skills/` through progressive disclosure
   repository file.
 - Use `$repository-map` when locating code, deciding where a new file belongs, or
   changing the repository layout.
-- Use `$container-images` for anything under `images/`, the image catalog, deployment
+- Use `$container-images` for anything under `images/`, the image catalog, platform
   examples, registries and tags, or image publication workflows.
 - Use `$documentation` when writing, editing, or reviewing any README or document in
-  this repository — catalog, tool, or deployment docs — and their cross-links.
+  this repository — catalog, tool, or platform example docs — and their cross-links.
 - Use `$web-ui` for product, design, implementation, testing, build, deployment, or CI
   work whose primary target is `web-ui/`.
 - Use `$maintain-agent-workspace` after every repository-changing task and whenever

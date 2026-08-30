@@ -13,7 +13,7 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 | GitHub automation | `.github/workflows/` |
 | One containerized tool | `images/<category>/<tool>/` |
 | One derived image variant | `images/<category>/<tool>/images/<variant>/Dockerfile` |
-| One deployment platform | `images/<category>/<tool>/examples/<platform>/` |
+| One platform example | `images/<category>/<tool>/examples/<platform>/` |
 | Web application source, config, assets, and tests | `web-ui/` |
 
 ## Coupled changes
@@ -21,8 +21,8 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 - Adding an image tool normally changes its directory, one matching publish workflow,
   and one root catalog row.
 - Adding or renaming a public variant changes Dockerfiles, tool documentation, workflow
-  planning and tags, and every affected deployment reference.
-- Adding a deployment mode changes only the owning tool and its file map unless shared
+  planning and tags, and every affected platform example.
+- Adding a platform example changes only the owning tool and its file map unless shared
   repository policy also changes.
 - Adding a repository skill changes its own directory. Update root `AGENTS.md` only for
   a mandatory or deliberately always-on route; update `CLAUDE.md`, human docs, or CI
@@ -34,7 +34,7 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 
 ## Placement rules
 
-- Keep a tool self-contained; its build context and deployment examples must not depend
+- Keep a tool self-contained; its build context and platform examples must not depend
   on an unrelated tool directory unless the shared contract is an explicit published
   base image.
 - Put repository-wide mechanics in `.github/scripts/`, not copied into each workflow.

@@ -8,7 +8,7 @@ memory.
 
 - A push to `main` selects variants affected by changes to the project's `images/`
   build contexts, its workflow, or `.github/scripts/registry-inspect.sh`. Documentation
-  and deployment-only changes do not rebuild images.
+  and platform-example-only changes do not rebuild images.
 - Manual dispatch is permitted only from `main` and normally builds all variants.
 - Derived tools use staggered hourly schedules to detect upstream foundation,
   parent-image, and packaged-tool updates without privileged workflow chaining.
