@@ -13,6 +13,8 @@ enough.
 | “Scaffold the empty web app.” | `repository-changes` + `web-ui`, then maintainer audit |
 | “Explain this Dockerfile without editing it.” | `container-images`; no mutation or publishing |
 | “Commit and open a PR for the completed change.” | `repository-changes` publishing guidance |
+| “Checks pass on the open PR.” | Report readiness; do not merge without explicit authorization |
+| “Merge PR #17 with squash after required checks pass; delete its branch.” | `repository-changes` merge guidance with the named conditions and method |
 | “That skill chose the wrong file and its rule is incorrect.” | `maintain-agent-workspace` repair behavior |
 
 The table names the distinguishing skill. Every implemented mutation also uses

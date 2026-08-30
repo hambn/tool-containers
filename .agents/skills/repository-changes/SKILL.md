@@ -34,11 +34,14 @@ for the current phase:
 7. Deliver the task: commit on the task branch, push it, and open a pull request to
    `main` as described in the commits and pull requests guide. Skip publication only
    when the user explicitly asks for uncommitted or local-only work.
-8. Own the opened pull request to completion: watch its checks, resolve review
-   feedback on the branch, then squash-merge it yourself as described in the guide.
-   Do not merge another person's or agent's pull request.
+8. After opening the pull request, watch its checks and resolve in-scope review
+   feedback on the branch. Stop and report the pull request's status when it is ready.
+   Do not merge it automatically. Merge only after the user explicitly authorizes the
+   selected pull request, timing or conditions, merge method, and branch-deletion choice
+   as described in the guide.
 
 Answering, explaining, diagnosing, or reviewing does not by itself authorize edits,
-commits, pushes, pull requests, workflow dispatches, or repository-setting changes;
-merges happen only as the completion of this delivery workflow. Never discard another
+commits, pushes, pull requests, workflow dispatches, or repository-setting changes.
+Merging is a separate, user-controlled action. A passing check, an open pull request,
+or the fact that the agent created it is not merge authorization. Never discard another
 person's work to make a checkout clean.
