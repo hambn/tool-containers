@@ -41,7 +41,8 @@ the user separately authorizes the exact history rewrite.
 
 ## Pull request to main
 
-Opening the pull request is the final step of delivering an assigned task.
+Opening the pull request and reporting its status is the final step of delivering an
+assigned task unless the user separately authorizes a merge.
 
 - Search for an existing open pull request from the same head branch and update it
   instead of opening a duplicate.
@@ -55,25 +56,41 @@ Opening the pull request is the final step of delivering an assigned task.
 - Inspect the initial `Pull request gate` and labeling results and address in-scope
   failures. Do not repeatedly rerun an unchanged failure.
 
-## Own the pull request to completion
+## After opening a pull request
 
-Following the opened pull request through review and merge is part of standard
-delivery, authorized by the user as a standing rule:
+Following the opened pull request through checks and review is part of standard delivery:
 
 1. Inspect the initial `Pull request gate` and labeling results and fix in-scope
    failures on the task branch.
 2. When review feedback arrives, answer every comment and resolve each in-scope issue
    with follow-up commits pushed to the same branch; re-request review where the
    reviewer asked for it.
-3. Once required checks pass and no unresolved change request remains, squash-merge
-   the pull request yourself (repository convention), delete the merged branch, remove
-   your task worktree, and confirm `origin/main` contains the squashed commit.
+3. Once the pull request is ready, report its checks, review state, URL, and branch
+   without merging it or deleting its branch.
 
-Never merge with failing required checks or an unresolved change request; treat
-out-of-scope feedback by answering it, not implementing it silently, and ask when the
-intended result is ambiguous. Never merge a pull request you did not open for this
-workflow. Merging does not authorize dispatching publication workflows or changing
-repository settings unless the user separately authorizes it.
+## User-controlled merge authorization
 
-Skip any part of this section only when the user explicitly asks to keep work local,
+Merging is never automatic. A passing check, a clean review state, an implementation
+request, or the fact that the agent opened the pull request does not authorize a merge.
+
+Before merging, require an explicit user instruction that identifies:
+
+1. the pull request or an unambiguous selection of pull requests;
+2. when to merge, either immediately or after named conditions such as required checks
+   and review approval;
+3. the merge method (`squash`, `merge`, or `rebase`); and
+4. whether to delete the head branch after merging.
+
+If any part is missing or ambiguous, ask the user instead of choosing a default. For
+example: `Merge PR #17 with squash after all required checks pass; delete its branch.`
+
+When the user authorizes a merge, verify the named conditions immediately before the
+operation, use exactly the requested method, delete the branch only when requested,
+and report the resulting commit and pull-request state. Never merge with failing
+required checks or an unresolved change request. Treat out-of-scope feedback by
+answering it, not implementing it silently. Merging does not authorize dispatching
+publication workflows or changing repository settings unless the user separately
+authorizes it.
+
+Skip publication or merging when the user explicitly asks to keep work local,
 uncommitted, or unmerged.
