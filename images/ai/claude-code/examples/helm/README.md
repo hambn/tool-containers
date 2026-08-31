@@ -95,7 +95,7 @@ resources:
 
 ```bash
 helm install claude-code ./chart
-
+```
 
 ### Upgrade and roll back
 
@@ -103,13 +103,13 @@ helm install claude-code ./chart
 helm upgrade claude-code ./chart --reuse-values
 helm history claude-code
 helm rollback claude-code 1
-
+```
 
 ### Override values on the command line
 
 ```bash
 helm upgrade claude-code ./chart --set image.tag=<tag> --set resources.limits.memory=4Gi
-
+```
 
 ### Or with a values file
 
@@ -125,3 +125,4 @@ resources:
 
 ```bash
 helm upgrade claude-code ./chart -f my-values.yaml
+```

@@ -95,7 +95,7 @@ resources:
 
 ```bash
 helm install agentimg ./chart
-
+```
 
 ### Upgrade and roll back
 
@@ -103,13 +103,13 @@ helm install agentimg ./chart
 helm upgrade agentimg ./chart --reuse-values
 helm history agentimg
 helm rollback agentimg 1
-
+```
 
 ### Override values on the command line
 
 ```bash
 helm upgrade agentimg ./chart --set image.tag=<tag> --set resources.limits.memory=4Gi
-
+```
 
 ### Or with a values file
 
@@ -125,3 +125,4 @@ resources:
 
 ```bash
 helm upgrade agentimg ./chart -f my-values.yaml
+```

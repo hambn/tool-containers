@@ -95,7 +95,7 @@ resources:
 
 ```bash
 helm install agentbloat ./chart
-
+```
 
 ### Upgrade and roll back
 
@@ -103,13 +103,13 @@ helm install agentbloat ./chart
 helm upgrade agentbloat ./chart --reuse-values
 helm history agentbloat
 helm rollback agentbloat 1
-
+```
 
 ### Override values on the command line
 
 ```bash
 helm upgrade agentbloat ./chart --set image.tag=<tag> --set resources.limits.memory=4Gi
-
+```
 
 ### Or with a values file
 
@@ -125,3 +125,4 @@ resources:
 
 ```bash
 helm upgrade agentbloat ./chart -f my-values.yaml
+```

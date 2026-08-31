@@ -55,13 +55,13 @@ Every moving tag from the [image table](../../README.md#images) works; override 
 
 ```bash
 PI_AGENT_IMAGE=ghcr.io/hambn/pi-agent:<tag> ./run.sh
-
+```
 
 ### One-off non-interactive command
 
 ```bash
 docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/pi-agent:latest --help
-
+```
 
 ### Constrain resources
 
@@ -72,3 +72,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/pi-agent:latest
+```

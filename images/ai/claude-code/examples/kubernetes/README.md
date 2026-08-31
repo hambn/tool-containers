@@ -68,7 +68,7 @@ spec:
 
 ```bash
 kubectl create secret generic claude-code-auth --from-literal=ANTHROPIC_API_KEY="sk-..."
-
+```
 
 ### Apply, watch, and clean up
 
@@ -77,3 +77,4 @@ kubectl apply -f deployment.yaml
 kubectl get pods -w
 # ... later ...
 kubectl delete -f deployment.yaml
+```

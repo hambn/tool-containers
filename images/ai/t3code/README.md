@@ -13,12 +13,26 @@
 
 Pull from `ghcr.io/hambn/t3code` or `docker.io/hambn/t3code` (Quay pending). T3 Code serves a web GUI + WebSocket server on port `3773` and inherits the current agent CLIs from `agentbloat`.
 
-| Variant | Contains | Base | Install | Tags |
-|---------|----------|------|---------|-------|
-| `ubuntu-browser` (default) | T3 Code + all agentbloat CLIs + Ubuntu toolset + Chromium | `ghcr.io/hambn/agentbloat:ubuntu-browser` | npm | `latest`, `ubuntu-browser` |
-| `ubuntu` | T3 Code + all agentbloat CLIs + Ubuntu toolset | `ghcr.io/hambn/agentbloat:ubuntu` | npm | `ubuntu` |
-| `alpine-browser` | T3 Code + all agentbloat CLIs + Alpine toolset + Chromium | `ghcr.io/hambn/agentbloat:alpine-browser` | npm | `alpine-browser` |
-| `alpine` | T3 Code + all agentbloat CLIs + Alpine toolset | `ghcr.io/hambn/agentbloat:alpine` | npm | `alpine` |
+- **`ubuntu-browser`** (default)
+  - Contains: T3 Code + all agentbloat CLIs + Ubuntu toolset + Chromium
+  - Base: `ghcr.io/hambn/agentbloat:ubuntu-browser`
+  - Install: npm
+  - Tags: `latest`, `ubuntu-browser`
+- **`ubuntu`**
+  - Contains: T3 Code + all agentbloat CLIs + Ubuntu toolset
+  - Base: `ghcr.io/hambn/agentbloat:ubuntu`
+  - Install: npm
+  - Tags: `ubuntu`
+- **`alpine-browser`**
+  - Contains: T3 Code + all agentbloat CLIs + Alpine toolset + Chromium
+  - Base: `ghcr.io/hambn/agentbloat:alpine-browser`
+  - Install: npm
+  - Tags: `alpine-browser`
+- **`alpine`**
+  - Contains: T3 Code + all agentbloat CLIs + Alpine toolset
+  - Base: `ghcr.io/hambn/agentbloat:alpine`
+  - Install: npm
+  - Tags: `alpine`
 
 The moving variant tags and `latest` are repointed for every selected rebuild. A base-only refresh or repository edit creates no additional version tag. When the inherited agent CLIs or T3 release changes, the primary image also receives `t3code-stable-v<version>` (or `t3code-nightly-v<version>` for a nightly release). The four profiles keep the matching browser and distribution behavior from `agentbloat`. The images run `t3 serve --host=0.0.0.0 --port=3773` so the published port works behind a reverse proxy or via `ip:3773`.
 

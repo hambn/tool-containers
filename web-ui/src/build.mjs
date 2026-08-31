@@ -1,160 +1,118 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { repoRoot, repoUrl, pages, platformLabels, configureSite, basePath } from "./build/catalog.mjs";
-import { extractMeta, buildToc, renderMarkdown, tokenCss, truncate } from "./build/markdown.mjs";
-import { shell } from "./build/shell.mjs";
-import { renderHomePage } from "./pages/home/home.mjs";
-import { renderDocsIndexPage, docsBody, docsJsonLd } from "./pages/docs/docs.mjs";
+import { resolveConfig, lastModified, repoRoot, uiRoot } from "./lib/config.mjs";
+import { buildSite } from "./lib/catalog.mjs";
+import { createTheme } from "./lib/highlight.mjs";
+import { renderDocument, tableOfContents } from "./lib/markdown.mjs";
+import { createAssets, readStyles, minifyCss, minifyJs } from "./lib/assets.mjs";
+import { pageMeta, structuredData } from "./lib/seo.mjs";
+import { renderShell } from "./lib/layout.mjs";
+import { renderHome } from "./pages/home.mjs";
+import { renderDocs } from "./pages/docs.mjs";
+import { renderNotFound } from "./pages/not-found.mjs";
 
-const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = path.join(uiRoot, "dist");
-const publicSiteUrl = process.env.SITE_URL ?? process.env.SITE_ORIGIN ?? "https://hambn.github.io/tool-containers";
 
-configureSite({
-  base: process.env.BASE_PATH ?? "",
-  url: publicSiteUrl,
-});
+const FONTS = [
+  ["@fontsource-variable/inter/files/inter-latin-wght-normal.woff2", "fonts/inter-latin.woff2"],
+  ["@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2", "fonts/jetbrains-mono-latin.woff2"],
+];
 
-/** Conservative CSS minifier: comments, whitespace runs, punct spacing, trailing semicolons. */
-function minifyCss(css) {
-  return css
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\s+/g, " ")
-    .replace(/ ([{}:;,>]) /g, "$1")
-    .replace(/;}/g, "}")
-    .trim();
-}
-
-const read = (file) => fs.readFileSync(path.join(uiRoot, file), "utf8");
-const baseCss = read("src/styles.css").replaceAll("{{base}}", basePath);
-const pageCss = {
-  home: read("src/pages/home/home.css"),
-  docs: read("src/pages/docs/docs.css"),
-};
+const config = resolveConfig();
+const site = buildSite(config);
+const theme = await createTheme();
+const assets = createAssets({ distRoot, config });
 
 fs.rmSync(distRoot, { recursive: true, force: true });
-fs.mkdirSync(path.join(distRoot, "fonts"), { recursive: true });
-for (const [from, to] of [
-  ["@fontsource-variable/inter/files/inter-latin-wght-normal.woff2", "fonts/inter-latin.woff2"],
-  [
-    "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2",
-    "fonts/jetbrains-mono-latin.woff2",
-  ],
-]) {
-  fs.copyFileSync(path.join(uiRoot, "node_modules", from), path.join(distRoot, to));
+
+/** Every source document, read once and shared by rendering, meta and search. */
+const documents = new Map();
+for (const page of site.pages) {
+  if (!documents.has(page.source)) {
+    documents.set(page.source, fs.readFileSync(path.join(repoRoot, page.source), "utf8"));
+  }
 }
 
-/** Per-page SEO meta; unique title and description derived from the source document. */
-function pageMeta(page, markdown) {
-  if (page.kind === "docs-index") {
-    return {
-      title: "Docs",
-      description: "Documentation for every tool-containers image: variants, tags, registries, and runnable examples.",
-    };
-  }
-  const meta = extractMeta(markdown);
-  if (page.kind !== "example") return meta;
-  const platformLabel = platformLabels[page.platform] ?? page.platform;
-  return {
-    title: `${page.tool} \u00b7 ${platformLabel}`,
-    description: truncate(`${page.tool} ${platformLabel} examples: ${meta.description}`, 155),
-  };
-}
-
-async function renderPage(page, repoRelPath) {
-  if (page.kind === "home") {
-    const home = renderHomePage();
-    return { contentHtml: home.content, structuredData: home.jsonLd, tocEntries: [] };
-  }
-  if (page.kind === "docs-index") {
-    return { contentHtml: docsBody({ page, contentHtml: renderDocsIndexPage() }), tocEntries: [] };
-  }
-  const markdown = await renderMarkdown(repoRelPath);
-  return {
-    contentHtml: docsBody({ page, contentHtml: markdown, tocEntries: buildToc(markdown) }),
-    tocEntries: buildToc(markdown),
-  };
-}
-
-// Pass 1: render every page body first so syntax-token CSS can be collected once.
+/*
+ * Pass 1 — render page bodies. Highlighting interns its token styles as it
+ * runs, so the stylesheet can only be written once every fence is rendered.
+ */
 const rendered = [];
-for (const [repoRelPath, page] of pages) {
-  const markdown = page.kind === "docs-index" ? "Generated docs index." : fs.readFileSync(path.join(repoRoot, repoRelPath), "utf8");
-  const body = await renderPage(page, repoRelPath);
-  const meta = pageMeta(page, markdown);
-  const structuredData =
-    page.kind === "home"
-      ? body.structuredData
-      : docsJsonLd(page, { ...meta, dateModified: lastmod(repoRelPath) });
-  rendered.push({ repoRelPath, page, markdown, ...body, ...meta, structuredData });
-}
+for (const page of site.pages) {
+  const markdown = documents.get(page.source);
+  const meta = pageMeta(page, markdown, site);
+  const modified = lastModified(page.source);
+  let body;
 
-const tokensCss = tokenCss();
-
-/** Honest lastmod: the last commit that touched the page's source document. */
-function lastmod(repoRelPath) {
-  try {
-    const date = execFileSync("git", ["log", "-1", "--format=%cI", "--", repoRelPath], { cwd: repoRoot })
-      .toString()
-      .trim();
-    return /^\d{4}-\d{2}-\d{2}/.test(date) ? date.slice(0, 10) : "";
-  } catch {
-    return "";
+  if (page.kind === "home") {
+    body = renderHome({ site, documents });
+  } else if (page.kind === "docs-index") {
+    body = renderDocs({ page, site, documents });
+  } else {
+    const article = await renderDocument(markdown, { sourceDir: path.posix.dirname(page.source), site, theme });
+    body = renderDocs({ page, site, documents, article, toc: tableOfContents(article) });
   }
+
+  rendered.push({ page, body, meta, modified, structuredData: structuredData(page, { site, meta, markdown, modified }) });
 }
 
-// Pass 2: inline per-page CSS (base + the area the page belongs to + tokens) and write.
-const sitemapUrls = [];
-for (const { repoRelPath, page, contentHtml, structuredData, title, description } of rendered) {
-  const areaCss = page.kind === "home" ? pageCss.home : page.kind === "404" ? "" : pageCss.docs;
-  const html = shell({
-    page: { ...page, repoRelPath },
-    contentHtml,
-    structuredData,
-    css: minifyCss(`${baseCss}\n${areaCss}\n${tokensCss}`),
-    title,
-    description,
-  });
-  const outDir = path.join(distRoot, page.route);
-  fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, "index.html"), html);
-  const modified = lastmod(repoRelPath);
-  sitemapUrls.push(
-    `\t<url><loc>${publicSiteUrl.replace(/\/+$/, "")}${page.route}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ""}</url>`,
-  );
-  console.log(`built ${page.route}`);
+/* Pass 2 — emit the shared assets, then the pages that reference them. */
+
+for (const [from, to] of FONTS) {
+  assets.copy(path.join(uiRoot, "node_modules", from), to);
 }
 
-const notFoundHtml = shell({
-  page: { route: "/404.html", kind: "404", repoRelPath: "README.md" },
-  contentHtml: `<main class="content" id="content"><div class="content-inner">
-<section class="not-found">
-<div class="empty">
-<div class="empty-header">
-<span class="empty-media"><svg aria-hidden="true"><use href="#i-inbox" xlink:href="#i-inbox"/></svg></span>
-<h1 class="empty-title">Page not found</h1>
-<p class="empty-description">The page you are looking for does not exist or was removed in a rebuild.</p>
-</div>
-<div class="empty-content">
-<a class="btn btn-primary" href="${basePath}/">Back to home</a>
-<a class="btn btn-outline" href="${basePath}/docs/">Open the docs</a>
-</div>
-</div>
-</section>
-</div></main>`,
-  title: "Page not found",
-  description: "This page does not exist in the tool-containers showcase.",
-  css: minifyCss(baseCss),
-});
-fs.writeFileSync(path.join(distRoot, "404.html"), notFoundHtml);
-console.log("built /404.html");
+const publicDir = path.join(uiRoot, "public");
+for (const file of fs.readdirSync(publicDir)) {
+  assets.copy(path.join(publicDir, file), file);
+}
 
-fs.writeFileSync(
-  path.join(distRoot, "sitemap.xml"),
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls.join("\n")}\n</urlset>\n`,
+const styles = assets.emit(
+  "site.css",
+  minifyCss(["base.css", "home.css", "docs.css"].map((file) => readStyles(`styles/${file}`, config)).join("\n") + theme.css()),
 );
-fs.writeFileSync(path.join(distRoot, "robots.txt"), `User-agent: *\nAllow: /\n\nSitemap: ${publicSiteUrl.replace(/\/+$/, "")}/sitemap.xml\n`);
+const script = assets.emit("site.js", minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8")));
+const themeScript = minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8"));
 
-console.log(`done: ${pages.size} pages`);
+const shared = {
+  styles,
+  script,
+  themeScript,
+  favicon: config.href("/favicon.svg"),
+  appleTouchIcon: config.href("/apple-touch-icon.png"),
+  manifest: config.href("/site.webmanifest"),
+};
+
+for (const { page, body, meta, structuredData: data } of rendered) {
+  const html = renderShell({ page, body, meta, config, assets: shared, structuredData: data });
+  assets.write(path.join(page.route, "index.html"), html);
+}
+
+const notFound = { id: "404", kind: "404", route: "/404.html", source: null };
+assets.write(
+  "404.html",
+  renderShell({
+    page: notFound,
+    body: renderNotFound(config),
+    meta: { title: "Page not found", description: "This page is not part of the tool-containers site." },
+    config,
+    assets: shared,
+  }),
+);
+
+/* Discovery: a sitemap dated from the repository's own history, and robots. */
+
+const urls = rendered
+  .map(({ page, modified }) => {
+    const lastmod = modified ? `<lastmod>${modified}</lastmod>` : "";
+    return `  <url><loc>${config.canonical(page.route)}</loc>${lastmod}</url>`;
+  })
+  .join("\n");
+
+assets.write(
+  "sitemap.xml",
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+);
+assets.write("robots.txt", `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`);
+
+console.log(`built ${rendered.length} pages + /404.html into ${path.relative(uiRoot, distRoot)}/`);

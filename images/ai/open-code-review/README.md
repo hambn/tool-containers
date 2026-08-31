@@ -11,12 +11,26 @@
 
 ## Images
 
-| Variant | Contents | Base | Moving tags | OCR release tag |
-|---------|----------|------|-------------|-----------------|
-| `ubuntu-browser` (primary) | OCR, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `ocr-v<version>` |
-| `ubuntu` | OCR, Ubuntu tools | `ghcr.io/hambn/agentimg:ubuntu` | `ubuntu` | primary-only tag is not repeated |
-| `alpine-browser` | OCR, Alpine tools, Chromium | `ghcr.io/hambn/agentimg:alpine-browser` | `alpine-browser` | primary-only tag is not repeated |
-| `alpine` | OCR, Alpine tools | `ghcr.io/hambn/agentimg:alpine` | `alpine` | primary-only tag is not repeated |
+- **`ubuntu-browser`** (primary)
+  - Contents: OCR, Ubuntu tools, headless Chromium
+  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
+  - Moving tags: `latest`, `ubuntu-browser`
+  - OCR release tag: `ocr-v<version>`
+- **`ubuntu`**
+  - Contents: OCR, Ubuntu tools
+  - Base: `ghcr.io/hambn/agentimg:ubuntu`
+  - Moving tags: `ubuntu`
+  - OCR release tag: primary-only tag is not repeated
+- **`alpine-browser`**
+  - Contents: OCR, Alpine tools, Chromium
+  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
+  - Moving tags: `alpine-browser`
+  - OCR release tag: primary-only tag is not repeated
+- **`alpine`**
+  - Contents: OCR, Alpine tools
+  - Base: `ghcr.io/hambn/agentimg:alpine`
+  - Moving tags: `alpine`
+  - OCR release tag: primary-only tag is not repeated
 
 Pull moving tags from `ghcr.io/hambn/open-code-review:<tag>` or
 `docker.io/hambn/open-code-review:<tag>`. OCR package updates repoint all moving tags

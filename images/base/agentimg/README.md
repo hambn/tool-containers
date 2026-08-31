@@ -14,12 +14,22 @@ agents or Exe-specific components.
 
 ## Images
 
-| Variant | Contents | Base | Tags |
-|---------|----------|------|------|
-| `ubuntu-browser` | full toolset, systemd, headless Chromium | Ubuntu 24.04 | `latest`, `ubuntu-browser`, and `ubuntu-browser-<12-char-commit-sha>` on source changes |
-| `ubuntu` | full toolset and systemd, no browser | Ubuntu 24.04 | `ubuntu` and `ubuntu-<12-char-commit-sha>` on source changes |
-| `alpine-browser` | Alpine-equivalent toolset, OpenRC, Chromium | Alpine 3.21 | `alpine-browser` and `alpine-browser-<12-char-commit-sha>` on source changes |
-| `alpine` | Alpine-equivalent toolset and OpenRC, no browser | Alpine 3.21 | `alpine` and `alpine-<12-char-commit-sha>` on source changes |
+- **`ubuntu-browser`**
+  - Contents: full toolset, systemd, headless Chromium
+  - Base: Ubuntu 24.04
+  - Tags: `latest`, `ubuntu-browser`, and `ubuntu-browser-<12-char-commit-sha>` on source changes
+- **`ubuntu`**
+  - Contents: full toolset and systemd, no browser
+  - Base: Ubuntu 24.04
+  - Tags: `ubuntu` and `ubuntu-<12-char-commit-sha>` on source changes
+- **`alpine-browser`**
+  - Contents: Alpine-equivalent toolset, OpenRC, Chromium
+  - Base: Alpine 3.21
+  - Tags: `alpine-browser` and `alpine-browser-<12-char-commit-sha>` on source changes
+- **`alpine`**
+  - Contents: Alpine-equivalent toolset and OpenRC, no browser
+  - Base: Alpine 3.21
+  - Tags: `alpine` and `alpine-<12-char-commit-sha>` on source changes
 
 Pull from `ghcr.io/hambn/agentimg:<tag>` or `docker.io/hambn/agentimg:<tag>`.
 Only a Git push that changes a variant creates its commit tag. Scheduled base-image

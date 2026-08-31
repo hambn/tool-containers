@@ -52,9 +52,10 @@ docker stack deploy -c stack.yml t3code
 docker stack services t3code
 docker service scale t3code_t3code=2
 docker service logs -f t3code_t3code
-
+```
 
 ### Remove the stack
 
 ```bash
 docker stack rm t3code
+```

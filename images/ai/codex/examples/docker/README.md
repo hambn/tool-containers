@@ -61,7 +61,7 @@ Every moving tag from the [image table](../../README.md#images) works; override 
 
 ```bash
 CODEX_IMAGE=ghcr.io/hambn/codex:<tag> ./run.sh
-
+```
 
 ### Pass the API key without exporting it
 
@@ -70,7 +70,7 @@ docker run -it --rm \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/codex:latest codex
-
+```
 
 ### One-off non-interactive command
 
@@ -79,7 +79,7 @@ docker run --rm \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/codex:latest codex --version
-
+```
 
 ### Constrain resources
 
@@ -90,3 +90,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/codex:latest codex
+```

@@ -68,13 +68,13 @@ Every moving tag from the [image table](../../README.md#images) works; override 
 
 ```bash
 AGENTBLOAT_IMAGE=ghcr.io/hambn/agentbloat:<tag> ./run.sh
-
+```
 
 ### One-off non-interactive command
 
 ```bash
 docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/agentbloat:latest zsh -c 'exit'
-
+```
 
 ### Give the container access to the Docker socket
 
@@ -82,7 +82,7 @@ The helpers mount the host socket only when you ask for it:
 
 ```bash
 AGENTBLOAT_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
-
+```
 
 ### Constrain resources
 
@@ -93,3 +93,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/agentbloat:latest zsh
+```

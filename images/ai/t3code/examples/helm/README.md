@@ -112,7 +112,7 @@ resources:
 
 ```bash
 helm install t3code ./chart
-
+```
 
 ### Upgrade and roll back
 
@@ -120,13 +120,13 @@ helm install t3code ./chart
 helm upgrade t3code ./chart --reuse-values
 helm history t3code
 helm rollback t3code 1
-
+```
 
 ### Override values on the command line
 
 ```bash
 helm upgrade t3code ./chart --set image.tag=<tag> --set resources.limits.memory=4Gi
-
+```
 
 ### Or with a values file
 
@@ -142,3 +142,4 @@ resources:
 
 ```bash
 helm upgrade t3code ./chart -f my-values.yaml
+```
