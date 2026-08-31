@@ -81,13 +81,13 @@ Every moving tag from the [image table](../../README.md#images) works; override 
 
 ```bash
 AGENTIMG_IMAGE=ghcr.io/hambn/agentimg:<tag> ./run.sh
-
+```
 
 ### One-off non-interactive command
 
 ```bash
 docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/agentimg:latest zsh -c 'exit'
-
+```
 
 ### Give the container access to the Docker socket
 
@@ -95,7 +95,7 @@ The helpers mount the host socket only when you ask for it:
 
 ```bash
 AGENTIMG_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
-
+```
 
 ### Chromium needs shared memory
 
@@ -103,7 +103,7 @@ The browser-enabled variants run headless Chromium; give the sandbox at least 1 
 
 ```bash
 docker run -it --rm --shm-size=1g -v "$PWD:/workspace" ghcr.io/hambn/agentimg:latest
-
+```
 
 ### Constrain resources
 
@@ -114,3 +114,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/agentimg:latest zsh
+```

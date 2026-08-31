@@ -62,9 +62,10 @@ docker stack deploy -c stack.yml claude-code
 docker stack services claude-code
 docker service scale claude-code_claude-code=2
 docker service logs -f claude-code_claude-code
-
+```
 
 ### Remove the stack
 
 ```bash
 docker stack rm claude-code
+```

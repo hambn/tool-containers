@@ -52,9 +52,10 @@ docker stack deploy -c stack.yml agentimg
 docker stack services agentimg
 docker service scale agentimg_agentimg=2
 docker service logs -f agentimg_agentimg
-
+```
 
 ### Remove the stack
 
 ```bash
 docker stack rm agentimg
+```

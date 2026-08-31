@@ -12,12 +12,26 @@
 
 ## Images
 
-| Variant | Contents | Base | Moving tags | Claude Code release tag |
-|---------|----------|------|-------------|-------------------------|
-| `ubuntu-browser` (primary) | Claude Code, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `claude-code-v<version>` |
-| `ubuntu` | Claude Code and Ubuntu tools | `ghcr.io/hambn/agentimg:ubuntu` | `ubuntu` | primary-only tag is not repeated |
-| `alpine-browser` | Claude Code, Alpine tools, Chromium | `ghcr.io/hambn/agentimg:alpine-browser` | `alpine-browser` | primary-only tag is not repeated |
-| `alpine` | Claude Code and Alpine tools | `ghcr.io/hambn/agentimg:alpine` | `alpine` | primary-only tag is not repeated |
+- **`ubuntu-browser`** (primary)
+  - Contents: Claude Code, Ubuntu tools, headless Chromium
+  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
+  - Moving tags: `latest`, `ubuntu-browser`
+  - Claude Code release tag: `claude-code-v<version>`
+- **`ubuntu`**
+  - Contents: Claude Code and Ubuntu tools
+  - Base: `ghcr.io/hambn/agentimg:ubuntu`
+  - Moving tags: `ubuntu`
+  - Claude Code release tag: primary-only tag is not repeated
+- **`alpine-browser`**
+  - Contents: Claude Code, Alpine tools, Chromium
+  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
+  - Moving tags: `alpine-browser`
+  - Claude Code release tag: primary-only tag is not repeated
+- **`alpine`**
+  - Contents: Claude Code and Alpine tools
+  - Base: `ghcr.io/hambn/agentimg:alpine`
+  - Moving tags: `alpine`
+  - Claude Code release tag: primary-only tag is not repeated
 
 Pull moving tags from `ghcr.io/hambn/claude-code:<tag>` or
 `docker.io/hambn/claude-code:<tag>`. A Claude Code npm release repoints all moving tags

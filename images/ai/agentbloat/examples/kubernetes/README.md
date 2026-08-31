@@ -68,3 +68,4 @@ kubectl apply -f deployment.yaml
 kubectl get pods -w
 # ... later ...
 kubectl delete -f deployment.yaml
+```

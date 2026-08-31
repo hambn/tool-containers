@@ -12,12 +12,26 @@ meta-harness packaged on the reusable [`agentbloat`](../agentbloat/) foundations
 
 ## Images
 
-| Variant | Contents | Base | Moving tags | Omnigent release tag |
-|---------|----------|------|-------------|----------------------|
-| `ubuntu-browser` (primary) | Omnigent, all agentbloat agents, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentbloat:ubuntu-browser` | `latest`, `ubuntu-browser` | `omnigent-v<version>` |
-| `ubuntu` | Omnigent, all agentbloat agents, Ubuntu tools | `ghcr.io/hambn/agentbloat:ubuntu` | `ubuntu` | primary-only tag is not repeated |
-| `alpine-browser` | Omnigent, all agentbloat agents, Alpine tools, Chromium | `ghcr.io/hambn/agentbloat:alpine-browser` | `alpine-browser` | primary-only tag is not repeated |
-| `alpine` | Omnigent, all agentbloat agents, Alpine tools | `ghcr.io/hambn/agentbloat:alpine` | `alpine` | primary-only tag is not repeated |
+- **`ubuntu-browser`** (primary)
+  - Contents: Omnigent, all agentbloat agents, Ubuntu tools, headless Chromium
+  - Base: `ghcr.io/hambn/agentbloat:ubuntu-browser`
+  - Moving tags: `latest`, `ubuntu-browser`
+  - Omnigent release tag: `omnigent-v<version>`
+- **`ubuntu`**
+  - Contents: Omnigent, all agentbloat agents, Ubuntu tools
+  - Base: `ghcr.io/hambn/agentbloat:ubuntu`
+  - Moving tags: `ubuntu`
+  - Omnigent release tag: primary-only tag is not repeated
+- **`alpine-browser`**
+  - Contents: Omnigent, all agentbloat agents, Alpine tools, Chromium
+  - Base: `ghcr.io/hambn/agentbloat:alpine-browser`
+  - Moving tags: `alpine-browser`
+  - Omnigent release tag: primary-only tag is not repeated
+- **`alpine`**
+  - Contents: Omnigent, all agentbloat agents, Alpine tools
+  - Base: `ghcr.io/hambn/agentbloat:alpine`
+  - Moving tags: `alpine`
+  - Omnigent release tag: primary-only tag is not repeated
 
 Pull moving tags from `ghcr.io/hambn/omnigent:<tag>` or
 `docker.io/hambn/omnigent:<tag>`. Omnigent releases repoint all moving tags and

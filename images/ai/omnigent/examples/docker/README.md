@@ -55,13 +55,13 @@ Every moving tag from the [image table](../../README.md#images) works; override 
 
 ```bash
 OMNIGENT_IMAGE=ghcr.io/hambn/omnigent:<tag> ./run.sh
-
+```
 
 ### One-off non-interactive command
 
 ```bash
 docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/omnigent:latest --help
-
+```
 
 ### Constrain resources
 
@@ -72,3 +72,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/omnigent:latest
+```

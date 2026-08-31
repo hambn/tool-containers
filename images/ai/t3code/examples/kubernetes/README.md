@@ -88,7 +88,7 @@ spec:
 ```bash
 kubectl port-forward deploy/t3code 3773:3773
 # then open http://localhost:3773
-
+```
 
 ### Apply, watch, and clean up
 
@@ -97,3 +97,4 @@ kubectl apply -f deployment.yaml
 kubectl get pods -w
 # ... later ...
 kubectl delete -f deployment.yaml
+```

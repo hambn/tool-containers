@@ -12,12 +12,26 @@
 
 ## Images
 
-| Variant | Contents | Base | Moving tags | Codex release tag |
-|---------|----------|------|-------------|-------------------|
-| `ubuntu-browser` (primary) | Codex, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `codex-v<version>` |
-| `ubuntu` | Codex and Ubuntu tools | `ghcr.io/hambn/agentimg:ubuntu` | `ubuntu` | primary-only tag is not repeated |
-| `alpine-browser` | Codex, Alpine tools, Chromium | `ghcr.io/hambn/agentimg:alpine-browser` | `alpine-browser` | primary-only tag is not repeated |
-| `alpine` | Codex and Alpine tools | `ghcr.io/hambn/agentimg:alpine` | `alpine` | primary-only tag is not repeated |
+- **`ubuntu-browser`** (primary)
+  - Contents: Codex, Ubuntu tools, headless Chromium
+  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
+  - Moving tags: `latest`, `ubuntu-browser`
+  - Codex release tag: `codex-v<version>`
+- **`ubuntu`**
+  - Contents: Codex and Ubuntu tools
+  - Base: `ghcr.io/hambn/agentimg:ubuntu`
+  - Moving tags: `ubuntu`
+  - Codex release tag: primary-only tag is not repeated
+- **`alpine-browser`**
+  - Contents: Codex, Alpine tools, Chromium
+  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
+  - Moving tags: `alpine-browser`
+  - Codex release tag: primary-only tag is not repeated
+- **`alpine`**
+  - Contents: Codex and Alpine tools
+  - Base: `ghcr.io/hambn/agentimg:alpine`
+  - Moving tags: `alpine`
+  - Codex release tag: primary-only tag is not repeated
 
 Pull moving tags from `ghcr.io/hambn/codex:<tag>` or
 `docker.io/hambn/codex:<tag>`. A Codex npm release repoints all moving tags and adds

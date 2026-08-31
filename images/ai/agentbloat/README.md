@@ -12,12 +12,26 @@
 
 ## Images
 
-| Variant | Contents | Base | Moving tags | Agent update tags |
-|---------|----------|------|-------------|-------------------|
-| `ubuntu-browser` (primary) | all agents, full Ubuntu toolset, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `codex-v<version>`, `claude-code-v<version>`, etc. |
-| `ubuntu` | all agents and full Ubuntu toolset, no browser | `ghcr.io/hambn/agentimg:ubuntu` | `ubuntu` | primary-only tags are not repeated |
-| `alpine-browser` | all agents, Alpine toolset, Chromium | `ghcr.io/hambn/agentimg:alpine-browser` | `alpine-browser` | primary-only tags are not repeated |
-| `alpine` | all agents and Alpine toolset, no browser | `ghcr.io/hambn/agentimg:alpine` | `alpine` | primary-only tags are not repeated |
+- **`ubuntu-browser`** (primary)
+  - Contents: all agents, full Ubuntu toolset, headless Chromium
+  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
+  - Moving tags: `latest`, `ubuntu-browser`
+  - Agent update tags: `codex-v<version>`, `claude-code-v<version>`, etc.
+- **`ubuntu`**
+  - Contents: all agents and full Ubuntu toolset, no browser
+  - Base: `ghcr.io/hambn/agentimg:ubuntu`
+  - Moving tags: `ubuntu`
+  - Agent update tags: primary-only tags are not repeated
+- **`alpine-browser`**
+  - Contents: all agents, Alpine toolset, Chromium
+  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
+  - Moving tags: `alpine-browser`
+  - Agent update tags: primary-only tags are not repeated
+- **`alpine`**
+  - Contents: all agents and Alpine toolset, no browser
+  - Base: `ghcr.io/hambn/agentimg:alpine`
+  - Moving tags: `alpine`
+  - Agent update tags: primary-only tags are not repeated
 
 Pull moving tags from `ghcr.io/hambn/agentbloat:<tag>` or
 `docker.io/hambn/agentbloat:<tag>`. Source edits and `agentimg` base refreshes repoint

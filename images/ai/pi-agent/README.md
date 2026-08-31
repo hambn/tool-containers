@@ -12,12 +12,26 @@ agent packaged on the reusable [`agentimg`](../../base/agentimg/) foundations.
 
 ## Images
 
-| Variant | Contents | Base | Moving tags | Pi release tag |
-|---------|----------|------|-------------|----------------|
-| `ubuntu-browser` (primary) | Pi, Ubuntu tools, headless Chromium | `ghcr.io/hambn/agentimg:ubuntu-browser` | `latest`, `ubuntu-browser` | `pi-v<version>` |
-| `ubuntu` | Pi and Ubuntu tools | `ghcr.io/hambn/agentimg:ubuntu` | `ubuntu` | primary-only tag is not repeated |
-| `alpine-browser` | Pi, Alpine tools, Chromium | `ghcr.io/hambn/agentimg:alpine-browser` | `alpine-browser` | primary-only tag is not repeated |
-| `alpine` | Pi and Alpine tools | `ghcr.io/hambn/agentimg:alpine` | `alpine` | primary-only tag is not repeated |
+- **`ubuntu-browser`** (primary)
+  - Contents: Pi, Ubuntu tools, headless Chromium
+  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
+  - Moving tags: `latest`, `ubuntu-browser`
+  - Pi release tag: `pi-v<version>`
+- **`ubuntu`**
+  - Contents: Pi and Ubuntu tools
+  - Base: `ghcr.io/hambn/agentimg:ubuntu`
+  - Moving tags: `ubuntu`
+  - Pi release tag: primary-only tag is not repeated
+- **`alpine-browser`**
+  - Contents: Pi, Alpine tools, Chromium
+  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
+  - Moving tags: `alpine-browser`
+  - Pi release tag: primary-only tag is not repeated
+- **`alpine`**
+  - Contents: Pi and Alpine tools
+  - Base: `ghcr.io/hambn/agentimg:alpine`
+  - Moving tags: `alpine`
+  - Pi release tag: primary-only tag is not repeated
 
 Pull moving tags from `ghcr.io/hambn/pi-agent:<tag>` or
 `docker.io/hambn/pi-agent:<tag>`. Pi package updates repoint all moving tags and add

@@ -74,13 +74,13 @@ Edit `run.sh` (or copy it) and replace the image reference with any moving tag f
 
 ```bash
 docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser
-
+```
 
 ### One-off non-interactive command
 
 ```bash
 docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser --help
-
+```
 
 ### Give the container access to the Docker socket
 
@@ -88,7 +88,7 @@ The helpers mount the host socket only when you ask for it:
 
 ```bash
 T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
-
+```
 
 ### Chromium needs shared memory
 
@@ -96,7 +96,7 @@ The browser-enabled variants run headless Chromium; give the sandbox at least 1 
 
 ```bash
 docker run -it --rm --shm-size=1g -p 127.0.0.1:3773:3773 -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser
-
+```
 
 ### Constrain resources
 
@@ -107,3 +107,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/t3code:ubuntu-browser
+```

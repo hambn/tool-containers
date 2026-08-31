@@ -63,7 +63,7 @@ Edit `run.sh` (or copy it) and replace the image reference with any moving tag f
 
 ```bash
 docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/claude-code:<tag>
-
+```
 
 ### Pass the API key without exporting it
 
@@ -72,7 +72,7 @@ docker run -it --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/claude-code:latest claude
-
+```
 
 ### One-off non-interactive command
 
@@ -81,7 +81,7 @@ docker run --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/claude-code:latest claude --version
-
+```
 
 ### Constrain resources
 
@@ -92,3 +92,4 @@ docker run -it --rm \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
   ghcr.io/hambn/claude-code:latest claude
+```

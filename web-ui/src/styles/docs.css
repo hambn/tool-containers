@@ -1,10 +1,9 @@
-/* Docs area styles: sidebar shell, breadcrumbs, TOC, code cards, tables,
+/* Docs area: the sidebar shell, breadcrumbs, table of contents, tables,
    pagination, and the generated /docs/ index. */
 
 .docs-shell {
   max-width: var(--shell-w);
   margin: 0 auto;
-  min-height: 100vh;
   min-height: calc(100dvh - var(--header-h));
 }
 
@@ -18,12 +17,12 @@
   background: oklch(0 0 0 / 0.5);
 }
 
-body.nav-open .backdrop {
-  display: block;
-}
-
 body.nav-open {
   overflow: hidden;
+}
+
+body.nav-open .backdrop {
+  display: block;
 }
 
 .sidebar {
@@ -32,13 +31,14 @@ body.nav-open {
   bottom: 0;
   left: 0;
   z-index: 40;
+  display: none;
   width: 18rem;
   max-width: 85vw;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.75rem 0.75rem 2rem;
   background: var(--sidebar);
   border-right: 1px solid var(--sidebar-border);
-  display: none;
 }
 
 body.nav-open .sidebar {
@@ -62,11 +62,11 @@ body.nav-open .sidebar {
   .sidebar {
     position: sticky;
     top: calc(var(--header-h) + 1.25rem);
+    display: block;
     height: fit-content;
-    max-height: calc(100vh - var(--header-h) - 2.5rem);
+    max-height: calc(100dvh - var(--header-h) - 2.5rem);
     width: auto;
     max-width: none;
-    display: block;
     padding: 1.25rem 1rem 1.25rem 0;
     background: none;
     border-right: 0;
@@ -83,7 +83,7 @@ body.nav-open .sidebar {
 
 @media (min-width: 1280px) {
   .docs-shell.has-toc {
-    grid-template-columns: 16rem minmax(0, 1fr) 232px;
+    grid-template-columns: 16rem minmax(0, 1fr) 15rem;
   }
 }
 
@@ -94,7 +94,7 @@ body.nav-open .sidebar {
   margin-bottom: 0.5rem;
 }
 
-.filter-box svg {
+.filter-box > svg {
   position: absolute;
   left: 0.625rem;
   top: 50%;
@@ -105,12 +105,11 @@ body.nav-open .sidebar {
   pointer-events: none;
 }
 
-.filter-kbd {
+.filter-box .filter-kbd {
   position: absolute;
   right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  pointer-events: none;
 }
 
 .nav-input {
@@ -121,10 +120,9 @@ body.nav-open .sidebar {
   border-radius: var(--radius-md);
   background: var(--muted-a50);
   font-size: 0.875rem;
-  outline: none;
   appearance: none;
   -webkit-appearance: none;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--ease), background-color var(--ease);
 }
 
 .nav-input::placeholder {
@@ -153,7 +151,14 @@ body.nav-open .sidebar {
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   color: var(--sidebar-foreground);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color var(--ease), color var(--ease);
+}
+
+.nav-link > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-link svg {
@@ -163,14 +168,13 @@ body.nav-open .sidebar {
   opacity: 0.75;
 }
 
-.nav-link:hover {
+.nav-link:hover,
+.nav-link.active {
   background: var(--sidebar-accent);
   color: var(--sidebar-accent-foreground);
 }
 
 .nav-link.active {
-  background: var(--sidebar-accent);
-  color: var(--sidebar-accent-foreground);
   font-weight: 500;
 }
 
@@ -193,8 +197,7 @@ body.nav-open .sidebar {
   flex-direction: column;
   gap: 2px;
   margin-left: 1rem;
-  padding-left: 0.75rem;
-  padding-top: 2px;
+  padding: 2px 0 0 0.75rem;
   border-left: 1px solid var(--sidebar-border);
 }
 
@@ -210,7 +213,9 @@ body.nav-open .sidebar {
 }
 
 .nav-empty {
-  margin-top: 0.75rem;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
 }
 
 .sidebar-footer {
@@ -241,7 +246,6 @@ body.nav-open .sidebar {
 
 .crumbs .current {
   color: var(--foreground);
-  font-weight: 400;
 }
 
 .crumbs svg {
@@ -260,7 +264,7 @@ body.nav-open .sidebar {
 .toc {
   position: sticky;
   top: calc(var(--header-h) + 1.5rem);
-  max-height: calc(100vh - var(--header-h) - 3rem);
+  max-height: calc(100dvh - var(--header-h) - 3rem);
   overflow-y: auto;
   padding-bottom: 2rem;
 }
@@ -275,23 +279,24 @@ body.nav-open .sidebar {
 }
 
 .toc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   border-left: 1px solid var(--border);
 }
 
 .toc-link {
   display: block;
+  margin-left: -1px;
   padding: 0.2rem 0 0.2rem 0.75rem;
   border-left: 1px solid transparent;
-  margin-left: -1px;
   font-size: 0.8125rem;
+  line-height: 1.5;
   color: var(--muted-foreground);
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color var(--ease), border-color var(--ease);
 }
 
 .toc-link:hover {
@@ -315,111 +320,21 @@ body.nav-open .sidebar {
   }
 }
 
-/* ------------------------------------------------------------- code card */
-
-.code-card {
-  margin: 1.25rem 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
-}
-
-.code-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.45rem 0.5rem 0.45rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--muted-a40);
-}
-
-.code-name {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.copy-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.copy-btn:hover {
-  background: var(--muted);
-  color: var(--foreground);
-}
-
-.copy-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.copy-btn .i-check {
-  display: none;
-}
-
-.copy-btn.copied .i-check {
-  display: block;
-}
-
-.copy-btn.copied .i-copy {
-  display: none;
-}
-
-.code-body {
-  font-size: 0.8125rem;
-  line-height: 1.65;
-}
-
-.code-body pre {
-  margin: 0;
-  padding: 1rem;
-  overflow-x: auto;
-}
-
-.code-body code {
-  font-family: var(--font-mono);
-}
-
-.shiki {
-  background-color: var(--shiki-light-bg) !important;
-}
-
-.dark .shiki {
-  background-color: var(--shiki-dark-bg) !important;
-}
-
-.shiki span {
-  color: var(--shiki-light);
-}
-
-.dark .shiki span {
-  color: var(--shiki-dark);
-}
-
 /* ---------------------------------------------------------------- tables */
 
 .table-wrap {
   margin: 1.5rem 0;
   width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
+/* The table takes its natural width and the wrapper scrolls, rather than the
+   column squeezing it: image references and tag lists must stay readable on
+   one line. Prose cells are capped so they wrap instead of running away. */
 .doc-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.875rem;
@@ -428,22 +343,27 @@ body.nav-open .sidebar {
 .doc-table th {
   height: 2.5rem;
   padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border);
   color: var(--foreground);
   font-size: 0.8125rem;
   font-weight: 500;
   text-align: left;
   white-space: nowrap;
-  border-bottom: 1px solid var(--border);
 }
 
 .doc-table td {
+  max-width: 24rem;
   padding: 0.625rem 0.75rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 
+.doc-table td code {
+  white-space: nowrap;
+}
+
 .doc-table tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background-color var(--ease);
 }
 
 .doc-table tbody tr:hover {
@@ -462,7 +382,7 @@ body.nav-open .sidebar {
   text-underline-offset: 3px;
 }
 
-.doc-table td code {
+.doc-table code {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   background: var(--muted-a70);
@@ -480,18 +400,18 @@ body.nav-open .sidebar {
 }
 
 .page-link {
-  flex: 1;
-  min-width: 0;
-  max-width: 24rem;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
+  max-width: 24rem;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--background);
   box-shadow: var(--shadow-xs);
-  transition: background-color 0.15s ease;
+  transition: background-color var(--ease);
 }
 
 .page-link:hover {
@@ -510,6 +430,7 @@ body.nav-open .sidebar {
 }
 
 .page-link .label {
+  max-width: 100%;
   font-size: 0.875rem;
   font-weight: 500;
   overflow: hidden;
@@ -533,19 +454,21 @@ body.nav-open .sidebar {
 .docs-index h1 {
   font-size: 1.875rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .docs-lead {
-  margin-top: 0.75rem;
   max-width: 42rem;
+  margin-top: 0.75rem;
   font-size: 0.9375rem;
   line-height: 1.7;
   color: var(--muted-foreground);
+  text-wrap: pretty;
 }
 
 .docs-category {
   margin-top: 2.5rem;
+  scroll-margin-top: calc(var(--header-h) + 1.5rem);
 }
 
 .docs-category h2 {
@@ -555,9 +478,9 @@ body.nav-open .sidebar {
 }
 
 .docs-tools {
-  list-style: none;
   margin: 0.5rem 0 0;
   padding: 0;
+  list-style: none;
 }
 
 .docs-tool {
@@ -579,8 +502,8 @@ body.nav-open .sidebar {
 }
 
 .docs-tool-desc {
-  margin-top: 0.375rem;
   max-width: 46rem;
+  margin-top: 0.375rem;
   font-size: 0.875rem;
   line-height: 1.6;
   color: var(--muted-foreground);
@@ -594,21 +517,28 @@ body.nav-open .sidebar {
 }
 
 .docs-example-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   padding: 0.2rem 0.625rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-4xl);
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color var(--ease), border-color var(--ease);
+}
+
+.docs-example-link svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
 }
 
 .docs-example-link:hover {
   color: var(--foreground);
   border-color: var(--border-strong);
 }
-
-/* ---------------------------------------------------------------- print */
 
 @media print {
   .sidebar,

@@ -52,9 +52,10 @@ docker stack deploy -c stack.yml agentbloat
 docker stack services agentbloat
 docker service scale agentbloat_agentbloat=2
 docker service logs -f agentbloat_agentbloat
-
+```
 
 ### Remove the stack
 
 ```bash
 docker stack rm agentbloat
+```
