@@ -248,7 +248,7 @@ if web_ui_files:
 
 image_projects = {
     f"{category.name}-{tool.name}": tool
-    for category in pathlib.Path("images").iterdir()
+    for category in pathlib.Path("tools").iterdir()
     if category.is_dir()
     for tool in category.iterdir()
     if tool.is_dir()
@@ -276,7 +276,7 @@ for name, project in sorted(image_projects.items()):
 catalog_targets = [
     target.removeprefix("./").rstrip("/")
     for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", pathlib.Path("README.md").read_text())
-    if target.removeprefix("./").startswith("images/")
+    if target.removeprefix("./").startswith("tools/")
 ]
 expected_catalog = {project.as_posix() for project in image_projects.values()}
 if len(catalog_targets) != len(set(catalog_targets)):
@@ -380,7 +380,7 @@ for path in workflows:
         if not re.fullmatch(r"[^@]+@[0-9a-f]{40}", match.group(1)):
             raise SystemExit(f"{path}: action must use a full commit SHA: {line}")
 
-for path in pathlib.Path("images/ai").glob("*/images/*/Dockerfile"):
+for path in pathlib.Path("tools/ai").glob("*/images/*/Dockerfile"):
     text = path.read_text()
     if "ARG BASE_IMAGE" not in text or "FROM ${BASE_IMAGE}" not in text:
         raise SystemExit(f"{path}: derived image must use global BASE_IMAGE")
@@ -391,7 +391,7 @@ for path in pathlib.Path("images/ai").glob("*/images/*/Dockerfile"):
     if not workdirs or workdirs[-1] != "WORKDIR /workspace":
         raise SystemExit(f"{path}: derived image must end in WORKDIR /workspace")
 
-for path in pathlib.Path("images/base/agentimg/images").glob("*.Dockerfile"):
+for path in pathlib.Path("tools/base/agentimg/images").glob("*.Dockerfile"):
     text = path.read_text()
     if "ARG RUNTIME_BASE" not in text or "FROM ${RUNTIME_BASE}" not in text:
         raise SystemExit(f"{path}: missing global RUNTIME_BASE contract")
@@ -408,7 +408,7 @@ PY
 
 while IFS= read -r -d '' file; do
     bash -n "$file"
-done < <(find .github/scripts images -type f -name '*.sh' -print0)
+done < <(find .github/scripts tools -type f -name '*.sh' -print0)
 
 while IFS= read -r -d '' file; do
     mode=$(stat -c '%A' "$file")
@@ -418,7 +418,7 @@ done < <(find .github/scripts -type f -name '*.sh' -print0)
 while IFS= read -r -d '' file; do
     mode=$(stat -c '%A' "$file")
     [[ "$mode" == -*x* ]] || { echo "not executable: $file" >&2; exit 1; }
-done < <(find images -path '*/examples/*' -type f -name '*.sh' -print0)
+done < <(find tools -path '*/examples/*' -type f -name '*.sh' -print0)
 
 python3 - <<'PY'
 import pathlib, re, sys

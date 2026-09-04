@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Write and review the repository's written documents - the root catalog README, every images/<category>/<tool>/README.md, and every per-platform example README - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
+description: Write and review the repository's written documents - the root catalog README, every tools/<category>/<tool>/README.md, and every per-platform example README - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
 ---
 
 # Documentation
@@ -16,14 +16,14 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 | Document | Path | Role |
 |---|---|---|
 | Root catalog | `README.md` | Public index of every tool |
-| Tool README | `images/<category>/<tool>/README.md` | One tool's full public contract |
-| Platform example README | `images/<category>/<tool>/examples/<platform>/README.md` | Runnable recipes for one platform |
+| Tool README | `tools/<category>/<tool>/README.md` | One tool's full public contract |
+| Platform example README | `tools/<category>/<tool>/examples/<platform>/README.md` | Runnable recipes for one platform |
 
 ## Root catalog
 
 - Contain the title and repository description, the repository-guidance pointer, and
   one subsection per category with a table of tool links and one-line descriptions.
-- List every tool exactly once using `images/<category>/<tool>/` links.
+- List every tool exactly once using `tools/<category>/<tool>/` links.
 - Keep category order stable and show a catalog category with no implementation as
   `_None yet._`.
 - Add or remove the catalog row in the same change as the project.
@@ -31,7 +31,7 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 
 ## Tool README
 
-Keep `images/<category>/<tool>/README.md` direct and operational. Keep these core
+Keep `tools/<category>/<tool>/README.md` direct and operational. Keep these core
 sections in this relative order; add a focused tool-specific section only when it
 materially helps operation:
 
@@ -71,7 +71,7 @@ orphan pages:
   inventories against:
 
 ```sh
-git ls-files 'images/<category>/<tool>/**'
+git ls-files 'tools/<category>/<tool>/**'
 ```
 
 ## Quality bar

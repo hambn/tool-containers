@@ -11,9 +11,9 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 | Human GitHub policy/template | `.github/` |
 | Shared repository validation/helper | `.github/scripts/` |
 | GitHub automation | `.github/workflows/` |
-| One containerized tool | `images/<category>/<tool>/` |
-| One derived image variant | `images/<category>/<tool>/images/<variant>/Dockerfile` |
-| One platform example | `images/<category>/<tool>/examples/<platform>/` |
+| One containerized tool | `tools/<category>/<tool>/` |
+| One derived image variant | `tools/<category>/<tool>/images/<variant>/Dockerfile` |
+| One platform example | `tools/<category>/<tool>/examples/<platform>/` |
 | Web application source, config, assets, and tests | `web-ui/` |
 
 ## Coupled changes

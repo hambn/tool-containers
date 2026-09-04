@@ -1,6 +1,6 @@
 ---
 name: web-ui
-description: Build, change, review, or troubleshoot the repository's static documentation-showcase website under web-ui/ hosted on GitHub Pages - the build-time markdown pipeline over the root catalog and images/ READMEs, shadcn-style pre-rendered HTML/CSS interface, SEO, tests, and UI-specific CI. Use when the primary target is web-ui/; do not use for container deployment recipes under images/.
+description: Build, change, review, or troubleshoot the repository's static documentation-showcase website under web-ui/ hosted on GitHub Pages - the build-time markdown pipeline over the root catalog and tools/ READMEs, shadcn-style pre-rendered HTML/CSS interface, SEO, tests, and UI-specific CI. Use when the primary target is web-ui/; do not use for container deployment recipes under tools/.
 ---
 
 # Web UI
@@ -14,12 +14,12 @@ them without an explicit user request.
 The site automatically showcases the repository's markdown as pages — nothing else:
 
 - Content source of truth is the tracked documents themselves: root `README.md`, every
-  `images/<category>/<tool>/README.md`, and every
-  `images/<category>/<tool>/examples/<platform>/README.md`. Document standards live
+  `tools/<category>/<tool>/README.md`, and every
+  `tools/<category>/<tool>/examples/<platform>/README.md`. Document standards live
   in `$documentation`.
 - Generate pages at build time from those files. Never copy catalog rows, commands, or
   README text into UI code or data files by hand. Adding, editing, or removing anything
-  under `images/` or its READMEs — or the root catalog — updates the site through a
+  under `tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
 - Navigation mirrors the repository shape: catalog categories → tools → tool page → its
   platform-example pages. Every discovered document gets a page. Optional display
@@ -90,5 +90,5 @@ build. Restore the default build before local browser inspection or handoff unle
 user asked to keep a prefixed artifact.
 
 Use `$repository-changes` for Git isolation and handoff. Load `$container-images` only
-when UI packaging is implemented as a cataloged project under `images/` or changes
+when UI packaging is implemented as a cataloged project under `tools/` or changes
 shared image-publication behavior; UI application rules remain owned here.

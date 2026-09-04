@@ -12,7 +12,7 @@ tool-containers/
 ├── .gitignore                    # local/generated state exclusions
 ├── .agents/skills/               # repository-local agent capabilities
 ├── .github/                      # GitHub collaboration, validation, and delivery
-├── images/                       # self-contained container image projects
+├── tools/                        # self-contained container image projects
 └── web-ui/                       # repository web application boundary
 ```
 
@@ -62,10 +62,10 @@ The current image publishers are `ai-agentbloat.yml`, `ai-claude-code.yml`,
 
 ## Image projects
 
-The repeatable ownership boundary is `images/<category>/<tool>/`:
+The repeatable ownership boundary is `tools/<category>/<tool>/`:
 
 ```text
-images/<category>/<tool>/
+tools/<category>/<tool>/
 ├── README.md                     # public tool contract and linked file map
 ├── images/                       # build contexts and Dockerfiles
 └── examples/<platform>/          # runnable examples plus platform README
@@ -73,12 +73,12 @@ images/<category>/<tool>/
 
 Current categories and tools are:
 
-- `images/ai/`: `agentbloat`, `claude-code`, `codex`, `omnigent`,
+- `tools/ai/`: `agentbloat`, `claude-code`, `codex`, `omnigent`,
   `open-code-review`, `pi-agent`, and `t3code`.
-- `images/base/`: `agentimg`, the shared foundation project.
+- `tools/base/`: `agentimg`, the shared foundation project.
 - `ci` and `sandboxes` are catalog concepts with no project directories yet.
 
-Derived tools keep `images/<variant>/Dockerfile`. `images/base/agentimg` deliberately
+Derived tools keep `images/<variant>/Dockerfile`. `tools/base/agentimg` deliberately
 keeps four flat `images/*.Dockerfile` files because its variants share distro-local
 scripts and common shell assets in one build context. A tool supports only the platform
 examples it actually contains; do not infer that all six platform directories are
@@ -97,7 +97,7 @@ contract; document standards for the content it renders live in `$documentation`
 
 ```sh
 git ls-files
-git ls-files '.github/**' 'images/**' 'web-ui/**'
-find images -mindepth 2 -maxdepth 2 -type d -print
+git ls-files '.github/**' 'tools/**' 'web-ui/**'
+find tools -mindepth 2 -maxdepth 2 -type d -print
 find .agents/skills -mindepth 1 -maxdepth 1 -type d -print
 ```

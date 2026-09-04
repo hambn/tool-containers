@@ -1,6 +1,6 @@
 # agentbloat
 
-[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/images/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`agentimg`](../../base/agentimg/) foundations.
+[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/tools/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`agentimg`](../../base/agentimg/) foundations.
 
 ## Contents
 

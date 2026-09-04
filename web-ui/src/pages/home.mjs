@@ -39,7 +39,7 @@ ${heading}
         category,
         tool,
         platforms,
-        description: descriptions.get(`images/${category}/${tool}`) || leadParagraph(documents.get(readme)),
+        description: descriptions.get(`tools/${category}/${tool}`) || leadParagraph(documents.get(readme)),
         config,
       }),
     )
@@ -54,7 +54,7 @@ ${heading}
 /**
  * The landing page. Every number, description and card comes from the
  * repository: the hero from the root README, the sections from the directories
- * under `images/`. It is the one page not rendered from a single document.
+ * under `tools/`. It is the one page not rendered from a single document.
  */
 export function renderHome({ site, documents }) {
   const { config, catalog, toolCount, exampleCount } = site;

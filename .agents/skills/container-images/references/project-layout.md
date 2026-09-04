@@ -1,6 +1,6 @@
 # Image-project layout
 
-The ownership boundary is `images/<category>/<tool>/`. `<category>` groups purpose;
+The ownership boundary is `tools/<category>/<tool>/`. `<category>` groups purpose;
 `<tool>` is one independently documented and published container project; `<variant>` is
 a stable public image profile.
 
@@ -11,7 +11,7 @@ tool-containers/
 ├── README.md
 ├── .github/workflows/
 │   └── <category>-<tool>.yml
-└── images/<category>/<tool>/
+└── tools/<category>/<tool>/
     ├── README.md
     ├── images/
     │   └── <variant>/Dockerfile
@@ -30,7 +30,7 @@ The `references/deployment/` directory belongs to this skill and contains platfo
 guidance; it is not a path for image-project files.
 
 Derived variants use their own directory as build context and may not copy from outside
-it. `images/base/agentimg` is the deliberate exception: its four flat
+it. `tools/base/agentimg` is the deliberate exception: its four flat
 `images/*.Dockerfile` variants share distro-local scripts and common shell assets from
 the tool's `images/` build context.
 
