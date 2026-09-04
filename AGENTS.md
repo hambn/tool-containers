@@ -6,7 +6,7 @@ Use the repository skills under `.agents/skills/` through progressive disclosure
   repository file.
 - Use `$repository-map` when locating code, deciding where a new file belongs, or
   changing the repository layout.
-- Use `$container-images` for anything under `images/`, the image catalog, platform
+- Use `$container-images` for anything under `tools/`, the image catalog, platform
   examples, registries and tags, or image publication workflows.
 - Use `$documentation` when writing, editing, or reviewing any README or document in
   this repository — catalog, tool, or platform example docs — and their cross-links.

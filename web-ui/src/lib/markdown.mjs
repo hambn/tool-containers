@@ -62,7 +62,7 @@ export function catalogDescriptions(readme) {
     const row = line.match(/^\|\s*\[[^\]]+\]\(([^)]+)\)\s*\|\s*(.+?)\s*\|$/);
     if (!row) continue;
     const dir = row[1].replace(/^\.\//, "").replace(/\/+$/, "");
-    if (dir.startsWith("images/")) descriptions.set(dir, stripInline(row[2]));
+    if (dir.startsWith("tools/")) descriptions.set(dir, stripInline(row[2]));
   }
   return descriptions;
 }

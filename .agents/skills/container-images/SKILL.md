@@ -1,6 +1,6 @@
 ---
 name: container-images
-description: Add, change, review, or troubleshoot a container project under images/ and its coupled README, Dockerfiles, variants, platform examples, root catalog entry, publication workflow, registries, and tags. Use for any images/ change or its matching image-delivery automation; do not use for the application under web-ui/.
+description: Add, change, review, or troubleshoot a container project under tools/ and its coupled README, Dockerfiles, variants, platform examples, root catalog entry, publication workflow, registries, and tags. Use for any tools/ change or its matching image-delivery automation; do not use for the application under web-ui/.
 ---
 
 # Container images

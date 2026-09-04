@@ -29,21 +29,21 @@ function hasReadme(...segments) {
 }
 
 /**
- * Read the repository shape into a catalog: every directory under `images/` is
+ * Read the repository shape into a catalog: every directory under `tools/` is
  * a category (kept even while empty), every tool directory with a README is a
  * tool, and every `examples/<platform>/` with a README is a runnable recipe.
  * The repository tree is the only source of truth; nothing here is hand-listed.
  */
 export function readCatalog() {
-  return readDirectories(path.join(repoRoot, "images")).map((category) => {
-    const tools = readDirectories(path.join(repoRoot, "images", category))
-      .filter((tool) => hasReadme("images", category, tool))
+  return readDirectories(path.join(repoRoot, "tools")).map((category) => {
+    const tools = readDirectories(path.join(repoRoot, "tools", category))
+      .filter((tool) => hasReadme("tools", category, tool))
       .map((tool) => ({
         category,
         tool,
-        readme: `images/${category}/${tool}/README.md`,
-        platforms: readDirectories(path.join(repoRoot, "images", category, tool, "examples"))
-          .filter((platform) => hasReadme("images", category, tool, "examples", platform)),
+        readme: `tools/${category}/${tool}/README.md`,
+        platforms: readDirectories(path.join(repoRoot, "tools", category, tool, "examples"))
+          .filter((platform) => hasReadme("tools", category, tool, "examples", platform)),
       }));
     return { category, tools };
   });
@@ -76,7 +76,7 @@ export function buildPages(catalog) {
           id: `${category}/${tool}/${platform}`,
           kind: "example",
           route: `/docs/${category}/${tool}/${platform}/`,
-          source: `images/${category}/${tool}/examples/${platform}/README.md`,
+          source: `tools/${category}/${tool}/examples/${platform}/README.md`,
           category,
           tool,
           platform,

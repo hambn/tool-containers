@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "images/ai/pi-agent/images/**"
+      - "tools/ai/pi-agent/images/**"
       - ".github/workflows/ai-pi-agent.yml"
       - ".github/scripts/registry-inspect.sh"
   schedule:
@@ -66,7 +66,7 @@ jobs:
           pi_version=$(npm view "$PKG" version)
 
           resolve_base() {
-            sed -n 's/^ARG BASE_IMAGE=//p' "images/$THING/images/$1/Dockerfile" | head -n1
+            sed -n 's/^ARG BASE_IMAGE=//p' "tools/$THING/images/$1/Dockerfile" | head -n1
           }
 
           basedigests='{}'
@@ -95,7 +95,7 @@ jobs:
                 selected=("${variants[@]}")
               else
                 for variant in "${variants[@]}"; do
-                  grep -q "^images/$THING/images/$variant/" <<<"$diff" && \
+                  grep -q "^tools/$THING/images/$variant/" <<<"$diff" && \
                     selected+=("$variant") || true
                 done
               fi
@@ -163,7 +163,7 @@ jobs:
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: images/${{ env.THING }}/images/${{ matrix.variant }}
+          context: tools/${{ env.THING }}/images/${{ matrix.variant }}
           platforms: linux/amd64
           provenance: mode=max
           sbom: true

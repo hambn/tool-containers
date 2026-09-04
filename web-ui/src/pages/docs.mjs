@@ -108,7 +108,7 @@ function pagination(page, site) {
 
 /* ------------------------------------------------------------ index page */
 
-/** `/docs/`: every tool under `images/`, with its examples, straight from the tree. */
+/** `/docs/`: every tool under `tools/`, with its examples, straight from the tree. */
 function docsIndex(site, documents) {
   const { config, catalog, toolCount, exampleCount } = site;
   const sections = catalog

@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "images/base/agentimg/images/**"
+      - "tools/base/agentimg/images/**"
       - ".github/workflows/base-agentimg.yml"
       - ".github/scripts/registry-inspect.sh"
   schedule:
@@ -75,7 +75,7 @@ jobs:
           }
 
           mapfile -t all < <(
-            find "images/$THING/images" -mindepth 1 -maxdepth 1 -type f \
+            find "tools/$THING/images" -mindepth 1 -maxdepth 1 -type f \
               -name '*.Dockerfile' -printf '%f\n' |
               sed 's/\.Dockerfile$//' |
               sort
@@ -85,7 +85,7 @@ jobs:
           fingerprints='{}'
           baseimages='{}'
           for variant in "${all[@]}"; do
-            dockerfile="images/$THING/images/$variant.Dockerfile"
+            dockerfile="tools/$THING/images/$variant.Dockerfile"
             mapfile -t refs < <(awk 'toupper($1) == "FROM" { print $2 }' "$dockerfile")
             [ "${#refs[@]}" -gt 0 ] || { echo "No FROM in $dockerfile" >&2; exit 1; }
             digested_refs=()
@@ -127,7 +127,7 @@ jobs:
               else
                 selected=()
                 while read -r changed; do
-                  relative=${changed#images/$THING/images/}
+                  relative=${changed#tools/$THING/images/}
                   if [[ "$relative" == *.Dockerfile ]]; then
                     variant=${relative%.Dockerfile}
                     for candidate in "${all[@]}"; do
@@ -197,8 +197,8 @@ jobs:
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: images/${{ env.THING }}/images
-          file: images/${{ env.THING }}/images/${{ matrix.variant }}.Dockerfile
+          context: tools/${{ env.THING }}/images
+          file: tools/${{ env.THING }}/images/${{ matrix.variant }}.Dockerfile
           platforms: linux/amd64
           provenance: mode=max
           sbom: true
