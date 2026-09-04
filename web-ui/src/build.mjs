@@ -14,7 +14,8 @@ import { renderNotFound } from "./pages/not-found.mjs";
 const distRoot = path.join(uiRoot, "dist");
 
 const FONTS = [
-  ["@fontsource-variable/inter/files/inter-latin-wght-normal.woff2", "fonts/inter-latin.woff2"],
+  ["@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2", "fonts/figtree-latin.woff2"],
+  ["@fontsource-variable/montserrat/files/montserrat-latin-wght-normal.woff2", "fonts/montserrat-latin.woff2"],
   ["@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2", "fonts/jetbrains-mono-latin.woff2"],
 ];
 

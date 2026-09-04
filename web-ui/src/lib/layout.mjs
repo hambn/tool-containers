@@ -31,8 +31,8 @@ function head({ page, meta: pageMeta, config, assets, structuredData }) {
       ? '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
       : '<meta name="robots" content="noindex, follow">',
     `<link rel="canonical" href="${canonical}">`,
-    '<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">',
-    '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b">',
+    '<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f3f5">',
+    '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111015">',
     '<meta name="color-scheme" content="light dark">',
     meta("property", "og:type", page.kind === "tool" || page.kind === "example" ? "article" : "website"),
     meta("property", "og:site_name", SITE_NAME),

@@ -14,7 +14,7 @@
   inset: var(--header-h) 0 0;
   z-index: 30;
   display: none;
-  background: oklch(0 0 0 / 0.5);
+  background: #25252a80;
 }
 
 body.nav-open {
