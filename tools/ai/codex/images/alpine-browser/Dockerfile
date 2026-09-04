@@ -6,6 +6,8 @@ USER root
 
 ARG CODEX_VERSION=latest
 
+RUN apk upgrade --no-cache
+
 RUN npm install --global --no-fund --no-audit \
       "@openai/codex@${CODEX_VERSION}" && \
     npm cache clean --force

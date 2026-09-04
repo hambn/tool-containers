@@ -6,6 +6,8 @@ USER root
 
 ARG PI_AGENT_VERSION=latest
 
+RUN apk upgrade --no-cache
+
 RUN npm install --global --ignore-scripts --no-fund --no-audit \
       "@earendil-works/pi-coding-agent@${PI_AGENT_VERSION}" && \
     npm cache clean --force

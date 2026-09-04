@@ -253,7 +253,7 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
         env:
-          TRIVY_SKIP_FILES: "**/usr/local/bin/gh,**/usr/local/bin/glab,**/usr/local/bin/helm,**/usr/local/bin/kubectl,**/usr/local/bin/kustomize,**/usr/local/bin/yq,**/usr/local/bin/uv,**/usr/local/bin/uvx,**/usr/local/bin/node,**/usr/local/lib/node_modules/npm/node_modules/**,**/usr/bin/tailscale,**/usr/bin/tailscaled,**/usr/local/go/**,**/usr/local/lib/node_modules/@github/copilot/**"
+          TRIVY_SKIP_FILES: "**/usr/local/bin/gh,**/usr/local/bin/glab,**/usr/local/bin/helm,**/usr/local/bin/kubectl,**/usr/local/bin/kustomize,**/usr/local/bin/yq,**/usr/local/bin/uv,**/usr/local/bin/uvx,**/usr/local/bin/node,**/usr/local/lib/node_modules/npm/node_modules/**,**/usr/bin/tailscale,**/usr/bin/tailscaled,**/usr/sbin/tailscale,**/usr/sbin/tailscaled,**/usr/local/go/**,**/usr/local/lib/node_modules/@github/copilot/**"
 
       - name: Trivy secret scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

@@ -6,6 +6,8 @@ USER root
 
 ARG OCR_VERSION=latest
 
+RUN apk upgrade --no-cache
+
 RUN npm install --global --no-fund --no-audit \
       "@alibaba-group/open-code-review@${OCR_VERSION}" && \
     npm cache clean --force

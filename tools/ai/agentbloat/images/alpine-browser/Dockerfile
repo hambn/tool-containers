@@ -14,6 +14,8 @@ ARG GEMINI_CLI_VERSION=latest
 ARG PI_AGENT_VERSION=latest
 ARG ACP_AGENT_VERSION=0.1.0
 
+RUN apk upgrade --no-cache
+
 RUN npm install --global --no-fund --no-audit \
       "@openai/codex@${CODEX_VERSION}" \
       "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
