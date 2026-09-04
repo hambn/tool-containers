@@ -6,6 +6,8 @@ USER root
 
 ARG T3_VERSION=latest
 
+RUN apk upgrade --no-cache
+
 RUN npm install --global --no-fund --no-audit "t3@${T3_VERSION}" && \
     npm cache clean --force
 
