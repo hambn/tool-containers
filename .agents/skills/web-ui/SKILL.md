@@ -21,6 +21,8 @@ The site automatically showcases the repository's markdown as pages — nothing 
   README text into UI code or data files by hand. Adding, editing, or removing anything
   under `tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
+- Render the complete root README at `/docs/`; the home page is its derived catalog.
+  Resolve repository README links to the full document so section fragments stay valid.
 - Navigation mirrors the repository shape: catalog categories → tools → tool page → its
   platform-example pages. Every discovered document gets a page. Optional display
   metadata (ordering, descriptions) lives inside `web-ui/` and must not duplicate
@@ -34,6 +36,8 @@ The site automatically showcases the repository's markdown as pages — nothing 
 - Pre-render to plain HTML/CSS for speed and SEO. A Next.js static export is acceptable
   if it serves these goals; otherwise prefer the lightest static generator. Ship
   minimal or no client JavaScript.
+- Keep structured data limited to facts in the visible documents. Do not infer setup
+  durations, prices, ratings, or publisher identity.
 - SEO requirements per page: semantic HTML, exactly one `<h1>`, unique title and meta
   description from document content, clean slugs, generated sitemap and robots where
   the pipeline supports them.

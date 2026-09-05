@@ -1,5 +1,5 @@
 import { platformLabel } from "../lib/catalog.mjs";
-import { escapeHtml, leadParagraph, truncate } from "../lib/markdown.mjs";
+import { escapeHtml } from "../lib/markdown.mjs";
 import { icon } from "../lib/icons.mjs";
 
 /* --------------------------------------------------------------- sidebar */
@@ -23,7 +23,7 @@ function sidebar(page, site) {
       const items = tools
         .map(({ tool, platforms }) => {
           const current = page.category === category && page.tool === tool;
-          const expanded = platforms.length && (current || page.kind === "docs-index");
+          const expanded = platforms.length && current;
           const examples = expanded
             ? `<div class="nav-sub">${platforms
                 .map((platform) =>
@@ -58,7 +58,7 @@ ${icon("search")}
 ${navLink({ href: config.href("/docs/"), label: "All docs", active: page.kind === "docs-index", icon: "book" })}
 ${groups}
 </nav>
-<p class="nav-empty" data-nav-empty hidden>No tools match that filter.</p>
+<p class="nav-empty" data-nav-empty role="status" hidden>No tools match that filter.</p>
 <div class="sidebar-footer">${navLink({ href: config.repoUrl, label: "GitHub", icon: "github" })}</div>`;
 }
 
@@ -66,8 +66,12 @@ ${groups}
 
 function breadcrumbs(page, config) {
   if (page.kind === "docs-index") return "";
-  const trail = [{ label: "Docs", route: "/docs/" }, { label: page.tool, route: `/docs/${page.category}/${page.tool}/` }];
-  if (page.kind === "example") trail.push({ label: platformLabel(page.platform), route: page.route });
+  const trail = [
+    { label: "Docs", route: "/docs/" },
+    { label: page.tool, route: `/docs/${page.category}/${page.tool}/` },
+  ];
+  if (page.kind === "example")
+    trail.push({ label: platformLabel(page.platform), route: page.route });
 
   const links = trail
     .map(({ label, route }, index) =>
@@ -106,53 +110,14 @@ function pagination(page, site) {
   return `<nav class="pagination" aria-label="Pagination">${cell("prev", previous)}${cell("next", next)}</nav>`;
 }
 
-/* ------------------------------------------------------------ index page */
-
-/** `/docs/`: every tool under `tools/`, with its examples, straight from the tree. */
-function docsIndex(site, documents) {
-  const { config, catalog, toolCount, exampleCount } = site;
-  const sections = catalog
-    .filter(({ tools }) => tools.length)
-    .map(({ category, tools }) => {
-      const items = tools
-        .map(({ tool, platforms, readme }) => {
-          const examples = platforms
-            .map(
-              (platform) =>
-                `<a class="docs-example-link" href="${config.href(`/docs/${category}/${tool}/${platform}/`)}">${icon(
-                  "layers",
-                )}${platformLabel(platform)}</a>`,
-            )
-            .join("");
-          return `<li class="docs-tool">
-<a class="docs-tool-name" href="${config.href(`/docs/${category}/${tool}/`)}">${escapeHtml(tool)}</a>
-<p class="docs-tool-desc">${escapeHtml(truncate(leadParagraph(documents.get(readme)), 150))}</p>
-${examples ? `<div class="docs-tool-examples">${examples}</div>` : ""}
-</li>`;
-        })
-        .join("");
-      return `<section class="docs-category">
-<h2 id="${escapeHtml(category)}">${escapeHtml(category)}</h2>
-<ul class="docs-tools">${items}</ul>
-</section>`;
-    })
-    .join("");
-
-  return `<div class="docs-index">
-<h1>Docs</h1>
-<p class="docs-lead">${toolCount} container images and ${exampleCount} runnable examples, generated from the repository. Each tool page documents its variants, tags and registries; each example page is a recipe you can copy and run.</p>
-${sections}
-</div>`;
-}
-
 /* ----------------------------------------------------------------- shell */
 
 /**
  * The three-column docs layout: navigation, the document, and — when the
  * document has enough headings to be worth one — a table of contents.
  */
-export function renderDocs({ page, site, documents, article, toc = [] }) {
-  const body = page.kind === "docs-index" ? docsIndex(site, documents) : `<article class="prose">${article}</article>`;
+export function renderDocs({ page, site, article, toc = [] }) {
+  const body = `<article class="prose">${article}</article>`;
   const hasToc = toc.length >= 2;
 
   return `<div class="backdrop" aria-hidden="true"></div>
@@ -160,7 +125,7 @@ export function renderDocs({ page, site, documents, article, toc = [] }) {
 <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
 ${sidebar(page, site)}
 </aside>
-<main class="content" id="content">
+<main class="content" id="content" tabindex="-1">
 <div class="content-inner">
 ${breadcrumbs(page, site.config)}
 ${body}

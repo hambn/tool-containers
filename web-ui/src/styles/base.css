@@ -1,30 +1,15 @@
-/*
-  tool-containers — design tokens, reset, and the primitives shared by every
-  page. Concatenated with the area stylesheets into one cached asset, so a
-  visitor downloads the site's CSS once rather than per page.
-  {{base}} is replaced with the deployment base path.
-*/
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url("{{base}}/fonts/inter-latin.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 800;
-  src: url("{{base}}/fonts/jetbrains-mono-latin.woff2") format("woff2");
-}
+/* Shared theme tokens, elements, and document typography. */
 
 /* ---------------------------------------------------------------- tokens */
 
 :root {
-  --background: oklch(1 0 0);
+  --background: #f3f5f7;
+  --glass: rgb(255 255 255 / 72%);
+  --glass-edge: rgb(150 166 187 / 45%);
+  --glass-highlight: rgb(255 255 255 / 95%);
+  --glass-shadow: 0 8px 30px -16px rgb(38 55 77 / 20%);
+  --ambient: rgb(143 172 203 / 20%);
+  --chip: rgb(92 117 147 / 8%);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -33,25 +18,25 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: #626269;
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #d4d4d8;
+  --input: #a1a1aa;
+  --ring: #52525b;
   --link: oklch(0.546 0.245 262.881);
   --link-underline: oklch(0.546 0.245 262.881 / 0.35);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --header-bg: oklch(1 0 0 / 0.85);
+  --sidebar-border: var(--border);
+  --header-bg: var(--card);
   --muted-a40: oklch(0.97 0 0 / 0.4);
   --muted-a50: oklch(0.97 0 0 / 0.5);
   --muted-a70: oklch(0.97 0 0 / 0.7);
-  --border-strong: oklch(0.872 0 0);
-  --muted-fg-soft: oklch(0.556 0 0 / 0.75);
+  --border-strong: #a1a1aa;
+  --muted-fg-soft: var(--muted-foreground);
   --selection: oklch(0.145 0 0 / 0.12);
   --primary-a80: oklch(0.205 0 0 / 0.8);
   --ring-a40: oklch(0.708 0 0 / 0.4);
@@ -62,51 +47,62 @@
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-full: 9999px;
   --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.045);
-  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.07), 0 1px 2px -1px oklch(0 0 0 / 0.05);
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --shadow-sm:
+    0 1px 3px oklch(0 0 0 / 0.07), 0 1px 2px -1px oklch(0 0 0 / 0.05);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --header-h: 3.5rem;
   --content-w: 46rem;
-  --wide-w: 64rem;
-  --shell-w: 75rem;
+  --wide-w: 62rem;
+  --shell-w: 84rem;
   --ease: 0.15s ease;
   color-scheme: light;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: #111419;
+  --glass: rgb(31 38 48 / 78%);
+  --glass-edge: rgb(145 166 193 / 30%);
+  --glass-highlight: rgb(216 233 255 / 10%);
+  --glass-shadow: 0 10px 30px -16px rgb(0 0 0 / 65%);
+  --ambient: rgb(93 126 159 / 16%);
+  --chip: rgb(159 185 216 / 9%);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: #1d222a;
   --card-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: #b2b2ba;
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: #3f3f46;
+  --input: #71717a;
+  --ring: #d4d4d8;
   --link: oklch(0.746 0.16 232.661);
   --link-underline: oklch(0.746 0.16 232.661 / 0.35);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --header-bg: oklch(0.145 0 0 / 0.85);
+  --sidebar-border: var(--border);
+  --header-bg: var(--card);
   --muted-a40: oklch(0.269 0 0 / 0.4);
   --muted-a50: oklch(0.269 0 0 / 0.5);
   --muted-a70: oklch(0.269 0 0 / 0.7);
-  --border-strong: oklch(1 0 0 / 22%);
-  --muted-fg-soft: oklch(0.708 0 0 / 0.75);
+  --border-strong: #71717a;
+  --muted-fg-soft: var(--muted-foreground);
   --selection: oklch(0.985 0 0 / 0.16);
   --primary-a80: oklch(0.922 0 0 / 0.8);
   --ring-a40: oklch(0.556 0 0 / 0.4);
   --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.35);
-  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.45), 0 1px 2px -1px oklch(0 0 0 / 0.35);
+  --shadow-sm:
+    0 1px 3px oklch(0 0 0 / 0.45), 0 1px 2px -1px oklch(0 0 0 / 0.35);
   color-scheme: dark;
 }
 
@@ -143,6 +139,7 @@ html {
 }
 
 body {
+  line-height: 1.5;
   min-height: 100dvh;
   font-family: var(--font-sans);
   background: var(--background);
@@ -156,6 +153,17 @@ svg,
 video {
   display: block;
   max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html:not(.js) .theme-toggle,
+html:not(.js) .nav-toggle,
+html:not(.js) .copy-btn,
+html:not(.js) .filter-box {
+  display: none;
 }
 
 .sprite {
@@ -242,9 +250,9 @@ input {
   top: 0;
   z-index: 40;
   border-bottom: 1px solid var(--border);
-  background: var(--header-bg);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--card);
+  border-color: var(--glass-edge);
+  box-shadow: 0 1px 0 var(--glass-highlight);
 }
 
 .header-inner {
@@ -296,7 +304,9 @@ input {
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   color: var(--muted-foreground);
-  transition: color var(--ease), background-color var(--ease);
+  transition:
+    color var(--ease),
+    background-color var(--ease);
 }
 
 .top-link:hover {
@@ -320,12 +330,14 @@ input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
   border-radius: var(--radius-md);
   color: var(--muted-foreground);
-  transition: background-color var(--ease), color var(--ease);
+  transition:
+    background-color var(--ease),
+    color var(--ease);
 }
 
 .icon-btn:hover {
@@ -351,6 +363,15 @@ input {
 }
 
 @media (max-width: 460px) {
+  .header-inner {
+    padding: 0 0.5rem;
+  }
+  .top-nav {
+    margin-left: 0;
+  }
+  .top-link {
+    padding: 0 0.5rem;
+  }
   .brand-name {
     display: none;
   }
@@ -393,7 +414,11 @@ input {
   font-weight: 500;
   white-space: nowrap;
   background-clip: padding-box;
-  transition: background-color var(--ease), border-color var(--ease), color var(--ease), translate 0.05s ease;
+  transition:
+    background-color var(--ease),
+    border-color var(--ease),
+    color var(--ease),
+    translate 0.05s ease;
 }
 
 .btn:active {
@@ -546,6 +571,7 @@ input {
 /* ------------------------------------------------------- markdown prose */
 
 .prose {
+  overflow-wrap: anywhere;
   font-size: 0.9375rem;
   line-height: 1.75;
 }
@@ -649,6 +675,7 @@ input {
 /* A heading is a heading first: the anchor makes it linkable without making
    it look like body-copy link. Specificity has to beat `.prose a`. */
 .prose .heading-anchor {
+  position: relative;
   color: inherit;
   font-weight: inherit;
   text-decoration: none;
@@ -656,14 +683,15 @@ input {
 
 .heading-anchor::before {
   content: "#";
-  margin-right: 0.35em;
+  position: absolute;
+  margin-left: -1em;
   opacity: 0;
   transition: opacity var(--ease);
 }
 
 .prose :hover > .heading-anchor::before,
 .prose .heading-anchor:focus-visible::before {
-  opacity: 0.45;
+  opacity: 0.7;
 }
 
 /* ------------------------------------------------------------- code card */
@@ -705,7 +733,9 @@ input {
   flex-shrink: 0;
   border-radius: var(--radius-md);
   color: var(--muted-foreground);
-  transition: background-color var(--ease), color var(--ease);
+  transition:
+    background-color var(--ease),
+    color var(--ease);
 }
 
 .copy-btn:hover {
@@ -798,5 +828,24 @@ input {
 
   .content {
     padding: 0;
+  }
+}
+
+/* Blur only the two shared glass surfaces; cards use translucent fills. */
+@supports (backdrop-filter: blur(16px)) {
+  .site-header,
+  .home .catalog-toolbar {
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(120%);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .site-header,
+  .home .catalog-toolbar,
+  .home .tool-card {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

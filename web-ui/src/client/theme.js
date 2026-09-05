@@ -1,9 +1,10 @@
-// Applies the stored theme before first paint, so a dark-mode visitor never
-// sees a white flash. Inlined in <head>; everything else is deferred.
+// Apply theme before paint. Controls stay hidden until JavaScript is available.
 (function () {
+  document.documentElement.classList.add("js");
+  var dark = matchMedia("(prefers-color-scheme: dark)").matches;
   try {
     var stored = localStorage.getItem("theme");
-    var dark = stored ? stored === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    if (dark) document.documentElement.classList.add("dark");
-  } catch (error) {}
+    if (stored === "dark" || stored === "light") dark = stored === "dark";
+  } catch {}
+  document.documentElement.classList.toggle("dark", dark);
 })();

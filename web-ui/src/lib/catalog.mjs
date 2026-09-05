@@ -24,8 +24,8 @@ function readDirectories(dir) {
     .sort(byName);
 }
 
-function hasReadme(...segments) {
-  return fs.existsSync(path.join(repoRoot, ...segments, "README.md"));
+function hasReadme(root, ...segments) {
+  return fs.existsSync(path.join(root, ...segments, "README.md"));
 }
 
 /**
@@ -34,16 +34,19 @@ function hasReadme(...segments) {
  * tool, and every `examples/<platform>/` with a README is a runnable recipe.
  * The repository tree is the only source of truth; nothing here is hand-listed.
  */
-export function readCatalog() {
-  return readDirectories(path.join(repoRoot, "tools")).map((category) => {
-    const tools = readDirectories(path.join(repoRoot, "tools", category))
-      .filter((tool) => hasReadme("tools", category, tool))
+export function readCatalog(root = repoRoot) {
+  return readDirectories(path.join(root, "tools")).map((category) => {
+    const tools = readDirectories(path.join(root, "tools", category))
+      .filter((tool) => hasReadme(root, "tools", category, tool))
       .map((tool) => ({
         category,
         tool,
         readme: `tools/${category}/${tool}/README.md`,
-        platforms: readDirectories(path.join(repoRoot, "tools", category, tool, "examples"))
-          .filter((platform) => hasReadme("tools", category, tool, "examples", platform)),
+        platforms: readDirectories(
+          path.join(root, "tools", category, tool, "examples"),
+        ).filter((platform) =>
+          hasReadme(root, "tools", category, tool, "examples", platform),
+        ),
       }));
     return { category, tools };
   });
@@ -97,13 +100,17 @@ export function buildSite(config) {
   const pages = buildPages(catalog);
   const bySource = new Map();
   for (const page of pages) {
-    // The home page owns README.md; the docs index only borrows it for lastmod.
-    if (page.kind !== "docs-index") bySource.set(page.source, page);
+    // README links target the complete document, including its section anchors.
+    if (page.kind !== "home") bySource.set(page.source, page);
   }
 
   const docsPages = pages.filter((page) => page.kind !== "home");
   const navLabel = (page) =>
-    page.kind === "docs-index" ? "Docs" : page.kind === "tool" ? page.tool : `${page.tool} · ${platformLabel(page.platform)}`;
+    page.kind === "docs-index"
+      ? "Docs"
+      : page.kind === "tool"
+        ? page.tool
+        : `${page.tool} · ${platformLabel(page.platform)}`;
 
   return {
     config,
@@ -116,8 +123,12 @@ export function buildSite(config) {
     neighbours(page) {
       const index = docsPages.indexOf(page);
       if (index === -1) return { previous: null, next: null };
-      const link = (item) => (item ? { route: item.route, label: navLabel(item) } : null);
-      return { previous: link(docsPages[index - 1]), next: link(docsPages[index + 1]) };
+      const link = (item) =>
+        item ? { route: item.route, label: navLabel(item) } : null;
+      return {
+        previous: link(docsPages[index - 1]),
+        next: link(docsPages[index + 1]),
+      };
     },
   };
 }
