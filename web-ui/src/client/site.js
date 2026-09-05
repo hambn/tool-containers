@@ -35,7 +35,10 @@
     background.forEach((element) => {
       element.inert = drawerOpen;
     });
-    if (drawerOpen) sidebar?.querySelector("input, a")?.focus();
+    // Move focus inside the drawer without targeting the filter input:
+    // focusing a search field would pop the virtual keyboard on touch devices.
+    // Explicit filter focus still happens via the "/" shortcut below.
+    if (drawerOpen) sidebar?.querySelector("a")?.focus();
     else if (returnFocus) navToggle?.focus();
   }
   navToggle?.addEventListener("click", () => setDrawer(!drawerOpen));
