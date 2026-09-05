@@ -38,6 +38,14 @@ jobs:
       - name: Install dependencies
         working-directory: web-ui
         run: npm ci
+      - name: Verify subpath deployment
+        working-directory: web-ui
+        env:
+          SITE_URL: https://example.com/tool-containers
+          BASE_PATH: /tool-containers
+        run: |
+          npm run build
+          npm test
       - name: Build site
         working-directory: web-ui
         run: npm run build

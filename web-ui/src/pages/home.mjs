@@ -1,95 +1,77 @@
-import { escapeHtml, catalogDescriptions, leadParagraph, truncate } from "../lib/markdown.mjs";
+import {
+  escapeHtml,
+  catalogDescriptions,
+  documentTitle,
+  leadParagraph,
+  truncate,
+} from "../lib/markdown.mjs";
+import { platformLabel } from "../lib/catalog.mjs";
 import { icon } from "../lib/icons.mjs";
 
-/** A tool in the catalog grid: name, one-line description, example count. */
 function toolCard({ category, tool, platforms, description, config }) {
-  const examples = platforms.length === 1 ? "1 example" : `${platforms.length} examples`;
-  return `<li class="tool-card">
-<a class="tool-link" href="${config.href(`/docs/${category}/${tool}/`)}">
-<span class="tool-head">
-<span class="tool-icon">${icon("box")}</span>
-<span class="tool-name">${escapeHtml(tool)}</span>
-${icon("arrow", "tool-arrow")}
-</span>
-<span class="tool-desc">${escapeHtml(truncate(description, 120))}</span>
-${platforms.length ? `<span class="tool-meta">${icon("layers")}${examples}</span>` : ""}
-</a>
+  const route = `/docs/${category}/${tool}/`;
+  const search = [tool, category, description, ...platforms]
+    .join(" ")
+    .toLowerCase();
+  return `<li class="tool-card" data-catalog-item data-search="${escapeHtml(search)}">
+<div class="tool-card-body">
+<a class="tool-link" href="${config.href(route)}"><div class="tool-title"><span class="tool-symbol" aria-hidden="true">${icon("box")}</span><h3>${escapeHtml(tool)}</h3></div>${icon("arrow", "tool-arrow")}</a>
+<p class="tool-desc">${escapeHtml(truncate(description, 160))}</p>
+</div>
+<div class="tool-platforms" aria-label="${escapeHtml(tool)} examples">
+${platforms.map((platform) => `<a href="${config.href(`${route}${platform}/`)}">${escapeHtml(platformLabel(platform))}</a>`).join("")}
+${!platforms.length ? "<span>Documentation</span>" : ""}
+</div>
 </li>`;
 }
 
 function categorySection({ category, tools, descriptions, documents, config }) {
-  const heading = `<div class="section-head">
-<h2 id="${escapeHtml(category)}">${escapeHtml(category)}</h2>
-${tools.length ? `<span class="badge badge-secondary">${tools.length}</span>` : ""}
-</div>`;
-
-  if (!tools.length) {
-    return `<section class="tool-section" aria-labelledby="${escapeHtml(category)}">
-${heading}
-<div class="empty empty-sm">
-<span class="empty-media">${icon("inbox")}</span>
-<p class="empty-title">Nothing here yet</p>
-</div>
-</section>`;
-  }
-
-  const cards = tools
-    .map(({ tool, platforms, readme }) =>
-      toolCard({
-        category,
-        tool,
-        platforms,
-        description: descriptions.get(`tools/${category}/${tool}`) || leadParagraph(documents.get(readme)),
-        config,
-      }),
-    )
-    .join("\n");
-
-  return `<section class="tool-section" aria-labelledby="${escapeHtml(category)}">
-${heading}
-<ul class="tool-grid">${cards}</ul>
+  return `<section class="tool-section" data-catalog-group="${escapeHtml(category)}" aria-labelledby="category-${escapeHtml(category)}">
+<div class="section-head"><h2 id="category-${escapeHtml(category)}">${escapeHtml(category)}</h2><span class="badge badge-secondary">${tools.length}</span></div>
+${
+  tools.length
+    ? `<ul class="tool-grid">${tools
+        .map((entry) =>
+          toolCard({
+            ...entry,
+            description:
+              descriptions.get(`tools/${category}/${entry.tool}`) ||
+              leadParagraph(documents.get(entry.readme)),
+            config,
+          }),
+        )
+        .join("")}</ul>`
+    : '<p class="category-empty">No tools yet.</p>'
+}
 </section>`;
 }
 
-/**
- * The landing page. Every number, description and card comes from the
- * repository: the hero from the root README, the sections from the directories
- * under `tools/`. It is the one page not rendered from a single document.
- */
 export function renderHome({ site, documents }) {
   const { config, catalog, toolCount, exampleCount } = site;
   const readme = documents.get("README.md");
-  const lead = leadParagraph(readme);
   const descriptions = catalogDescriptions(readme);
+  const intro = leadParagraph(readme);
+  const summary =
+    [
+      ...new Intl.Segmenter("en", { granularity: "sentence" }).segment(intro),
+    ][0]?.segment.trim() || intro;
 
-  const stats = [
-    ["Tools", toolCount],
-    ["Examples", exampleCount],
-    ["Categories", catalog.length],
-  ]
-    .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`)
-    .join("");
-
-  const hero = `<section class="hero">
-<div class="hero-grid" aria-hidden="true"></div>
-<p class="badge badge-outline">${icon("terminal")}Container image catalog</p>
-<h1>tool-containers</h1>
-<p class="lead">${escapeHtml(lead)}</p>
-<div class="hero-actions">
-<a class="btn btn-primary" href="${config.href("/docs/")}">Browse the catalog${icon("arrow", "btn-icon")}</a>
-<a class="btn btn-outline" href="${config.repoUrl}" rel="noopener">${icon("github")}View source</a>
-</div>
-<dl class="hero-stats">${stats}</dl>
-</section>`;
-
-  const sections = catalog
-    .map(({ category, tools }) => categorySection({ category, tools, descriptions, documents, config }))
-    .join("\n");
-
-  return `<main class="content home" id="content">
+  return `<main class="content home" id="content" tabindex="-1">
 <div class="content-inner wide">
-${hero}
-${sections}
+<section class="hero" aria-labelledby="catalog-title">
+<p class="eyebrow">${icon("box")}Container catalog</p>
+<h1 id="catalog-title">${escapeHtml(documentTitle(readme))}</h1>
+<p class="lead">${escapeHtml(summary)}</p>
+<div class="hero-bottom"><p class="catalog-count"><strong>${toolCount}</strong> tools<span aria-hidden="true">/</span><strong>${exampleCount}</strong> examples</p>
+<a class="text-link" href="${config.href("/docs/")}">Documentation${icon("arrow")}</a></div>
+</section>
+<div class="catalog-toolbar" data-catalog-controls hidden>
+<div class="catalog-search">${icon("search")}<label class="sr-only" for="catalog-search">Search tools and platforms</label><input id="catalog-search" type="search" placeholder="Search tools, platforms…" autocomplete="off" spellcheck="false"><kbd class="filter-kbd" aria-hidden="true">/</kbd></div>
+<div class="category-filters" role="group" aria-label="Filter by category"><button type="button" data-category="" aria-pressed="true">All tools</button>${catalog.map(({ category }) => `<button type="button" data-category="${escapeHtml(category)}" aria-pressed="false">${escapeHtml(category)}</button>`).join("")}</div>
+</div>
+<p class="sr-only" data-catalog-status role="status"></p>
+${catalog.map((entry) => categorySection({ ...entry, descriptions, documents, config })).join("\n")}
+<div class="empty catalog-empty" data-catalog-empty hidden><span class="empty-media">${icon("search")}</span><p class="empty-title">No matching tools</p><p class="empty-description">Try a different name or platform.</p><button class="btn btn-outline" type="button" data-catalog-reset>Clear filters</button></div>
 </div>
 </main>`;
 }

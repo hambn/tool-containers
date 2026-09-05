@@ -1,10 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveConfig, lastModified, repoRoot, uiRoot } from "./lib/config.mjs";
+import {
+  resolveConfig,
+  lastModified,
+  repoRoot,
+  uiRoot,
+} from "./lib/config.mjs";
 import { buildSite } from "./lib/catalog.mjs";
 import { createTheme } from "./lib/highlight.mjs";
 import { renderDocument, tableOfContents } from "./lib/markdown.mjs";
-import { createAssets, readStyles, minifyCss, minifyJs } from "./lib/assets.mjs";
+import {
+  createAssets,
+  readStyles,
+  minifyCss,
+  minifyJs,
+} from "./lib/assets.mjs";
 import { pageMeta, structuredData } from "./lib/seo.mjs";
 import { renderShell } from "./lib/layout.mjs";
 import { renderHome } from "./pages/home.mjs";
@@ -12,11 +22,6 @@ import { renderDocs } from "./pages/docs.mjs";
 import { renderNotFound } from "./pages/not-found.mjs";
 
 const distRoot = path.join(uiRoot, "dist");
-
-const FONTS = [
-  ["@fontsource-variable/inter/files/inter-latin-wght-normal.woff2", "fonts/inter-latin.woff2"],
-  ["@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2", "fonts/jetbrains-mono-latin.woff2"],
-];
 
 const config = resolveConfig();
 const site = buildSite(config);
@@ -29,7 +34,10 @@ fs.rmSync(distRoot, { recursive: true, force: true });
 const documents = new Map();
 for (const page of site.pages) {
   if (!documents.has(page.source)) {
-    documents.set(page.source, fs.readFileSync(path.join(repoRoot, page.source), "utf8"));
+    documents.set(
+      page.source,
+      fs.readFileSync(path.join(repoRoot, page.source), "utf8"),
+    );
   }
 }
 
@@ -46,21 +54,25 @@ for (const page of site.pages) {
 
   if (page.kind === "home") {
     body = renderHome({ site, documents });
-  } else if (page.kind === "docs-index") {
-    body = renderDocs({ page, site, documents });
   } else {
-    const article = await renderDocument(markdown, { sourceDir: path.posix.dirname(page.source), site, theme });
-    body = renderDocs({ page, site, documents, article, toc: tableOfContents(article) });
+    const article = await renderDocument(markdown, {
+      sourceDir: path.posix.dirname(page.source),
+      site,
+      theme,
+    });
+    body = renderDocs({ page, site, article, toc: tableOfContents(article) });
   }
 
-  rendered.push({ page, body, meta, modified, structuredData: structuredData(page, { site, meta, markdown, modified }) });
+  rendered.push({
+    page,
+    body,
+    meta,
+    modified,
+    structuredData: structuredData(page, { site, meta, markdown, modified }),
+  });
 }
 
 /* Pass 2 — emit the shared assets, then the pages that reference them. */
-
-for (const [from, to] of FONTS) {
-  assets.copy(path.join(uiRoot, "node_modules", from), to);
-}
 
 const publicDir = path.join(uiRoot, "public");
 for (const file of fs.readdirSync(publicDir)) {
@@ -69,10 +81,19 @@ for (const file of fs.readdirSync(publicDir)) {
 
 const styles = assets.emit(
   "site.css",
-  minifyCss(["base.css", "home.css", "docs.css"].map((file) => readStyles(`styles/${file}`, config)).join("\n") + theme.css()),
+  minifyCss(
+    ["base.css", "home.css", "docs.css"]
+      .map((file) => readStyles(`styles/${file}`, config))
+      .join("\n") + theme.css(),
+  ),
 );
-const script = assets.emit("site.js", minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8")));
-const themeScript = minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8"));
+const script = assets.emit(
+  "site.js",
+  minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8")),
+);
+const themeScript = minifyJs(
+  fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8"),
+);
 
 const shared = {
   styles,
@@ -84,7 +105,14 @@ const shared = {
 };
 
 for (const { page, body, meta, structuredData: data } of rendered) {
-  const html = renderShell({ page, body, meta, config, assets: shared, structuredData: data });
+  const html = renderShell({
+    page,
+    body,
+    meta,
+    config,
+    assets: shared,
+    structuredData: data,
+  });
   assets.write(path.join(page.route, "index.html"), html);
 }
 
@@ -94,7 +122,10 @@ assets.write(
   renderShell({
     page: notFound,
     body: renderNotFound(config),
-    meta: { title: "Page not found", description: "This page is not part of the tool-containers site." },
+    meta: {
+      title: "Page not found",
+      description: "This page is not part of the tool-containers site.",
+    },
     config,
     assets: shared,
   }),
@@ -113,6 +144,12 @@ assets.write(
   "sitemap.xml",
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
 );
-assets.write("robots.txt", `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`);
+assets.write(".nojekyll", "");
+assets.write(
+  "robots.txt",
+  `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`,
+);
 
-console.log(`built ${rendered.length} pages + /404.html into ${path.relative(uiRoot, distRoot)}/`);
+console.log(
+  `built ${rendered.length} pages + /404.html into ${path.relative(uiRoot, distRoot)}/`,
+);
