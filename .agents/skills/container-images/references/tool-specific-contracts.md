@@ -5,10 +5,10 @@ pin in the live files before changing it.
 
 ## agentbloat
 
-agentbloat bundles several agent CLIs on the devbox payload. It is tagged like a base
-image (`<variant>-<YYYYMMDD>-<sha7>`) because it has no single upstream version, and it
-exposes its `payload` stage (bake targets `agentbloat-payload-<variant>`) as the `base`
-context for omnigent and t3code.
+agentbloat bundles several agent CLIs on devbox. It is tagged like a base image
+(`<variant>-<YYYYMMDD>-<sha7>`) because it has no single upstream version, and its
+published images are the `BASE_IMAGE` of omnigent and t3code, whose workflows run after
+`ai/agentbloat` completes on main.
 
 Python tools install with `uv tool` under `/opt/uv-tools` with launchers linked into
 `/usr/local/bin`. `AGENT_CLIENT_PROTOCOL_VERSION` is held at a release that still

@@ -5,69 +5,59 @@ keep.
 
 | File | Role |
 |---|---|
-| `.github/workflows/images.yml` | Test and build: plan → bounded tool jobs → publish |
+| `.github/workflows/<category>-<tool>.yml` | one per tool (`base-core.yml`, `ai-codex.yml`, …): triggers and inputs only |
+| `.github/workflows/tool-image.yml` | reusable pipeline: plan → build per variant and architecture → publish |
 | `.github/workflows/pr.yml` | pull-request gate (metadata, dependency review, static validation) and `lint` job |
-| `.github/workflows/maintenance.yml` | scheduled scan of published images; opens an `OS_REFRESH` PR on fixable findings |
-| `.github/renovate.json5` | pin updates in `tools/versions.hcl` and GitHub Actions |
+| `.github/renovate.json5` | `ARG` pins in `tools/**/Dockerfile` and GitHub Actions |
 | `tools/trivyignore.yaml` | reviewed vulnerability exceptions |
-| `.github/scripts/bake.sh` | `docker buildx bake` with both Bake files and the commit-derived variables |
-| `.github/scripts/plan.py` | affected-target planner and job packing (`test_plan.py` covers it) |
-| `.github/scripts/build-tools.sh` | build/test/scan/push the tools of one job on both architectures (`test_build_tools.py` covers it offline) |
-| `.github/scripts/publish.sh` | multi-arch indexes, Docker Hub mirror, and signatures for every published target |
 
-There are no per-tool workflows and no Dependabot configuration.
+There is no Dependabot configuration.
 
-## images.yml
+## Per-tool workflows
 
-1. **Plan.** `plan.py` reads the rendered bake graph and the diff: changed tool
-   directories, `tools/docker-bake.hcl`, and `tools/versions.hcl` pins. It selects
-   affected members of group `all`, including descendants. There is no fixed
-   dependency-depth limit or list of image names in the workflow. Unaffected targets
-   are not rebuilt.
-2. **Test and build.** The workflow is named `Test and build`. `plan.py` groups the
-   affected variants by their `tools/<category>/<tool>` context and packs the tools into
-   at most `MAX_JOBS` (16) jobs: one tool per job while they fit, otherwise contiguous
-   runs of similar size in which a tool follows the tool it builds on. Each job is
-   named after its tools, e.g. `ai/codex`, and covers both architectures on one
-   `ubuntu-24.04` runner: amd64 natively and arm64 under QEMU (`docker/setup-qemu-action`
-   with a digest-pinned `tonistiigi/binfmt`). The jobs plus plan and the pull request
-   checks stay within the 20 concurrent jobs of a free plan however many tools exist.
-   The workflow names no tool, so a new tool needs no workflow edit.
-   - `build-tools.sh` handles one tool at a time and runs its architectures
-     concurrently, each logging to a file that is printed when it finishes (and
-     uploaded as an artifact if the job fails or times out). Per architecture it builds
-     all of the tool's variants in one Bake call, so their shared stages build once,
-     loads each variant, runs its [tests](testing.md), and, on amd64, scans it with
-     Trivy. The gate skips the files that the tool and its bases list in
-     `tests/trivy-skip-files.txt`. On main, once every variant passed on both
-     architectures, it pushes them by digest. A failing tool stops only itself: the job
-     continues with its next tool and fails at the end. Between tools it prunes the
-     BuildKit cache only as far as needed to keep 10 GB free, so later tools reuse
-     shared stages.
-   - The arm64 binfmt registration needs `F` (usable inside containers) and `C`
-     (setuid programs such as `sudo` keep their credentials); the workflow checks both.
-     binfmt_misc is not namespaced, so a privileged container that runs
-     `systemd-binfmt` unregisters the runner's handlers when it stops; the devbox
-     systemd profile masks it.
-   - Every build reads the registry cache that main writes after its tests pass
-     (`CACHE_REF`, one tag per target and architecture). Pull requests write no cache.
-   - Jobs share no images. A dependency changed in the same PR is built in every job
-     that needs it, in parallel, so there are no dependency waves to wait on.
-3. **Publish.** Only main publishes, in one job that runs once every build job has
-   finished. `publish.sh` merges the per-arch digests of each target into a
-   multi-platform index and applies tags: immutable tags only if absent, moving tags
-   always ([tags](registries-and-tags.md)). GHCR is the digest source for Docker Hub.
-   It signs each index with cosign, and one provenance attestation covers every
-   published index. A target missing a digest for either architecture (its tool
-   failed) is not published, and the run fails; the other targets still publish.
+Every tool workflow has the same shape; copy a sibling and change only the name, paths,
+upstream workflow, cron minute, concurrency group, and `with:` inputs:
 
-Bake variables CI sets: `GIT_SHA`, `BUILD_DATE`, `CREATED`, `SOURCE_DATE_EPOCH` (commit
-time, for reproducibility; `bake.sh` derives these four from Git), `PLATFORM`, `ARCH`,
-`CACHE_REF`, `CACHE_WRITE`, `TAG_SET`. Adding a tool needs no workflow edit: the planner
-discovers group `all` and derives the tool name from its build context. Run
-`python3 -B .github/scripts/test_plan.py` and
-`python3 -B .github/scripts/test_build_tools.py` when changing this orchestration. The
-latter uses fake executables and performs no builds, pulls, or network requests.
+- `tool`: the tool directory; its name is the image repository.
+- `primary`: the variant that also gets `latest` (core `wolfi`, devbox `ubuntu-full`,
+  agents `ubuntu-browser`).
+- `version-arg`: the Dockerfile `ARG` holding the upstream version, for tools that have
+  one; it names the immutable tags ([tags](registries-and-tags.md)).
+
+Triggers: `pull_request` and `push` to main on the tool directory,
+`tools/trivyignore.yaml`, its own workflow, and `tool-image.yml`; `workflow_run` when the
+parent's workflow completes on main (devbox after core, agents after devbox, omnigent
+and t3code after agentbloat); a daily `schedule` safety net; and `workflow_dispatch`.
+`check-repo.py` requires a matching workflow that calls `tool-image.yml` for every tool.
+
+## tool-image.yml
+
+1. **Plan.** Reads the tool's `docker-bake.hcl` (`docker buildx bake --print`) and the
+   version from the `version-arg`, or the commit date and SHA. A `BASE_IMAGE` under
+   `ghcr.io/hambn` is pinned to its current digest. Pull requests, pushes, and manual
+   runs build every variant; `schedule` and `workflow_run` build only variants whose
+   published image carries an older `org.opencontainers.image.base.digest` (or is not
+   published yet). The daily `schedule` also rescans each published variant and
+   rebuilds any with fixable HIGH/CRITICAL OS-package vulnerabilities, passing
+   `OS_REFRESH=<today>` as a build arg so the OS layers reinstall; no refresh pull
+   request is opened.
+2. **Build.** One job per variant and architecture on native runners (`ubuntu-24.04`
+   for amd64, `ubuntu-24.04-arm` for arm64); `fail-fast` is off. Each job bakes the
+   variant with the pinned parent, repository labels, and the registry cache
+   `ghcr.io/hambn/buildcache:<image>-<variant>-<arch>`, then runs the
+   [tests](testing.md) and Trivy. The full Trivy report goes to code scanning as SARIF;
+   the gate fails only on fixable HIGH/CRITICAL OS-package vulnerabilities and on
+   secrets outside vendored directories (`/usr/local/lib/node_modules`,
+   `/usr/local/go`, `/opt`). Vulnerabilities in upstream binaries are fixed by upstream
+   releases through Renovate. On main it then pushes by digest with SBOM and
+   provenance, and writes the cache; pull requests write no cache, and fork pull
+   requests cannot log in to GHCR.
+3. **Publish.** Main only, one job per variant, for every variant that passed on both
+   architectures even if another variant failed. It creates the multi-arch index on
+   GHCR, copies that exact index to Docker Hub, applies tags (immutable tags only if
+   absent, moving tags always), signs both with cosign, and attests build provenance.
+   It then syncs the image's Docker Hub README (`.github/scripts/hub-readme.py`) and
+   prunes untagged GHCR versions of the package (`.github/scripts/ghcr-cleanup.py`).
 
 ## pr.yml
 

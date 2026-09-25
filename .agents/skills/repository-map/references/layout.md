@@ -12,8 +12,6 @@ tool-containers/
 ├── .agents/skills/               # repository-local agent capabilities
 ├── .github/                      # collaboration, validation, and delivery
 ├── tools/                        # image projects, plus:
-│   ├── docker-bake.hcl           # build graph: every image target, tags, labels
-│   ├── versions.hcl              # every pin (base digests, tool versions, OS_REFRESH)
 │   └── trivyignore.yaml          # reviewed vulnerability exceptions
 └── web-ui/                       # static documentation site
 ```
@@ -23,9 +21,8 @@ tool-containers/
 - `AGENTS.md` is the only always-loaded instruction surface; Claude Code and Codex both
   read it, so there is no `CLAUDE.md`.
 - `README.md` lists every image tool exactly once by category.
-- `tools/docker-bake.hcl` and `tools/versions.hcl` are always loaded together, from the
-  repository root, through `.github/scripts/bake.sh`; image mechanics are owned by
-  `$container-images`.
+- Each tool directory is self-contained (`Dockerfile` with its pins, `docker-bake.hcl`
+  with its variants); image mechanics are owned by `$container-images`.
 
 ## Agent skills
 
@@ -47,20 +44,16 @@ mechanics. There are no global agent references, memory logs, or secondary route
 ├── ISSUE_TEMPLATE/
 ├── scripts/
 │   ├── check-repo.py             # static repository validator
-│   ├── bake.sh                   # docker buildx bake with the repository's Bake files
-│   ├── plan.py                   # affected image targets packed into bounded jobs
-│   ├── build-tools.sh            # build/test/scan/push the tools of one job
-│   ├── publish.sh                # multi-arch indexes, Docker Hub mirror, signatures
-│   ├── test_build_tools.py
-│   ├── test_plan.py
+│   ├── ghcr-cleanup.py           # prune untagged GHCR versions after publishing
+│   ├── hub-readme.py             # sync a Docker Hub README after publishing
 │   ├── validate_pr_metadata.py   # PR title/body policy
 │   └── test_validate_pr_metadata.py
 └── workflows/
-    ├── images.yml                # Test and build: plan → bounded tool jobs → publish
+    ├── tool-image.yml            # reusable image pipeline: plan → build → publish
+    ├── <category>-<tool>.yml     # one per tool (base-core.yml, ai-codex.yml, …)
     ├── pr.yml                    # pull-request gate and lint
     ├── pr-labeler.yml
-    ├── web-ui.yml                # site build and Pages deploy
-    └── maintenance.yml           # scheduled scans and OS_REFRESH PRs
+    └── web-ui.yml                # site build and Pages deploy
 ```
 
 There is no Dependabot configuration; Renovate owns updates.
@@ -75,6 +68,7 @@ tools/
 └── ai/<tool>/                    # agentbloat, claude-code, codex, omnigent,
     ├── README.md                 #   open-code-review, pi-agent, t3code
     ├── Dockerfile
+    ├── docker-bake.hcl
     ├── tests/
     └── examples/<platform>/
 ```
@@ -94,5 +88,5 @@ tool README, and every example README with its sibling files. Use `$web-ui`.
 git ls-files
 git ls-files '.github/**' 'tools/**' 'web-ui/**'
 find tools -mindepth 2 -maxdepth 2 -type d -print
-.github/scripts/bake.sh --print all
+(cd tools/ai/codex && docker buildx bake --print)
 ```

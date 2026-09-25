@@ -46,9 +46,19 @@ variants.
 | `<toolversion>-<variant>`, `<toolversion>` (agents) | No | `codex:<version>-ubuntu` |
 | `<variant>-<YYYYMMDD>-<sha7>` (core, devbox, agentbloat) | No | `core:wolfi-<YYYYMMDD>-<sha7>` |
 
-Builds are defined in [`tools/docker-bake.hcl`](./tools/docker-bake.hcl), with every version pin in
-[`tools/versions.hcl`](./tools/versions.hcl), and are built and published by
-[`.github/workflows/images.yml`](./.github/workflows/images.yml).
+Each tool directory is self-contained: its `Dockerfile` pins every version as an `ARG`
+default (updated by Renovate), its `docker-bake.hcl` lists the variants, and each image
+builds `FROM` its published parent. Every tool has its own workflow,
+`.github/workflows/<category>-<tool>.yml`, calling the shared
+[`.github/workflows/tool-image.yml`](./.github/workflows/tool-image.yml) to test, scan, and publish.
+To build locally:
+
+```sh
+docker build tools/ai/claude-code             # default variant
+cd tools/ai/claude-code && docker buildx bake # every variant
+docker buildx bake claude-code-alpine         # one variant (from the tool directory)
+docker buildx bake --print                    # show the variants
+```
 
 **Deprecated:** the `agentimg` repository and the old `claude-code-v*`, `ocr-v*`, and
 `<variant>-<sha>` tags are frozen and no longer updated. Migrate
