@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: claude
-          image: ghcr.io/hambn/claude-code:latest
+          image: ghcr.io/hambn/claude-code:ubuntu-24.04
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

@@ -6,4 +6,4 @@ set -euo pipefail
 docker run -it --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest "$@"
+  ghcr.io/hambn/claude-code:ubuntu-24.04 "$@"

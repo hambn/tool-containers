@@ -1,6 +1,6 @@
 # codex · Docker Compose
 
-Codex is OpenAI's coding agent CLI, packaged on the agentimg foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Codex is OpenAI's coding agent CLI, packaged on the workspace foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -36,7 +36,7 @@ name: codex
 
 services:
   codex:
-    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}
+    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-24.04}
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
     volumes:
@@ -53,14 +53,12 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm codex
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm codex
 name: codex-airgapped
 
 services:
   codex:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/codex:ubuntu-browser
+    image: ghcr.io/hambn/codex:ubuntu-24.04
     pull_policy: never
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
@@ -74,6 +72,8 @@ networks:
   codex:
     name: codex-airgapped
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/codex:ubuntu-24.04` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

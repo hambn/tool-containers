@@ -1,6 +1,6 @@
 # pi-agent · Docker Compose
 
-Pi is a coding agent from Earendil Works, packaged on the agentimg foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Pi is a coding agent from Earendil Works, packaged on the workspace foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -35,7 +35,7 @@ name: pi-agent
 
 services:
   pi-agent:
-    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}
+    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:ubuntu-24.04}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
@@ -50,14 +50,12 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm pi-agent
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm pi-agent
 name: pi-agent-airgapped
 
 services:
   pi-agent:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/pi-agent:ubuntu-browser
+    image: ghcr.io/hambn/pi-agent:ubuntu-24.04
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
@@ -69,6 +67,8 @@ networks:
   pi-agent:
     name: pi-agent-airgapped
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/pi-agent:ubuntu-24.04` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

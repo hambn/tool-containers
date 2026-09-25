@@ -15,10 +15,10 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ```yaml
 apiVersion: v2
 name: agentbloat
-description: Current AI coding agent CLIs on agentimg foundation images
+description: Current AI coding agent CLIs on workspace foundation images
 type: application
 version: 0.1.1
-appVersion: "ubuntu-browser"
+appVersion: "ubuntu-24.04"
 ```
 
 ### `chart/templates/deployment.yaml`

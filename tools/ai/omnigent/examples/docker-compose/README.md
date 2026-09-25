@@ -35,7 +35,7 @@ name: omnigent
 
 services:
   omnigent:
-    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}
+    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:ubuntu-24.04}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
@@ -50,14 +50,12 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm omnigent
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm omnigent
 name: omnigent-airgapped
 
 services:
   omnigent:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/omnigent:ubuntu-browser
+    image: ghcr.io/hambn/omnigent:ubuntu-24.04
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
@@ -69,6 +67,8 @@ networks:
   omnigent:
     name: omnigent-airgapped
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/omnigent:ubuntu-24.04` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

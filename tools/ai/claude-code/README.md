@@ -1,7 +1,7 @@
 # claude-code
 
 [Claude Code](https://github.com/anthropics/claude-code) packaged on the reusable
-[`agentimg`](../../base/agentimg/) foundations.
+[`workspace`](../../dev/workspace/) foundations.
 
 ## Contents
 
@@ -12,37 +12,12 @@
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: Claude Code, Ubuntu tools, headless Chromium
-  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Claude Code release tag: `claude-code-v<version>`
-- **`ubuntu`**
-  - Contents: Claude Code and Ubuntu tools
-  - Base: `ghcr.io/hambn/agentimg:ubuntu`
-  - Moving tags: `ubuntu`
-  - Claude Code release tag: primary-only tag is not repeated
-- **`alpine-browser`**
-  - Contents: Claude Code, Alpine tools, Chromium
-  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Claude Code release tag: primary-only tag is not repeated
-- **`alpine`**
-  - Contents: Claude Code and Alpine tools
-  - Base: `ghcr.io/hambn/agentimg:alpine`
-  - Moving tags: `alpine`
-  - Claude Code release tag: primary-only tag is not repeated
+Pull from `ghcr.io/hambn/claude-code:<tag>` or `docker.io/hambn/claude-code:<tag>`.
+Moving tags name the tested operating-system profile. Each successful build also has an immutable `<profile>-b<run-id>-<attempt>` tag. Pin a digest for deployments.
 
-Pull moving tags from `ghcr.io/hambn/claude-code:<tag>` or
-`docker.io/hambn/claude-code:<tag>`. A Claude Code npm release repoints all moving tags
-and adds `claude-code-v<version>` to the primary image. `agentimg` base refreshes and repository
-edits repoint moving tags only. See the repository's
-[registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
-
-Node.js, npm, and the common development/CI toolchain are inherited from `agentimg`;
-the Claude Code images install only the Claude Code package. Runtime credentials remain
-external to the image.
-
+| Tag | Contents | Base |
+|---|---|---|
+| `ubuntu-24.04` | claude-code on Ubuntu 24.04 | `workspace:ubuntu-24.04-core` |
 
 ## Use cases
 
@@ -55,49 +30,41 @@ external to the image.
 
 ## File map
 
-```text
-claude-code/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    ├── docker-swarm/
-    │   ├── README.md
-    │   └── stack.yml
-    ├── helm/
-    │   ├── README.md
-    │   └── chart/
-    │       ├── Chart.yaml
-    │       ├── templates/job.yaml
-    │       └── values.yaml
-    ├── kubernetes/
-    │   ├── README.md
-    │   └── job.yaml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-claude-code.yml`](../../../.github/workflows/ai-claude-code.yml).
+- [`examples/`](examples/)
+  - [`docker/`](examples/docker/)
+    - [`README.md`](examples/docker/README.md)
+    - [`airgapped.run.sh`](examples/docker/airgapped.run.sh)
+    - [`run.sh`](examples/docker/run.sh)
+  - [`docker-compose/`](examples/docker-compose/)
+    - [`README.md`](examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
+  - [`docker-swarm/`](examples/docker-swarm/)
+    - [`README.md`](examples/docker-swarm/README.md)
+    - [`stack.yml`](examples/docker-swarm/stack.yml)
+  - [`helm/`](examples/helm/)
+    - [`chart/`](examples/helm/chart/)
+      - [`templates/`](examples/helm/chart/templates/)
+        - [`job.yaml`](examples/helm/chart/templates/job.yaml)
+      - [`Chart.yaml`](examples/helm/chart/Chart.yaml)
+      - [`values.yaml`](examples/helm/chart/values.yaml)
+    - [`README.md`](examples/helm/README.md)
+  - [`kubernetes/`](examples/kubernetes/)
+    - [`README.md`](examples/kubernetes/README.md)
+    - [`job.yaml`](examples/kubernetes/job.yaml)
+  - [`podman/`](examples/podman/)
+    - [`README.md`](examples/podman/README.md)
+    - [`run.sh`](examples/podman/run.sh)
+- [`images/`](images/)
+  - [`ubuntu-24.04/`](images/ubuntu-24.04/)
+    - [`Dockerfile`](images/ubuntu-24.04/Dockerfile)
+- [`README.md`](README.md)
+- [Shared image publisher](../../../.github/workflows/publish-images.yml)
 
 ## Sources
 
 - [Claude Code source repository](https://github.com/anthropics/claude-code)
 - [Claude Code npm package](https://www.npmjs.com/package/@anthropic-ai/claude-code)
 - [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code)
-- [agentimg foundation](../../base/agentimg/)
+- [workspace foundation](../../dev/workspace/)

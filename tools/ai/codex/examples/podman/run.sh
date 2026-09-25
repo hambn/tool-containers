@@ -3,7 +3,7 @@
 set -euo pipefail
 
 : "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
-IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}"
+IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-24.04}"
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace:Z" \

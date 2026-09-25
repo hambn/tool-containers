@@ -1,13 +1,11 @@
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm agentbloat
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm agentbloat
 name: agentbloat-airgapped
 
 services:
   agentbloat:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/agentbloat:ubuntu-browser
+    image: ghcr.io/hambn/agentbloat:ubuntu-24.04
     pull_policy: never
-    command: ["zsh", "-l"]
+    command: ["bash", "-l"]
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true

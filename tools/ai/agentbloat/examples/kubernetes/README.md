@@ -37,7 +37,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: agentbloat
-          image: ghcr.io/hambn/agentbloat:latest
+          image: ghcr.io/hambn/agentbloat:ubuntu-24.04
           imagePullPolicy: Always
           command: ["sleep", "infinity"]
           securityContext:

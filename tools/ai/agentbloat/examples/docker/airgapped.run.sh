@@ -8,4 +8,4 @@ if [ "$#" -gt 0 ]; then shift; fi
 docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest bash "$@"
+  ghcr.io/hambn/agentbloat:ubuntu-24.04 bash "$@"

@@ -1,6 +1,6 @@
 # pi-agent · Podman
 
-Pi is a coding agent from Earendil Works, packaged on the agentimg foundations. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Pi is a coding agent from Earendil Works, packaged on the workspace foundations. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -13,7 +13,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ```bash
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/pi-agent:latest
+  ghcr.io/hambn/pi-agent:ubuntu-24.04
 ```
 
 ## Files in this directory
@@ -25,7 +25,7 @@ podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
 # Run Pi rootlessly against the current directory; :Z supports SELinux hosts.
 set -euo pipefail
 
-IMAGE="${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}"
+IMAGE="${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:ubuntu-24.04}"
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
   "$IMAGE" "$@"
@@ -43,7 +43,7 @@ Description=pi-agent container
 
 [Container]
 AutoUpdate=registry
-Image=ghcr.io/hambn/pi-agent:latest
+Image=ghcr.io/hambn/pi-agent:ubuntu-24.04
 Volume=%h/workspace:/workspace:Z
 
 [Service]

@@ -1,0 +1,17 @@
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm workspace
+name: workspace-airgapped
+
+services:
+  workspace:
+    image: ghcr.io/hambn/workspace:ubuntu-24.04-full
+    pull_policy: never
+    command: ["zsh", "-l"]
+    volumes:
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
+    stdin_open: true
+    tty: true
+    networks: [workspace]
+
+networks:
+  workspace:
+    name: workspace-airgapped

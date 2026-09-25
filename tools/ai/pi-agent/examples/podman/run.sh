@@ -2,7 +2,7 @@
 # Run Pi rootlessly against the current directory; :Z supports SELinux hosts.
 set -euo pipefail
 
-IMAGE="${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}"
+IMAGE="${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:ubuntu-24.04}"
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
   "$IMAGE" "$@"

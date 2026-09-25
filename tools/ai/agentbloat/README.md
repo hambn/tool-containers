@@ -1,6 +1,6 @@
 # agentbloat
 
-[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/tools/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`agentimg`](../../base/agentimg/) foundations.
+[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/tools/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`workspace`](../../dev/workspace/) foundations.
 
 ## Contents
 
@@ -12,34 +12,16 @@
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: all agents, full Ubuntu toolset, headless Chromium
-  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Agent update tags: `codex-v<version>`, `claude-code-v<version>`, etc.
-- **`ubuntu`**
-  - Contents: all agents and full Ubuntu toolset, no browser
-  - Base: `ghcr.io/hambn/agentimg:ubuntu`
-  - Moving tags: `ubuntu`
-  - Agent update tags: primary-only tags are not repeated
-- **`alpine-browser`**
-  - Contents: all agents, Alpine toolset, Chromium
-  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Agent update tags: primary-only tags are not repeated
-- **`alpine`**
-  - Contents: all agents and Alpine toolset, no browser
-  - Base: `ghcr.io/hambn/agentimg:alpine`
-  - Moving tags: `alpine`
-  - Agent update tags: primary-only tags are not repeated
+Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`.
+Moving tags name the tested operating-system profile. Each successful build also has an immutable `<profile>-b<run-id>-<attempt>` tag. Pin a digest for deployments.
 
-Pull moving tags from `ghcr.io/hambn/agentbloat:<tag>` or
-`docker.io/hambn/agentbloat:<tag>`. Source edits and `agentimg` base refreshes repoint
-only moving tags. A scheduled agent release also repoints those tags and adds a version
-tag to the primary `ubuntu-browser` image, such as `claude-code-v1.2.3`. See the
-repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
+| Tag | Contents | Base |
+|---|---|---|
+| `ubuntu-24.04` | agentbloat on Ubuntu 24.04 | `workspace:ubuntu-24.04-core` |
+| `ubuntu-24.04-browser` | Agent bundle and headless Chromium | `agentbloat:ubuntu-24.04` |
 
 ## Included software
+
 
 Every variant installs the latest resolved versions of:
 
@@ -53,8 +35,7 @@ Every variant installs the latest resolved versions of:
 - Pi coding agent (`pi`)
 - `acp-agent`, a CLI for browsing, searching, and running agents from the official ACP Registry
 
-The inherited `agentimg` inventory also provides Git/GitHub/GitLab CLIs, Docker tooling,
-Python, Go, shell tools, and optional browser support. Credentials are intentionally
+The neutral workspace core provides Git, Bash, Python, Go, Node.js, and uv. The browser profile adds headless Chromium. Credentials are intentionally
 configured at runtime through each upstream tool's supported login flow or environment
 variables.
 
@@ -68,45 +49,39 @@ variables.
 
 ## File map
 
-```text
-agentbloat/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    ├── docker-swarm/
-    │   ├── README.md
-    │   └── stack.yml
-    ├── helm/
-    │   ├── README.md
-    │   └── chart/
-    │       ├── Chart.yaml
-    │       ├── templates/deployment.yaml
-    │       └── values.yaml
-    ├── kubernetes/
-    │   ├── README.md
-    │   └── deployment.yaml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../../.github/workflows/ai-agentbloat.yml).
+- [`examples/`](examples/)
+  - [`docker/`](examples/docker/)
+    - [`README.md`](examples/docker/README.md)
+    - [`airgapped.run.sh`](examples/docker/airgapped.run.sh)
+    - [`run.sh`](examples/docker/run.sh)
+  - [`docker-compose/`](examples/docker-compose/)
+    - [`README.md`](examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
+  - [`docker-swarm/`](examples/docker-swarm/)
+    - [`README.md`](examples/docker-swarm/README.md)
+    - [`stack.yml`](examples/docker-swarm/stack.yml)
+  - [`helm/`](examples/helm/)
+    - [`chart/`](examples/helm/chart/)
+      - [`templates/`](examples/helm/chart/templates/)
+        - [`deployment.yaml`](examples/helm/chart/templates/deployment.yaml)
+      - [`Chart.yaml`](examples/helm/chart/Chart.yaml)
+      - [`values.yaml`](examples/helm/chart/values.yaml)
+    - [`README.md`](examples/helm/README.md)
+  - [`kubernetes/`](examples/kubernetes/)
+    - [`README.md`](examples/kubernetes/README.md)
+    - [`deployment.yaml`](examples/kubernetes/deployment.yaml)
+  - [`podman/`](examples/podman/)
+    - [`README.md`](examples/podman/README.md)
+    - [`run.sh`](examples/podman/run.sh)
+- [`images/`](images/)
+  - [`ubuntu-24.04/`](images/ubuntu-24.04/)
+    - [`Dockerfile`](images/ubuntu-24.04/Dockerfile)
+  - [`ubuntu-24.04-browser/`](images/ubuntu-24.04-browser/)
+    - [`Dockerfile`](images/ubuntu-24.04-browser/Dockerfile)
+- [`README.md`](README.md)
+- [Shared image publisher](../../../.github/workflows/publish-images.yml)
 
 ## Sources
 
@@ -120,4 +95,4 @@ CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../../.github/workfl
 - [ACP Registry](https://agentclientprotocol.com/get-started/registry)
 - [ACP Agent CLI](https://pypi.org/project/acp-agent/)
 - [Pi coding agent](https://github.com/earendil-works/pi)
-- [agentimg foundation](../../base/agentimg/)
+- [workspace foundation](../../dev/workspace/)

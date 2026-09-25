@@ -16,13 +16,13 @@ jobs:
   gate:
     name: Pull request gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 360
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Validate pull request title and description
@@ -44,3 +44,14 @@ jobs:
 
       - name: Validate repository contracts
         run: .github/scripts/validate-repository.sh
+
+      - name: Plan affected image builds
+        if: github.event_name != 'workflow_dispatch'
+        id: images
+        run: |
+          git fetch origin main
+          python3 .github/scripts/image_plan.py --mode pr --base origin/main --output /tmp/image-plan.json
+
+      - name: Build and smoke-test affected images
+        if: steps.images.outputs.build == 'true'
+        run: python3 .github/scripts/image_build.py --plan /tmp/image-plan.json --output /tmp/image-records.json

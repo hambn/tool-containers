@@ -8,4 +8,4 @@ shift $(( $# > 0 ? 1 : 0 ))
 docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/omnigent:latest "$@"
+  ghcr.io/hambn/omnigent:ubuntu-24.04 "$@"

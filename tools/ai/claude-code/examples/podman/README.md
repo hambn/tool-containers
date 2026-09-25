@@ -15,7 +15,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/claude-code:latest claude
+  ghcr.io/hambn/claude-code:ubuntu-24.04 claude
 ```
 
 ## Files in this directory
@@ -31,7 +31,7 @@ set -euo pipefail
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/claude-code:latest "$@"
+  ghcr.io/hambn/claude-code:ubuntu-24.04 "$@"
 ```
 
 ## More examples
@@ -46,7 +46,7 @@ Description=claude-code container
 
 [Container]
 AutoUpdate=registry
-Image=ghcr.io/hambn/claude-code:latest
+Image=ghcr.io/hambn/claude-code:ubuntu-24.04
 Volume=%h/workspace:/workspace:Z
 Exec=claude
 Interactive=true

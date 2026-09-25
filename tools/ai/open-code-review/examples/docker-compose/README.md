@@ -1,6 +1,6 @@
 # open-code-review · Docker Compose
 
-Open Code Review is Alibaba's code-review CLI, packaged on the agentimg foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Open Code Review is Alibaba's code-review CLI, packaged on the workspace foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -35,7 +35,7 @@ name: open-code-review
 
 services:
   open-code-review:
-    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}
+    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-24.04}
     command: ["--help"]
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
@@ -51,14 +51,12 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm open-code-review review
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm open-code-review review
 name: open-code-review-airgapped
 
 services:
   open-code-review:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/open-code-review:ubuntu-browser
+    image: ghcr.io/hambn/open-code-review:ubuntu-24.04
     pull_policy: never
     command: ["--help"]
     volumes:
@@ -71,6 +69,8 @@ networks:
   open-code-review:
     name: open-code-review-airgapped
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/open-code-review:ubuntu-24.04` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

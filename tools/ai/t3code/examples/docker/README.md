@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 docker run -it --rm \
   -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser
 ```
 
 ## Files in this directory
@@ -43,7 +43,7 @@ docker run -it --rm \
   "${docker_options[@]}" \
   -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser "$@"
 ```
 
 ### `airgapped.run.sh`
@@ -51,7 +51,7 @@ docker run -it --rm \
 ```bash
 #!/usr/bin/env bash
 # Offline host. Loads image from a local tar, never pulls.
-# Prep on an online host: docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
+# Prep on an online host: docker save ghcr.io/hambn/t3code:ubuntu-24.04-browser -o t3code.tar
 set -euo pipefail
 
 TAR="${1:-t3code.tar}"
@@ -63,7 +63,7 @@ docker run -it --rm \
   --pull=never \
   -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser "$@"
 ```
 
 ## More examples
@@ -73,13 +73,13 @@ docker run -it --rm \
 Edit `run.sh` (or copy it) and replace the image reference with any moving tag from the [image table](../../README.md#images):
 
 ```bash
-docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser
+docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-24.04-browser
 ```
 
 ### One-off non-interactive command
 
 ```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser --help
+docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-24.04-browser --help
 ```
 
 ### Give the container access to the Docker socket
@@ -95,7 +95,7 @@ T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
 The browser-enabled variants run headless Chromium; give the sandbox at least 1 GB of /dev/shm:
 
 ```bash
-docker run -it --rm --shm-size=1g -p 127.0.0.1:3773:3773 -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser
+docker run -it --rm --shm-size=1g -p 127.0.0.1:3773:3773 -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-24.04-browser
 ```
 
 ### Constrain resources
@@ -106,5 +106,5 @@ docker run -it --rm \
   --memory=4g \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser
 ```

@@ -30,8 +30,7 @@ current task.
 
 ## Workflow
 
-1. Inspect the target project, its closest valid neighbor, root catalog row, matching
-   `.github/workflows/<category>-<tool>.yml`, and actual published tag contract.
+1. Inspect the target project, its closest valid neighbor, root catalog row, `.github/image-catalog.json` entry, shared publisher, and actual published tag contract.
 2. Identify every coupled surface before editing: Dockerfiles, shared build assets,
    platform examples, tool README/file map, workflow planning and tags, and root
    catalog.

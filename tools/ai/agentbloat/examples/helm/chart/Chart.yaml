@@ -1,6 +1,6 @@
 apiVersion: v2
 name: agentbloat
-description: Current AI coding agent CLIs on agentimg foundation images
+description: Current AI coding agent CLIs on workspace foundation images
 type: application
 version: 0.1.1
-appVersion: "ubuntu-browser"
+appVersion: "ubuntu-24.04"

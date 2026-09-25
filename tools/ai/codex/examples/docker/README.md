@@ -1,6 +1,6 @@
 # codex · Docker
 
-Codex is OpenAI's coding agent CLI, packaged on the agentimg foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Codex is OpenAI's coding agent CLI, packaged on the workspace foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -15,7 +15,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 docker run -it --rm \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex
+  ghcr.io/hambn/codex:ubuntu-24.04 codex
 ```
 
 ## Files in this directory
@@ -28,7 +28,7 @@ docker run -it --rm \
 set -euo pipefail
 
 : "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
-IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}"
+IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-24.04}"
 docker run -it --rm \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
@@ -50,7 +50,7 @@ docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest "$@"
+  ghcr.io/hambn/codex:ubuntu-24.04 "$@"
 ```
 
 ## More examples
@@ -69,7 +69,7 @@ CODEX_IMAGE=ghcr.io/hambn/codex:<tag> ./run.sh
 docker run -it --rm \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex
+  ghcr.io/hambn/codex:ubuntu-24.04 codex
 ```
 
 ### One-off non-interactive command
@@ -78,7 +78,7 @@ docker run -it --rm \
 docker run --rm \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex --version
+  ghcr.io/hambn/codex:ubuntu-24.04 codex --version
 ```
 
 ### Constrain resources
@@ -89,5 +89,5 @@ docker run -it --rm \
   --memory=4g \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex
+  ghcr.io/hambn/codex:ubuntu-24.04 codex
 ```

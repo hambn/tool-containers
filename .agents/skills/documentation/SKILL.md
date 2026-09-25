@@ -42,7 +42,7 @@ materially helps operation:
 4. **Use cases** with three to five concrete scenarios linking the relevant platform
    examples.
 5. **File map** as a linked nested map of every tracked file in the tool, plus its
-   `.github/workflows/<category>-<tool>.yml` workflow.
+   shared `.github/workflows/publish-images.yml` workflow.
 6. **Sources** linking upstream repository, package registry, and authoritative docs
    where available.
 

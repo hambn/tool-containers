@@ -1,29 +1,13 @@
-# Image variants
+# Image profiles
 
-A variant is one buildable functional profile. Its name is a stable public tag and
-describes contents or purpose, not merely an interchangeable base distribution.
+Profiles state compatibility and contents. The launch catalog is curated:
 
-The current shared profiles are:
+| Product | Moving tags | Contract |
+|---|---|---|
+| `runtime` | `alpine-3.21-minimal`, `ubuntu-24.04-minimal` | POSIX shell, curl, CA certificates, UID/GID 1000 |
+| `workspace` | `alpine-3.21-core`, `ubuntu-24.04-core` | Neutral development runtimes without shell decoration |
+| `workspace` | `alpine-3.21-full`, `ubuntu-24.04-full` | Broad tools and styled Zsh |
+| Agent products | `ubuntu-24.04` | Tested ready-to-use agent on neutral core |
+| `agentbloat`, `t3code` | `ubuntu-24.04-browser` | Product plus tested headless browser |
 
-| Variant | Contract |
-|---|---|
-| `ubuntu-browser` | primary, broad Ubuntu tooling plus headless browser |
-| `ubuntu` | broad Ubuntu tooling without browser payload |
-| `alpine-browser` | compact Alpine tooling plus browser |
-| `alpine` | compact Alpine tooling without browser payload |
-
-This four-profile set is an actual current inheritance contract, not a universal
-template for all future projects. A new project needs at least one primary variant; add
-`minimal`, `full`, `gpu`, `cuda`, `ci`, `distroless`, or another profile only for a
-demonstrated use case.
-
-## Naming and compatibility
-
-- Use lowercase kebab-case names based on functional capability.
-- Include a base distinction only when it changes runtime behavior or compatibility.
-- Keep one primary variant declared in CI. It owns `latest` and its own moving tag; every
-  other variant owns its matching moving tag.
-- Treat renames and removals as public API changes. Update inheritance, tags, platform
-  examples, documentation, and migration guidance together.
-- Do not assume a universal immutable version/base tag. Use the owning workflow's actual
-  release mapping from [registry policy](../registries-and-tags.md).
+Do not generate every distribution, size, browser, and tool combination. Add a profile when a consumer needs it and the runtime smoke test passes. Alpine agent profiles require native package and musl tests. Browser profiles depend on the standard product profile and add the browser late. The catalog owns tags and dependencies. No `latest` tag is published.

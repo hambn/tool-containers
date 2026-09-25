@@ -6,4 +6,4 @@ set -euo pipefail
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/claude-code:latest "$@"
+  ghcr.io/hambn/claude-code:ubuntu-24.04 "$@"

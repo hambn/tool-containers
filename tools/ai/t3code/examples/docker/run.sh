@@ -19,4 +19,4 @@ docker run -it --rm \
   "${docker_options[@]}" \
   -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser "$@"

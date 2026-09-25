@@ -12,35 +12,12 @@ meta-harness packaged on the reusable [`agentbloat`](../agentbloat/) foundations
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: Omnigent, all agentbloat agents, Ubuntu tools, headless Chromium
-  - Base: `ghcr.io/hambn/agentbloat:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Omnigent release tag: `omnigent-v<version>`
-- **`ubuntu`**
-  - Contents: Omnigent, all agentbloat agents, Ubuntu tools
-  - Base: `ghcr.io/hambn/agentbloat:ubuntu`
-  - Moving tags: `ubuntu`
-  - Omnigent release tag: primary-only tag is not repeated
-- **`alpine-browser`**
-  - Contents: Omnigent, all agentbloat agents, Alpine tools, Chromium
-  - Base: `ghcr.io/hambn/agentbloat:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Omnigent release tag: primary-only tag is not repeated
-- **`alpine`**
-  - Contents: Omnigent, all agentbloat agents, Alpine tools
-  - Base: `ghcr.io/hambn/agentbloat:alpine`
-  - Moving tags: `alpine`
-  - Omnigent release tag: primary-only tag is not repeated
+Pull from `ghcr.io/hambn/omnigent:<tag>` or `docker.io/hambn/omnigent:<tag>`.
+Moving tags name the tested operating-system profile. Each successful build also has an immutable `<profile>-b<run-id>-<attempt>` tag. Pin a digest for deployments.
 
-Pull moving tags from `ghcr.io/hambn/omnigent:<tag>` or
-`docker.io/hambn/omnigent:<tag>`. Omnigent releases repoint all moving tags and
-add `omnigent-v<version>` to the primary image. `agentbloat` base refreshes and
-repository edits repoint moving tags only. See the repository's
-[registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
-
-Omnigent discovers credentials and harness logins at runtime. No credentials are
-stored in the image or deployment files.
+| Tag | Contents | Base |
+|---|---|---|
+| `ubuntu-24.04` | omnigent on Ubuntu 24.04 | `workspace:ubuntu-24.04-core` plus the agent bundle |
 
 ## Use cases
 
@@ -50,33 +27,24 @@ stored in the image or deployment files.
 
 ## File map
 
-```text
-omnigent/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-omnigent.yml`](../../../.github/workflows/ai-omnigent.yml).
+- [`examples/`](examples/)
+  - [`docker/`](examples/docker/)
+    - [`README.md`](examples/docker/README.md)
+    - [`airgapped.run.sh`](examples/docker/airgapped.run.sh)
+    - [`run.sh`](examples/docker/run.sh)
+  - [`docker-compose/`](examples/docker-compose/)
+    - [`README.md`](examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
+  - [`podman/`](examples/podman/)
+    - [`README.md`](examples/podman/README.md)
+    - [`run.sh`](examples/podman/run.sh)
+- [`images/`](images/)
+  - [`ubuntu-24.04/`](images/ubuntu-24.04/)
+    - [`Dockerfile`](images/ubuntu-24.04/Dockerfile)
+- [`README.md`](README.md)
+- [Shared image publisher](../../../.github/workflows/publish-images.yml)
 
 ## Sources
 

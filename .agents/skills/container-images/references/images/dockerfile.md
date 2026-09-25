@@ -1,48 +1,7 @@
 # Dockerfile authoring
 
-Keep one Dockerfile per buildable variant. Derived tools build with the variant directory
-as context; do not `COPY` files from another directory. `base/agentimg` alone uses the
-shared `images/` context for its flat Dockerfiles and common assets.
+Keep one Dockerfile per published profile with an explicit Dockerfile syntax directive. Read its catalog entry before editing the context, build arguments, or parent. Declare build arguments close to the steps that use them, so a CLI release does not invalidate earlier package layers. Put browser and presentation additions late. Use bind mounts for build-only scripts and `COPY --link` only where its destination and symlink behavior are tested.
 
-## Bases and versions
+Minimal and core foundations end as UID/GID 1000. Full workspaces and agents end as the inherited `sysadmin` user or UID/GID 1000. Every profile is smoke-tested as non-root. Minimal images expose a POSIX shell and curl; do not add development tools there. Agent images work in `/workspace` and do not inherit styled Zsh.
 
-- Declare a global `ARG BASE_IMAGE` before `FROM` in derived images and use
-  `FROM ${BASE_IMAGE}`. Foundation variants use global `RUNTIME_BASE` and, for a
-  multi-stage browser source, `BROWSER_BASE`.
-- Give direct-build defaults a usable supported reference; keep digest-pinned defaults
-  where the repository's air-gapped/direct-build contract depends on reproducibility.
-- In derived images, pass upstream tool versions as build arguments with a usable
-  default; CI resolves release versions and digest-pinned bases. The `agentimg`
-  foundation is an explicit exception: it resolves current releases at build time and
-  uses no tool-version build arguments or fallback version literals.
-- State the functional profile and chosen base in the opening comment. Keep dependency
-  versions visible to the repository's updater.
-
-## Layers and installation
-
-- Put stable layers before frequently changing tool installation.
-- Group related package operations and clean caches in the same `RUN`: use
-  `apk add --no-cache`, remove `/var/lib/apt/lists/*`, and clear package-manager caches
-  that otherwise persist.
-- Verify downloaded binaries with authoritative checksums or signatures when available.
-- Install only the profile's required capabilities; inherit shared Node and development
-  tools from `agentimg` rather than reinstalling them downstream.
-
-## Runtime and security
-
-- Elevate to root only for build-time installation. Every current image must end with
-  `USER sysadmin`. Derived tool images end with `WORKDIR /workspace`; the Agentimg
-  foundation keeps `WORKDIR /home/sysadmin` while deployments mount work at `/workspace`.
-- Preserve the inherited UID/GID-1000 user and make installed launchers readable and
-  executable by non-root users.
-- Never bake credentials, tokens, private configuration, or build-host state into a
-  layer. Accept secrets at runtime through environment variables, mounted files, or the
-  platform secret store.
-- Keep entrypoint and command behavior compatible with interactive and deployment use;
-  pass user arguments through where the tool supports them.
-- Mark only deliberate upgradeable limitations with a `# ponytail:` comment and state
-  the path to removal.
-
-Validate syntax with the correct build context and arguments. When layers or runtime
-behavior change, build at least one representative distro/profile and smoke-test the
-installed command as `sysadmin`; cover every affected variant when behavior differs.
+CI resolves upstream versions and external bases, passes exact build arguments, and records them in OCI metadata. Keep direct-build defaults usable. Pair apt update and install in one step, clean package indexes, and verify downloaded binaries against upstream checksums where available. Never put secrets or local state in layers. A syntax check does not replace a runtime smoke test.

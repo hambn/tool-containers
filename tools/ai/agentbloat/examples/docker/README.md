@@ -13,7 +13,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ```bash
 docker run -it --rm \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest zsh
+  ghcr.io/hambn/agentbloat:ubuntu-24.04 bash
 ```
 
 ## Files in this directory
@@ -25,7 +25,7 @@ docker run -it --rm \
 # Run an interactive agentbloat shell on the current directory.
 set -euo pipefail
 
-IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}"
+IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:ubuntu-24.04}"
 docker_options=()
 if [[ -n "${AGENTBLOAT_DOCKER_SOCKET:-}" ]]; then
   [[ -S "$AGENTBLOAT_DOCKER_SOCKET" ]] || {
@@ -41,7 +41,7 @@ fi
 docker run -it --rm \
   "${docker_options[@]}" \
   -v "$PWD:/workspace" \
-  "$IMAGE" zsh "$@"
+  "$IMAGE" bash "$@"
 ```
 
 ### `airgapped.run.sh`
@@ -57,7 +57,7 @@ if [ "$#" -gt 0 ]; then shift; fi
 docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest bash "$@"
+  ghcr.io/hambn/agentbloat:ubuntu-24.04 bash "$@"
 ```
 
 ## More examples
@@ -73,7 +73,7 @@ AGENTBLOAT_IMAGE=ghcr.io/hambn/agentbloat:<tag> ./run.sh
 ### One-off non-interactive command
 
 ```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/agentbloat:latest zsh -c 'exit'
+docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/agentbloat:ubuntu-24.04 bash -c 'exit'
 ```
 
 ### Give the container access to the Docker socket
@@ -92,5 +92,5 @@ docker run -it --rm \
   --memory=4g \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest zsh
+  ghcr.io/hambn/agentbloat:ubuntu-24.04 bash
 ```

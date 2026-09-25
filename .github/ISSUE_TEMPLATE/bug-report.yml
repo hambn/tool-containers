@@ -25,7 +25,7 @@ body:
     attributes:
       label: Affected image, tag, or workflow
       description: Include an image reference or the workflow name and run URL, as applicable.
-      placeholder: ghcr.io/hambn/agentimg:ubuntu-browser or base/agentimg run URL
+      placeholder: ghcr.io/hambn/workspace:ubuntu-24.04-full or a workspace example URL
     validations:
       required: true
   - type: textarea

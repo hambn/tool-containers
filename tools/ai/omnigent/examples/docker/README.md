@@ -13,7 +13,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ```bash
 docker run -it --rm \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/omnigent:latest
+  ghcr.io/hambn/omnigent:ubuntu-24.04
 ```
 
 ## Files in this directory
@@ -25,7 +25,7 @@ docker run -it --rm \
 # Run Omnigent against the current directory.
 set -euo pipefail
 
-IMAGE="${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}"
+IMAGE="${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:ubuntu-24.04}"
 docker run -it --rm \
   -v "$PWD:/workspace" \
   "$IMAGE" "$@"
@@ -44,7 +44,7 @@ shift $(( $# > 0 ? 1 : 0 ))
 docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/omnigent:latest "$@"
+  ghcr.io/hambn/omnigent:ubuntu-24.04 "$@"
 ```
 
 ## More examples
@@ -60,7 +60,7 @@ OMNIGENT_IMAGE=ghcr.io/hambn/omnigent:<tag> ./run.sh
 ### One-off non-interactive command
 
 ```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/omnigent:latest --help
+docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/omnigent:ubuntu-24.04 --help
 ```
 
 ### Constrain resources
@@ -71,5 +71,5 @@ docker run -it --rm \
   --memory=4g \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/omnigent:latest
+  ghcr.io/hambn/omnigent:ubuntu-24.04
 ```

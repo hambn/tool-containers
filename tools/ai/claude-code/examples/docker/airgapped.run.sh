@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Offline host. Loads image from a local tar, never pulls.
-# Prep on an online host: docker save ghcr.io/hambn/claude-code:latest -o claude-code.tar
+# Prep on an online host: docker save ghcr.io/hambn/claude-code:ubuntu-24.04 -o claude-code.tar
 set -euo pipefail
 : "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}"
 
@@ -13,4 +13,4 @@ docker run -it --rm \
   --pull=never \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest "$@"
+  ghcr.io/hambn/claude-code:ubuntu-24.04 "$@"

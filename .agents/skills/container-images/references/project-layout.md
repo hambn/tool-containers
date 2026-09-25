@@ -1,61 +1,7 @@
 # Image-project layout
 
-The ownership boundary is `tools/<category>/<tool>/`. `<category>` groups purpose;
-`<tool>` is one independently documented and published container project; `<variant>` is
-a stable public image profile.
+The ownership boundary is `tools/<category>/<product>/`. Each product has a README, `images/` sources, and only platform examples it supports. Published profiles live in `.github/image-catalog.json`; one shared workflow publishes them.
 
-## Standard tree
+`runtime` uses each variant directory as its build context. `workspace` uses its `images/` directory because core and full Dockerfiles bind-mount distribution scripts and full-only Zsh assets. Agent variants use their own directories as contexts. Products may depend on a published foundation or explicit agent-bundle image, but must not copy files from another product's source tree.
 
-```text
-tool-containers/
-├── README.md
-├── .github/workflows/
-│   └── <category>-<tool>.yml
-└── tools/<category>/<tool>/
-    ├── README.md
-    ├── images/
-    │   └── <variant>/Dockerfile
-    └── examples/
-        └── <platform>/
-            ├── README.md
-            └── runnable files
-```
-
-Every current tool owns a README, image sources, and platform examples, but each tool
-supports only the platforms present in its `examples/` directory. Do not create empty
-platform placeholders.
-
-The repository directory is always `examples/`, never `deployment/` or `deployments/`.
-The `references/deployment/` directory belongs to this skill and contains platform
-guidance; it is not a path for image-project files.
-
-Derived variants use their own directory as build context and may not copy from outside
-it. `tools/base/agentimg` is the deliberate exception: its four flat
-`images/*.Dockerfile` variants share distro-local scripts and common shell assets from
-the tool's `images/` build context.
-
-## Naming
-
-- Use lowercase kebab-case category, tool, profile, and platform directory names.
-- Treat tool and variant names as public registry identifiers; rename with an explicit
-  compatibility and tag migration plan.
-- Keep one workflow per tool at `.github/workflows/<category>-<tool>.yml`.
-- Name scenario files `<scenario>.<base-name>`, for example
-  `airgapped.docker-compose.yml`; keep the ordinary case at the base name.
-
-## Adding a tool
-
-1. Select an existing project with the closest inheritance, runtime, and platform-example
-   layout. Copy structure only after understanding every retained file.
-2. Create its README, at least one buildable image variant, and only the platform
-   examples that serve real use cases.
-3. Add one matching publication workflow with explicit upstream/base update detection,
-   primary variant, registry namespace, and immutable tag rules.
-4. Add exactly one root `README.md` catalog row under the correct category. Create a new
-   category only when the concrete tool does not belong to an existing one.
-5. Replace every copied tool name, image path, secret, command, chart value, label, and
-   source link. Compare the final file map with `git ls-files`.
-
-Keep the project self-contained. Shared executable mechanics belong in
-`.github/scripts/` only when multiple workflows genuinely use them; shared runtime
-capabilities belong in a published foundation image rather than cross-directory copies.
+Use lowercase kebab-case for categories, products, profiles, and platform paths. Treat product and tag names as public registry identifiers. Update the graph, tests, docs, examples, and site when one changes. New products need a tested runtime contract and a real use case; do not create empty platform directories.

@@ -10,4 +10,4 @@ docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest "$@"
+  ghcr.io/hambn/codex:ubuntu-24.04 "$@"

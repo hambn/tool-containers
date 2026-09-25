@@ -1,6 +1,6 @@
 # codex · Podman
 
-Codex is OpenAI's coding agent CLI, packaged on the agentimg foundations. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Codex is OpenAI's coding agent CLI, packaged on the workspace foundations. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -15,7 +15,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/codex:latest codex
+  ghcr.io/hambn/codex:ubuntu-24.04 codex
 ```
 
 ## Files in this directory
@@ -28,7 +28,7 @@ podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
 set -euo pipefail
 
 : "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
-IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}"
+IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-24.04}"
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -e OPENAI_API_KEY \
   -v "$PWD:/workspace:Z" \
@@ -47,7 +47,7 @@ Description=codex container
 
 [Container]
 AutoUpdate=registry
-Image=ghcr.io/hambn/codex:latest
+Image=ghcr.io/hambn/codex:ubuntu-24.04
 Volume=%h/workspace:/workspace:Z
 Exec=codex
 Interactive=true

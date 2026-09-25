@@ -91,7 +91,7 @@ spec:
 ```yaml
 image:
   repository: ghcr.io/hambn/t3code
-  tag: ubuntu-browser
+  tag: ubuntu-24.04-browser
   pullPolicy: IfNotPresent
 
 service:

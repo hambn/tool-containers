@@ -1,7 +1,7 @@
 # codex
 
 [OpenAI Codex CLI](https://github.com/openai/codex) packaged on the reusable
-[`agentimg`](../../base/agentimg/) foundations.
+[`workspace`](../../dev/workspace/) foundations.
 
 ## Contents
 
@@ -12,34 +12,12 @@
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: Codex, Ubuntu tools, headless Chromium
-  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Codex release tag: `codex-v<version>`
-- **`ubuntu`**
-  - Contents: Codex and Ubuntu tools
-  - Base: `ghcr.io/hambn/agentimg:ubuntu`
-  - Moving tags: `ubuntu`
-  - Codex release tag: primary-only tag is not repeated
-- **`alpine-browser`**
-  - Contents: Codex, Alpine tools, Chromium
-  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Codex release tag: primary-only tag is not repeated
-- **`alpine`**
-  - Contents: Codex and Alpine tools
-  - Base: `ghcr.io/hambn/agentimg:alpine`
-  - Moving tags: `alpine`
-  - Codex release tag: primary-only tag is not repeated
+Pull from `ghcr.io/hambn/codex:<tag>` or `docker.io/hambn/codex:<tag>`.
+Moving tags name the tested operating-system profile. Each successful build also has an immutable `<profile>-b<run-id>-<attempt>` tag. Pin a digest for deployments.
 
-Pull moving tags from `ghcr.io/hambn/codex:<tag>` or
-`docker.io/hambn/codex:<tag>`. A Codex npm release repoints all moving tags and adds
-`codex-v<version>` to the primary image. `agentimg` base refreshes and repository edits
-repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
-
-The deployment examples require `OPENAI_API_KEY` at runtime; credentials are not baked
-into the image.
+| Tag | Contents | Base |
+|---|---|---|
+| `ubuntu-24.04` | codex on Ubuntu 24.04 | `workspace:ubuntu-24.04-core` |
 
 ## Use cases
 
@@ -49,37 +27,28 @@ into the image.
 
 ## File map
 
-```text
-codex/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-codex.yml`](../../../.github/workflows/ai-codex.yml).
+- [`examples/`](examples/)
+  - [`docker/`](examples/docker/)
+    - [`README.md`](examples/docker/README.md)
+    - [`airgapped.run.sh`](examples/docker/airgapped.run.sh)
+    - [`run.sh`](examples/docker/run.sh)
+  - [`docker-compose/`](examples/docker-compose/)
+    - [`README.md`](examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
+  - [`podman/`](examples/podman/)
+    - [`README.md`](examples/podman/README.md)
+    - [`run.sh`](examples/podman/run.sh)
+- [`images/`](images/)
+  - [`ubuntu-24.04/`](images/ubuntu-24.04/)
+    - [`Dockerfile`](images/ubuntu-24.04/Dockerfile)
+- [`README.md`](README.md)
+- [Shared image publisher](../../../.github/workflows/publish-images.yml)
 
 ## Sources
 
 - [OpenAI Codex CLI source repository](https://github.com/openai/codex)
 - [OpenAI Codex npm package](https://www.npmjs.com/package/@openai/codex)
 - [Codex documentation](https://developers.openai.com/codex/)
-- [agentimg foundation](../../base/agentimg/)
+- [workspace foundation](../../dev/workspace/)

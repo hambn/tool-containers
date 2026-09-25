@@ -36,7 +36,7 @@ name: t3code
 
 services:
   t3:
-    image: ghcr.io/hambn/t3code:ubuntu-browser
+    image: ghcr.io/hambn/t3code:ubuntu-24.04-browser
     container_name: t3code
     hostname: t3code
     networks: [t3code]
@@ -53,17 +53,15 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# Offline: build from the repo's Dockerfile instead of pulling a registry image.
+# Offline: load the published image tar before starting Compose.
 # Run from this directory:
 #   WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
 name: t3code
 
 services:
   t3:
-    build:
-      context: ../../images/ubuntu-browser
-    image: t3code:airgapped
-    pull_policy: build
+    image: ghcr.io/hambn/t3code:ubuntu-24.04-browser
+    pull_policy: never
     container_name: t3code
     hostname: t3code
     networks: [t3code]
@@ -76,6 +74,8 @@ networks:
   t3code:
     name: t3code
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/t3code:ubuntu-24.04-browser` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

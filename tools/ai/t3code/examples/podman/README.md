@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/t3code:ubuntu-browser
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser
 ```
 
 ## Files in this directory
@@ -30,7 +30,7 @@ set -euo pipefail
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -p 127.0.0.1:3773:3773 \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+  ghcr.io/hambn/t3code:ubuntu-24.04-browser "$@"
 ```
 
 ## More examples
@@ -45,7 +45,7 @@ Description=t3code container
 
 [Container]
 AutoUpdate=registry
-Image=ghcr.io/hambn/t3code:ubuntu-browser
+Image=ghcr.io/hambn/t3code:ubuntu-24.04-browser
 PublishPort=127.0.0.1:3773:3773
 Volume=%h/workspace:/workspace:Z
 

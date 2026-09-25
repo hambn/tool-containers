@@ -13,7 +13,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ```bash
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/omnigent:latest
+  ghcr.io/hambn/omnigent:ubuntu-24.04
 ```
 
 ## Files in this directory
@@ -25,7 +25,7 @@ podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
 # Run Omnigent rootlessly against the current directory; :Z supports SELinux hosts.
 set -euo pipefail
 
-IMAGE="${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}"
+IMAGE="${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:ubuntu-24.04}"
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
   -v "$PWD:/workspace:Z" \
   "$IMAGE" "$@"
@@ -43,7 +43,7 @@ Description=omnigent container
 
 [Container]
 AutoUpdate=registry
-Image=ghcr.io/hambn/omnigent:latest
+Image=ghcr.io/hambn/omnigent:ubuntu-24.04
 Volume=%h/workspace:/workspace:Z
 
 [Service]

@@ -14,8 +14,7 @@ Use executable Bash scripts for connected and air-gapped plain Docker use:
 - Assert required variables before invoking Docker; never provide fake secret defaults.
 - Mount `"$PWD:/workspace"`. Use `-it --rm` for interactive tools and pass `"$@"`
   through after the image.
-- Use `ghcr.io/<owner>/<tool>:latest` for the ordinary documented convenience command or
-  a deliberately pinned tag where repeatability matters.
+- Use the product's explicit moving profile tag for convenience, or a digest when repeatability matters.
 - Add only required capabilities, devices, ports, and environment variables. Do not use
   privileged mode as a shortcut.
 - Keep the scripts executable and shell-quote all user paths and arguments.

@@ -1,7 +1,7 @@
 # Contributing
 
 Create a focused branch from the latest `main` and use a Conventional Commit title for
-the pull request, such as `fix(agentimg): preserve runtime ownership`.
+the pull request, such as `fix(runtime): preserve runtime ownership`.
 
 Before opening a pull request:
 

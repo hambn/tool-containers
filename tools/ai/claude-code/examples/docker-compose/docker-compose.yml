@@ -3,7 +3,7 @@ name: claude-code
 
 services:
   claude:
-    image: ghcr.io/hambn/claude-code:latest
+    image: ghcr.io/hambn/claude-code:ubuntu-24.04
     container_name: claude-code
     hostname: claude-code
     networks: [claude-code]

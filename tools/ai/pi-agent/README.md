@@ -1,7 +1,7 @@
 # pi-agent
 
 [Pi](https://github.com/earendil-works/pi) is a minimal, extensible terminal coding
-agent packaged on the reusable [`agentimg`](../../base/agentimg/) foundations.
+agent packaged on the reusable [`workspace`](../../dev/workspace/) foundations.
 
 ## Contents
 
@@ -12,34 +12,12 @@ agent packaged on the reusable [`agentimg`](../../base/agentimg/) foundations.
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: Pi, Ubuntu tools, headless Chromium
-  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Pi release tag: `pi-v<version>`
-- **`ubuntu`**
-  - Contents: Pi and Ubuntu tools
-  - Base: `ghcr.io/hambn/agentimg:ubuntu`
-  - Moving tags: `ubuntu`
-  - Pi release tag: primary-only tag is not repeated
-- **`alpine-browser`**
-  - Contents: Pi, Alpine tools, Chromium
-  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Pi release tag: primary-only tag is not repeated
-- **`alpine`**
-  - Contents: Pi and Alpine tools
-  - Base: `ghcr.io/hambn/agentimg:alpine`
-  - Moving tags: `alpine`
-  - Pi release tag: primary-only tag is not repeated
+Pull from `ghcr.io/hambn/pi-agent:<tag>` or `docker.io/hambn/pi-agent:<tag>`.
+Moving tags name the tested operating-system profile. Each successful build also has an immutable `<profile>-b<run-id>-<attempt>` tag. Pin a digest for deployments.
 
-Pull moving tags from `ghcr.io/hambn/pi-agent:<tag>` or
-`docker.io/hambn/pi-agent:<tag>`. Pi package updates repoint all moving tags and add
-`pi-v<version>` to the primary image. `agentimg` base refreshes and repository edits
-repoint moving tags only. See the repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
-
-Pi can authenticate through its provider login flow or supported runtime API-key
-environment variables. No credentials are stored in the image or deployment files.
+| Tag | Contents | Base |
+|---|---|---|
+| `ubuntu-24.04` | pi-agent on Ubuntu 24.04 | `workspace:ubuntu-24.04-core` |
 
 ## Use cases
 
@@ -49,37 +27,28 @@ environment variables. No credentials are stored in the image or deployment file
 
 ## File map
 
-```text
-pi-agent/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-pi-agent.yml`](../../../.github/workflows/ai-pi-agent.yml).
+- [`examples/`](examples/)
+  - [`docker/`](examples/docker/)
+    - [`README.md`](examples/docker/README.md)
+    - [`airgapped.run.sh`](examples/docker/airgapped.run.sh)
+    - [`run.sh`](examples/docker/run.sh)
+  - [`docker-compose/`](examples/docker-compose/)
+    - [`README.md`](examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
+  - [`podman/`](examples/podman/)
+    - [`README.md`](examples/podman/README.md)
+    - [`run.sh`](examples/podman/run.sh)
+- [`images/`](images/)
+  - [`ubuntu-24.04/`](images/ubuntu-24.04/)
+    - [`Dockerfile`](images/ubuntu-24.04/Dockerfile)
+- [`README.md`](README.md)
+- [Shared image publisher](../../../.github/workflows/publish-images.yml)
 
 ## Sources
 
 - [Pi source repository](https://github.com/earendil-works/pi)
 - [Pi npm package](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
 - [Pi documentation](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/docs)
-- [agentimg foundation](../../base/agentimg/)
+- [workspace foundation](../../dev/workspace/)

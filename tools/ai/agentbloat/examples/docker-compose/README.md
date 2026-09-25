@@ -35,8 +35,8 @@ name: agentbloat
 
 services:
   agentbloat:
-    image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}
-    command: ["zsh", "-l"]
+    image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:ubuntu-24.04}
+    command: ["bash", "-l"]
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
@@ -51,16 +51,14 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm agentbloat
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm agentbloat
 name: agentbloat-airgapped
 
 services:
   agentbloat:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/agentbloat:ubuntu-browser
+    image: ghcr.io/hambn/agentbloat:ubuntu-24.04
     pull_policy: never
-    command: ["zsh", "-l"]
+    command: ["bash", "-l"]
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
@@ -71,6 +69,8 @@ networks:
   agentbloat:
     name: agentbloat-airgapped
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/agentbloat:ubuntu-24.04` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

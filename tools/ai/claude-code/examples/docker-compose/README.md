@@ -36,7 +36,7 @@ name: claude-code
 
 services:
   claude:
-    image: ghcr.io/hambn/claude-code:latest
+    image: ghcr.io/hambn/claude-code:ubuntu-24.04
     container_name: claude-code
     hostname: claude-code
     networks: [claude-code]
@@ -55,16 +55,14 @@ networks:
 ### `airgapped.docker-compose.yml`
 
 ```yaml
-# Offline: build from the repo's Dockerfile instead of pulling a registry image.
+# Offline: load the published image tar before starting Compose.
 # Run with the credential file created in README.md:
-#   WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" -f airgapped.docker-compose.yml run --build --rm claude
+#   WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" -f airgapped.docker-compose.yml run --rm claude
 name: claude-code
 
 services:
   claude:
-    build:
-      context: ../../images/ubuntu-browser
-    image: claude-code:airgapped
+    image: ghcr.io/hambn/claude-code:ubuntu-24.04
     pull_policy: never
     container_name: claude-code
     hostname: claude-code
@@ -80,6 +78,8 @@ networks:
   claude-code:
     name: claude-code
 ```
+
+Before using the air-gapped Compose file, save `ghcr.io/hambn/claude-code:ubuntu-24.04` on a connected host with `docker save`, then transfer and `docker load` the tar on the offline host. Compose uses the loaded tag and never pulls.
 
 ## More examples
 

@@ -15,7 +15,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 docker run -it --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude
+  ghcr.io/hambn/claude-code:ubuntu-24.04 claude
 ```
 
 ## Files in this directory
@@ -31,7 +31,7 @@ set -euo pipefail
 docker run -it --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest "$@"
+  ghcr.io/hambn/claude-code:ubuntu-24.04 "$@"
 ```
 
 ### `airgapped.run.sh`
@@ -39,7 +39,7 @@ docker run -it --rm \
 ```bash
 #!/usr/bin/env bash
 # Offline host. Loads image from a local tar, never pulls.
-# Prep on an online host: docker save ghcr.io/hambn/claude-code:latest -o claude-code.tar
+# Prep on an online host: docker save ghcr.io/hambn/claude-code:ubuntu-24.04 -o claude-code.tar
 set -euo pipefail
 : "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}"
 
@@ -52,7 +52,7 @@ docker run -it --rm \
   --pull=never \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest "$@"
+  ghcr.io/hambn/claude-code:ubuntu-24.04 "$@"
 ```
 
 ## More examples
@@ -71,7 +71,7 @@ docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/claude-code:<tag>
 docker run -it --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude
+  ghcr.io/hambn/claude-code:ubuntu-24.04 claude
 ```
 
 ### One-off non-interactive command
@@ -80,7 +80,7 @@ docker run -it --rm \
 docker run --rm \
   -e ANTHROPIC_API_KEY \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude --version
+  ghcr.io/hambn/claude-code:ubuntu-24.04 claude --version
 ```
 
 ### Constrain resources
@@ -91,5 +91,5 @@ docker run -it --rm \
   --memory=4g \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude
+  ghcr.io/hambn/claude-code:ubuntu-24.04 claude
 ```

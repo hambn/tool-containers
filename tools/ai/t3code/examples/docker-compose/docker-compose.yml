@@ -4,7 +4,7 @@ name: t3code
 
 services:
   t3:
-    image: ghcr.io/hambn/t3code:ubuntu-browser
+    image: ghcr.io/hambn/t3code:ubuntu-24.04-browser
     container_name: t3code
     hostname: t3code
     networks: [t3code]

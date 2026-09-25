@@ -2,7 +2,7 @@
 # Run an interactive agentbloat shell on the current directory.
 set -euo pipefail
 
-IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}"
+IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:ubuntu-24.04}"
 docker_options=()
 if [[ -n "${AGENTBLOAT_DOCKER_SOCKET:-}" ]]; then
   [[ -S "$AGENTBLOAT_DOCKER_SOCKET" ]] || {
@@ -18,4 +18,4 @@ fi
 docker run -it --rm \
   "${docker_options[@]}" \
   -v "$PWD:/workspace" \
-  "$IMAGE" zsh "$@"
+  "$IMAGE" bash "$@"

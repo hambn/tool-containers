@@ -3,7 +3,7 @@ name: open-code-review
 
 services:
   open-code-review:
-    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}
+    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-24.04}
     command: ["--help"]
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

@@ -10,7 +10,8 @@ The wrapper runs the static repository validator and whitespace checks for both 
 and unstaged changes. The static validator enforces agent-workspace integrity, workflow
 YAML and embedded shell, Dockerfile contracts, executable bits, Markdown links, Compose
 rendering when Docker Compose is available, and Helm lint/rendering when Helm is
-available. It deliberately performs no image build or pull.
+available. The local wrapper performs no image build or pull. Pull-request CI separately
+builds and smoke-tests affected image profiles.
 
 ## Targeted checks
 
@@ -32,8 +33,7 @@ also checked.
 ## Truthful reporting
 
 Report the exact command and outcome. If Docker, Helm, network access, credentials, or
-another dependency is unavailable, name the skipped check and the reason. Do not imply
-that static PR CI runtime-tested an image: the single `Pull request gate` covers metadata
-policy, dependency review, and static repository validation; labeling remains separate.
-Image build, smoke test, Trivy scan, and publication happen in image workflows after
-changes reach `main`.
+another dependency is unavailable, name the skipped check and the reason. The local static validator does not test an image at runtime. The `Pull request gate`
+builds and smoke-tests affected profiles in CI, alongside metadata policy, dependency
+review, and static validation. Labeling remains separate. Trivy scans and publication
+happen in the shared publisher after changes reach `main`.

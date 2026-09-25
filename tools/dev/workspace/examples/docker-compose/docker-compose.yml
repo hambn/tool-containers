@@ -1,0 +1,16 @@
+# WORKSPACE="$PWD" ./compose.sh run --rm workspace
+name: workspace
+
+services:
+  workspace:
+    image: ${WORKSPACE_IMAGE:-ghcr.io/hambn/workspace:ubuntu-24.04-full}
+    command: ["zsh", "-l"]
+    volumes:
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
+    stdin_open: true
+    tty: true
+    networks: [workspace]
+
+networks:
+  workspace:
+    name: workspace

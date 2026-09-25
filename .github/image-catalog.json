@@ -1,0 +1,437 @@
+{
+  "schema": 1,
+  "images": [
+    {
+      "id": "runtime-alpine-3.21-minimal",
+      "product": "runtime",
+      "tag": "alpine-3.21-minimal",
+      "context": "tools/base/runtime/images/alpine-minimal",
+      "dockerfile": "tools/base/runtime/images/alpine-minimal/Dockerfile",
+      "deps": [],
+      "inputs": [
+        "tools/base/runtime/images/alpine-minimal/"
+      ],
+      "versions": {},
+      "bases": {
+        "RUNTIME_BASE": "docker.io/library/alpine:3.21"
+      },
+      "smoke": "minimal"
+    },
+    {
+      "id": "workspace-alpine-3.21-core",
+      "product": "workspace",
+      "tag": "alpine-3.21-core",
+      "context": "tools/dev/workspace/images",
+      "dockerfile": "tools/dev/workspace/images/alpine-core/Dockerfile",
+      "deps": [
+        "runtime-alpine-3.21-minimal"
+      ],
+      "inputs": [
+        "tools/dev/workspace/images/alpine-core/",
+        "tools/dev/workspace/images/alpine/scripts/core-packages.sh",
+        "tools/dev/workspace/images/alpine/scripts/languages.sh"
+      ],
+      "versions": {
+        "GO_VERSION": {
+          "type": "go",
+          "name": "stable"
+        },
+        "NODE_VERSION": {
+          "type": "node-lts",
+          "name": "musl"
+        },
+        "UV_VERSION": {
+          "type": "pypi",
+          "name": "uv"
+        },
+        "PNPM_VERSION": {
+          "type": "npm",
+          "name": "pnpm"
+        },
+        "YARN_VERSION": {
+          "type": "npm",
+          "name": "yarn"
+        }
+      },
+      "bases": {},
+      "smoke": "core"
+    },
+    {
+      "id": "workspace-alpine-3.21-full",
+      "product": "workspace",
+      "tag": "alpine-3.21-full",
+      "context": "tools/dev/workspace/images",
+      "dockerfile": "tools/dev/workspace/images/alpine-full/Dockerfile",
+      "deps": [
+        "workspace-alpine-3.21-core"
+      ],
+      "inputs": [
+        "tools/dev/workspace/images/alpine-full/",
+        "tools/dev/workspace/images/alpine/scripts/packages.sh",
+        "tools/dev/workspace/images/alpine/scripts/install-cli-tools.sh",
+        "tools/dev/workspace/images/alpine/scripts/configure.sh",
+        "tools/dev/workspace/images/alpine/scripts/configure-zsh.sh",
+        "tools/dev/workspace/images/common/"
+      ],
+      "versions": {
+        "GLAB_VERSION": {
+          "type": "gitlab-release",
+          "name": "glab"
+        },
+        "GH_VERSION": {
+          "type": "github-release",
+          "name": "cli/cli"
+        },
+        "ZSH_AUTOSUGGESTIONS_VERSION": {
+          "type": "git-tags",
+          "name": "zsh-users/zsh-autosuggestions"
+        },
+        "KUBECTL_VERSION": {
+          "type": "kubectl",
+          "name": "stable"
+        },
+        "HELM_VERSION": {
+          "type": "git-tags",
+          "name": "helm/helm"
+        },
+        "KUSTOMIZE_VERSION": {
+          "type": "git-tags",
+          "name": "kubernetes-sigs/kustomize"
+        },
+        "YQ_VERSION": {
+          "type": "git-tags",
+          "name": "mikefarah/yq"
+        }
+      },
+      "bases": {},
+      "smoke": "full"
+    },
+    {
+      "id": "runtime-ubuntu-24.04-minimal",
+      "product": "runtime",
+      "tag": "ubuntu-24.04-minimal",
+      "context": "tools/base/runtime/images/ubuntu-minimal",
+      "dockerfile": "tools/base/runtime/images/ubuntu-minimal/Dockerfile",
+      "deps": [],
+      "inputs": [
+        "tools/base/runtime/images/ubuntu-minimal/"
+      ],
+      "versions": {},
+      "bases": {
+        "RUNTIME_BASE": "docker.io/library/ubuntu:24.04"
+      },
+      "smoke": "minimal"
+    },
+    {
+      "id": "workspace-ubuntu-24.04-core",
+      "product": "workspace",
+      "tag": "ubuntu-24.04-core",
+      "context": "tools/dev/workspace/images",
+      "dockerfile": "tools/dev/workspace/images/ubuntu-core/Dockerfile",
+      "deps": [
+        "runtime-ubuntu-24.04-minimal"
+      ],
+      "inputs": [
+        "tools/dev/workspace/images/ubuntu-core/",
+        "tools/dev/workspace/images/ubuntu/scripts/core-packages.sh",
+        "tools/dev/workspace/images/ubuntu/scripts/languages.sh"
+      ],
+      "versions": {
+        "GO_VERSION": {
+          "type": "go",
+          "name": "stable"
+        },
+        "NODE_VERSION": {
+          "type": "node-lts",
+          "name": "glibc"
+        },
+        "UV_VERSION": {
+          "type": "pypi",
+          "name": "uv"
+        },
+        "PNPM_VERSION": {
+          "type": "npm",
+          "name": "pnpm"
+        },
+        "YARN_VERSION": {
+          "type": "npm",
+          "name": "yarn"
+        }
+      },
+      "bases": {},
+      "smoke": "core"
+    },
+    {
+      "id": "workspace-ubuntu-24.04-full",
+      "product": "workspace",
+      "tag": "ubuntu-24.04-full",
+      "context": "tools/dev/workspace/images",
+      "dockerfile": "tools/dev/workspace/images/ubuntu-full/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core"
+      ],
+      "inputs": [
+        "tools/dev/workspace/images/ubuntu-full/",
+        "tools/dev/workspace/images/ubuntu/scripts/packages.sh",
+        "tools/dev/workspace/images/ubuntu/scripts/install-cli-tools.sh",
+        "tools/dev/workspace/images/ubuntu/scripts/configure.sh",
+        "tools/dev/workspace/images/ubuntu/scripts/configure-zsh.sh",
+        "tools/dev/workspace/images/common/",
+        "tools/dev/workspace/images/ubuntu/scripts/configure-systemd.sh",
+        "tools/dev/workspace/images/ubuntu/scripts/install-tailscale.sh",
+        "tools/dev/workspace/images/ubuntu/journald-container.conf",
+        "tools/dev/workspace/images/ubuntu/systemd-container.conf",
+        "tools/dev/workspace/images/ubuntu/tmpfiles-tmp.conf"
+      ],
+      "versions": {
+        "GLAB_VERSION": {
+          "type": "gitlab-release",
+          "name": "glab"
+        },
+        "GH_VERSION": {
+          "type": "github-release",
+          "name": "cli/cli"
+        },
+        "ZSH_AUTOSUGGESTIONS_VERSION": {
+          "type": "git-tags",
+          "name": "zsh-users/zsh-autosuggestions"
+        },
+        "KUBECTL_VERSION": {
+          "type": "kubectl",
+          "name": "stable"
+        },
+        "HELM_VERSION": {
+          "type": "git-tags",
+          "name": "helm/helm"
+        },
+        "KUSTOMIZE_VERSION": {
+          "type": "git-tags",
+          "name": "kubernetes-sigs/kustomize"
+        },
+        "YQ_VERSION": {
+          "type": "git-tags",
+          "name": "mikefarah/yq"
+        }
+      },
+      "bases": {},
+      "smoke": "full"
+    },
+    {
+      "id": "codex-ubuntu-24.04",
+      "product": "codex",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/codex/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/codex/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core"
+      ],
+      "inputs": [
+        "tools/ai/codex/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "CODEX_VERSION": {
+          "type": "npm",
+          "name": "@openai/codex"
+        }
+      },
+      "bases": {},
+      "smoke": "agent"
+    },
+    {
+      "id": "claude-code-ubuntu-24.04",
+      "product": "claude-code",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/claude-code/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/claude-code/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core"
+      ],
+      "inputs": [
+        "tools/ai/claude-code/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "CLAUDE_CODE_VERSION": {
+          "type": "npm",
+          "name": "@anthropic-ai/claude-code"
+        }
+      },
+      "bases": {},
+      "smoke": "agent"
+    },
+    {
+      "id": "pi-agent-ubuntu-24.04",
+      "product": "pi-agent",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/pi-agent/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/pi-agent/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core"
+      ],
+      "inputs": [
+        "tools/ai/pi-agent/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "PI_AGENT_VERSION": {
+          "type": "npm",
+          "name": "@earendil-works/pi-coding-agent"
+        }
+      },
+      "bases": {},
+      "smoke": "agent"
+    },
+    {
+      "id": "open-code-review-ubuntu-24.04",
+      "product": "open-code-review",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/open-code-review/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/open-code-review/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core"
+      ],
+      "inputs": [
+        "tools/ai/open-code-review/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "OCR_VERSION": {
+          "type": "npm",
+          "name": "@alibaba-group/open-code-review"
+        }
+      },
+      "bases": {},
+      "smoke": "agent"
+    },
+    {
+      "id": "agentbloat-ubuntu-24.04",
+      "product": "agentbloat",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/agentbloat/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/agentbloat/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core"
+      ],
+      "inputs": [
+        "tools/ai/agentbloat/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "CODEX_VERSION": {
+          "type": "npm",
+          "name": "@openai/codex"
+        },
+        "CLAUDE_CODE_VERSION": {
+          "type": "npm",
+          "name": "@anthropic-ai/claude-code"
+        },
+        "CURSOR_AGENT_VERSION": {
+          "type": "cursor",
+          "name": "cursor-agent"
+        },
+        "GROK_VERSION": {
+          "type": "npm",
+          "name": "@xai-official/grok"
+        },
+        "OPENCODE_VERSION": {
+          "type": "npm",
+          "name": "opencode-ai"
+        },
+        "GITHUB_COPILOT_VERSION": {
+          "type": "npm",
+          "name": "@github/copilot"
+        },
+        "GEMINI_CLI_VERSION": {
+          "type": "npm",
+          "name": "@google/gemini-cli"
+        },
+        "PI_AGENT_VERSION": {
+          "type": "npm",
+          "name": "@earendil-works/pi-coding-agent"
+        },
+        "ACP_AGENT_VERSION": {
+          "type": "pypi",
+          "name": "acp-agent"
+        }
+      },
+      "bases": {},
+      "smoke": "bundle"
+    },
+    {
+      "id": "agentbloat-ubuntu-24.04-browser",
+      "product": "agentbloat",
+      "tag": "ubuntu-24.04-browser",
+      "context": "tools/ai/agentbloat/images/ubuntu-24.04-browser",
+      "dockerfile": "tools/ai/agentbloat/images/ubuntu-24.04-browser/Dockerfile",
+      "deps": [
+        "agentbloat-ubuntu-24.04"
+      ],
+      "inputs": [
+        "tools/ai/agentbloat/images/ubuntu-24.04-browser/"
+      ],
+      "versions": {},
+      "bases": {
+        "BROWSER_BASE": "docker.io/chromedp/headless-shell:stable"
+      },
+      "smoke": "browser"
+    },
+    {
+      "id": "omnigent-ubuntu-24.04",
+      "product": "omnigent",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/omnigent/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/omnigent/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core",
+        "agentbloat-ubuntu-24.04"
+      ],
+      "inputs": [
+        "tools/ai/omnigent/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "OMNIGENT_VERSION": {
+          "type": "pypi",
+          "name": "omnigent"
+        }
+      },
+      "bases": {},
+      "smoke": "agent"
+    },
+    {
+      "id": "t3code-ubuntu-24.04",
+      "product": "t3code",
+      "tag": "ubuntu-24.04",
+      "context": "tools/ai/t3code/images/ubuntu-24.04",
+      "dockerfile": "tools/ai/t3code/images/ubuntu-24.04/Dockerfile",
+      "deps": [
+        "workspace-ubuntu-24.04-core",
+        "agentbloat-ubuntu-24.04"
+      ],
+      "inputs": [
+        "tools/ai/t3code/images/ubuntu-24.04/"
+      ],
+      "versions": {
+        "T3_VERSION": {
+          "type": "npm",
+          "name": "t3"
+        }
+      },
+      "bases": {},
+      "smoke": "agent"
+    },
+    {
+      "id": "t3code-ubuntu-24.04-browser",
+      "product": "t3code",
+      "tag": "ubuntu-24.04-browser",
+      "context": "tools/ai/t3code/images/ubuntu-24.04-browser",
+      "dockerfile": "tools/ai/t3code/images/ubuntu-24.04-browser/Dockerfile",
+      "deps": [
+        "t3code-ubuntu-24.04"
+      ],
+      "inputs": [
+        "tools/ai/t3code/images/ubuntu-24.04-browser/"
+      ],
+      "versions": {},
+      "bases": {
+        "BROWSER_BASE": "docker.io/chromedp/headless-shell:stable"
+      },
+      "smoke": "browser"
+    }
+  ]
+}

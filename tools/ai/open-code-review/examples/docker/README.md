@@ -1,6 +1,6 @@
 # open-code-review · Docker
 
-Open Code Review is Alibaba's code-review CLI, packaged on the agentimg foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+Open Code Review is Alibaba's code-review CLI, packaged on the workspace foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
@@ -13,7 +13,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ```bash
 docker run -it --rm \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest
+  ghcr.io/hambn/open-code-review:ubuntu-24.04
 ```
 
 ## Files in this directory
@@ -25,7 +25,7 @@ docker run -it --rm \
 # Run OCR against the current directory.
 set -euo pipefail
 
-IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}"
+IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-24.04}"
 docker run -it --rm \
   -v "$PWD:/workspace" \
   "$IMAGE" "$@"
@@ -44,7 +44,7 @@ shift $(( $# > 0 ? 1 : 0 ))
 docker load -i "$TAR"
 docker run -it --rm --pull=never \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest "$@"
+  ghcr.io/hambn/open-code-review:ubuntu-24.04 "$@"
 ```
 
 ## More examples
@@ -60,7 +60,7 @@ OCR_IMAGE=ghcr.io/hambn/open-code-review:<tag> ./run.sh
 ### One-off non-interactive command
 
 ```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/open-code-review:latest --help
+docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/open-code-review:ubuntu-24.04 --help
 ```
 
 ### Constrain resources
@@ -71,5 +71,5 @@ docker run -it --rm \
   --memory=4g \
   --memory-swap=4g \
   -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest
+  ghcr.io/hambn/open-code-review:ubuntu-24.04
 ```

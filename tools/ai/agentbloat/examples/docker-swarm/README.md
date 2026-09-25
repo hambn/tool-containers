@@ -18,7 +18,7 @@ version: "3.8"
 
 services:
   agentbloat:
-    image: ghcr.io/hambn/agentbloat:latest
+    image: ghcr.io/hambn/agentbloat:ubuntu-24.04
     user: "1000:1000"
     cap_drop: [ALL]
     command: ["sleep", "infinity"]

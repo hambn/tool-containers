@@ -3,7 +3,7 @@ name: codex
 
 services:
   codex:
-    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}
+    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-24.04}
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
     volumes:

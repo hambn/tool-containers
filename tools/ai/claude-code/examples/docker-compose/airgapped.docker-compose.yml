@@ -1,13 +1,11 @@
-# Offline: build from the repo's Dockerfile instead of pulling a registry image.
+# Offline: load the published image tar before starting Compose.
 # Run with the credential file created in README.md:
-#   WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" -f airgapped.docker-compose.yml run --build --rm claude
+#   WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" -f airgapped.docker-compose.yml run --rm claude
 name: claude-code
 
 services:
   claude:
-    build:
-      context: ../../images/ubuntu-browser
-    image: claude-code:airgapped
+    image: ghcr.io/hambn/claude-code:ubuntu-24.04
     pull_policy: never
     container_name: claude-code
     hostname: claude-code
