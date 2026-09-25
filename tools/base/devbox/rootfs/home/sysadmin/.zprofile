@@ -1,0 +1,5 @@
+# Distribution login profiles reset PATH; restore the devbox tool paths.
+typeset -U path PATH
+path=("$HOME/.local/bin" /usr/local/bin /usr/local/go/bin $path)
+[[ -d /headless-shell ]] && path=(/headless-shell $path)
+export PATH

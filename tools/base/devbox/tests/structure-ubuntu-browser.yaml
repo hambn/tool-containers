@@ -1,0 +1,11 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  envVars:
+    - key: BROWSER_BIN
+      value: /headless-shell/headless-shell
+
+commandTests:
+  - name: headless shell executable
+    command: sh
+    args: ["-c", "test -x \"$BROWSER_BIN\""]

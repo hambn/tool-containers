@@ -1,0 +1,38 @@
+# kubectl apply -f pod.yaml && kubectl exec -it devbox -- zsh -l
+apiVersion: v1
+kind: Pod
+metadata:
+  name: devbox
+  labels:
+    app.kubernetes.io/name: devbox
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: devbox
+      image: ghcr.io/hambn/devbox:ubuntu-full
+      imagePullPolicy: Always
+      command: ["sleep", "infinity"]
+      workingDir: /workspace
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+  volumes:
+    - name: workspace
+      emptyDir: {}

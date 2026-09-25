@@ -1,0 +1,8 @@
+# Applied after the Oh My Zsh libraries so devbox history and shell options win.
+setopt AUTO_CD AUTO_PUSHD HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS
+setopt INTERACTIVE_COMMENTS PROMPT_SUBST SHARE_HISTORY
+
+HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+HISTSIZE=10000
+SAVEHIST=10000
+KEYTIMEOUT=1

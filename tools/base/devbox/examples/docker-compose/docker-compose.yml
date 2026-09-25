@@ -1,0 +1,16 @@
+# WORKSPACE="$PWD" docker compose run --rm devbox
+name: devbox
+
+services:
+  devbox:
+    image: ghcr.io/hambn/devbox:${DEVBOX_VARIANT:-ubuntu-full}
+    working_dir: /workspace
+    volumes:
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
+      - home:/home/sysadmin
+    shm_size: 1g
+    stdin_open: true
+    tty: true
+
+volumes:
+  home:
