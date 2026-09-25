@@ -1,0 +1,18 @@
+name: Set up the CI CLI
+description: >-
+  Build src/ci for the runner's architecture and put `ci` on PATH. Every job builds
+  its own copy from the checked-out commit, so no job depends on a file produced by
+  another runner. The Go module and build caches make repeat builds take seconds.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      with:
+        go-version-file: src/ci/go.mod
+        cache-dependency-path: src/ci/go.sum
+    - name: Build ci
+      shell: bash
+      working-directory: src/ci
+      run: |
+        go build -trimpath -o "$RUNNER_TEMP/bin/ci" ./cmd/ci
+        echo "$RUNNER_TEMP/bin" >>"$GITHUB_PATH"

@@ -8,19 +8,16 @@ name: Test and build
 on:
   pull_request:
     paths: &image-paths
-      - "tools/**"
+      - "src/tools/**"
       - ".github/workflows/images.yml"
-      - ".github/scripts/plan.py"
-      - ".github/scripts/bake.sh"
-      - ".github/scripts/build-tools.sh"
-      - ".github/scripts/publish.sh"
+      - "src/ci/**"
   push:
     branches: [main]
     paths: *image-paths
   workflow_dispatch:
     inputs:
       targets:
-        description: Space-separated published bake targets or groups (see tools/docker-bake.hcl).
+        description: Space-separated published bake targets or groups (see src/tools/docker-bake.hcl).
         required: true
         default: all
         type: string
@@ -47,6 +44,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           driver: docker # Planning only renders local Bake files.
@@ -57,7 +60,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
           DISPATCH_TARGETS: ${{ inputs.targets }}
-        run: python3 .github/scripts/plan.py
+        run: '"$RUNNER_TEMP/ci" plan'
 
   test-and-build:
     name: ${{ matrix.job.name }}
@@ -86,6 +89,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       # tonistiigi/binfmt registers with the F flag (usable inside containers) and the
       # C flag (setuid programs such as sudo keep their credentials).
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -93,9 +102,7 @@ jobs:
           image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
           platforms: arm64
       - name: Check arm64 emulation
-        run: |
-          grep -q '^flags: .*C' /proc/sys/fs/binfmt_misc/qemu-aarch64
-          grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
+        run: '"$RUNNER_TEMP/ci" qemu-check'
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Log in to GHCR
         if: env.TRUSTED == 'true'
@@ -107,18 +114,14 @@ jobs:
 
       - name: Install container-structure-test
         timeout-minutes: 2
-        run: |
-          set -euo pipefail
-          curl -fsSLo /tmp/cst https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-amd64
-          echo 'fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca  /tmp/cst' | sha256sum -c -
-          sudo install -m 0755 /tmp/cst /usr/local/bin/container-structure-test
+        run: '"$RUNNER_TEMP/ci" install cst'
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
           version: v0.70.0
           cache: true
 
       - name: Test and build
-        run: .github/scripts/build-tools.sh
+        run: '"$RUNNER_TEMP/ci" build'
 
       # Each architecture logs to a file that is printed when it finishes; keep the
       # files when a job fails or times out before printing them.
@@ -134,10 +137,7 @@ jobs:
       - name: Find scan reports
         id: reports
         if: ${{ !cancelled() }}
-        run: |
-          if compgen -G "$RESULT_DIR/sarif/*.sarif" >/dev/null; then
-              echo 'present=true' >>"$GITHUB_OUTPUT"
-          fi
+        run: '"$RUNNER_TEMP/ci" reports'
       - name: Upload Trivy SARIF
         if: ${{ !cancelled() && env.TRUSTED == 'true' && steps.reports.outputs.present == 'true' }}
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
@@ -172,6 +172,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           driver: docker # Manifest operations do not need a BuildKit container.
@@ -196,17 +202,14 @@ jobs:
       - name: Create, mirror, and sign the multi-arch indexes
         env:
           TARGETS: ${{ needs.plan.outputs.targets }}
-        run: .github/scripts/publish.sh /tmp/digests /tmp/subjects.txt
+        run: '"$RUNNER_TEMP/ci" publish /tmp/digests /tmp/subjects.txt'
 
       # One attestation covers every published index, on GHCR and Docker Hub names;
       # `gh attestation verify oci://<image>` finds it by digest.
       - name: Find published images
         id: subjects
         if: ${{ !cancelled() }}
-        run: |
-          if [ -s /tmp/subjects.txt ]; then
-              echo 'present=true' >>"$GITHUB_OUTPUT"
-          fi
+        run: '"$RUNNER_TEMP/ci" subjects /tmp/subjects.txt'
       - name: Attest build provenance
         if: ${{ !cancelled() && steps.subjects.outputs.present == 'true' }}
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2

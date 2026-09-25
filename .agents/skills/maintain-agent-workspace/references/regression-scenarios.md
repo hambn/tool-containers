@@ -10,7 +10,7 @@ enough.
 |---|---|
 | “Where should a new repository-wide config live?” | `repository-map`, then `repository-changes` if implementing |
 | “Update the Codex Dockerfile's alpine stage and its tests.” | `repository-changes` + `container-images` |
-| “Bump Claude Code to the latest release.” | `container-images` versions guide; edit `tools/versions.hcl` only |
+| “Bump Claude Code to the latest release.” | `container-images` versions guide; edit `src/tools/versions.hcl` only |
 | “Add a Helm example for pi-agent.” | `container-images` (Job, not Deployment) + `documentation` |
 | “Rewrite the codex README Images section.” | `documentation`; `container-images` only for tag facts |
 | “Scaffold the empty web app.” | `repository-changes` + `web-ui`, then maintainer audit |

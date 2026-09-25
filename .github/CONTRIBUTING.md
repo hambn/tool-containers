@@ -9,7 +9,7 @@ Before opening a pull request:
 2. Keep credentials and generated runtime state out of the repository.
 3. Update affected documentation and agent guidance when a reusable repository
    contract changes.
-4. Run `bash .agents/skills/repository-changes/scripts/validate-change.sh`.
+4. Run `cd src/ci && go test ./...`, then build the CLI and run `ci validate` from the repository root.
 
 Describe the change and list exact validation in the pull request body. The
 `Pull request gate` check validates PR metadata, dependency changes, and repository

@@ -12,7 +12,7 @@ Each durable fact has one canonical owner:
 | Repository orientation and file placement | `repository-map` |
 | Container projects, build graph and pins, deployments, and image delivery | `container-images` |
 | Written README and documentation standards and cross-links | `documentation` |
-| The application under `web-ui/` | `web-ui` |
+| The application under `src/web-ui/` | `web-ui` |
 | Change isolation, validation, commits, and pull requests | `repository-changes` |
 
 Link to the owner instead of copying its details into another skill. A short dependency

@@ -24,6 +24,12 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
 
       - name: Validate pull request title and description
         if: github.event_name == 'pull_request'
@@ -31,7 +37,7 @@ jobs:
           ACTOR: ${{ github.actor }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: python3 .github/scripts/validate_pr_metadata.py
+        run: '"$RUNNER_TEMP/ci" pr'
 
       - name: Review dependency changes
         if: github.event_name == 'pull_request'
@@ -39,11 +45,10 @@ jobs:
         with:
           fail-on-severity: high
 
-      - name: Install validation dependency
-        run: python3 -m pip install --disable-pip-version-check --no-cache-dir -r .github/requirements.txt
-
+      - name: Test Go CI
+        run: cd src/ci && go test ./...
       - name: Validate repository contracts
-        run: python3 .github/scripts/check-repo.py
+        run: '"$RUNNER_TEMP/ci" validate'
 
   lint:
     name: Lint
@@ -55,48 +60,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
 
+      - name: Go vet
+        run: cd src/ci && go vet ./...
       - name: Install linters
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/lint/bin
-          cd /tmp/lint
-          fetch() {
-              curl -fsSLo "$1" "$2"
-              echo "$3  $1" | sha256sum -c -
-          }
-          fetch actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
-              8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-          tar -xzf actionlint.tar.gz -C bin actionlint
-          fetch bin/hadolint https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64 \
-              c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
-          fetch shellcheck.tar.gz https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz \
-              b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
-          tar -xzf shellcheck.tar.gz --strip-components=1 -C bin shellcheck-v0.11.0/shellcheck
-          fetch bin/shfmt https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64 \
-              76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf
-          chmod +x bin/*
-          echo /tmp/lint/bin >>"$GITHUB_PATH"
-
-      - name: actionlint
-        run: actionlint -color
-
-      # Ignored by design: bases and stages arrive as bake args and named contexts
-      # (DL3006, DL3022), the config layer is a whole-rootfs copy (DL3067), payload
-      # stages end as root and the published stage sets the user (DL3002, DL3066),
-      # and OS packages float with OS_REFRESH instead of version pins (DL3008, DL3018).
-      - name: hadolint
-        run: >-
-          git ls-files -z 'tools/**/Dockerfile' | xargs -0 -r hadolint
-          --ignore DL3002 --ignore DL3006 --ignore DL3008 --ignore DL3018
-          --ignore DL3022 --ignore DL3066 --ignore DL3067
-
-      - name: shellcheck
-        run: git ls-files -z '*.sh' | xargs -0 -r shellcheck
-
-      - name: shfmt
-        run: git ls-files -z '*.sh' | xargs -0 -r shfmt -d -i 4
-
+        run: '"$RUNNER_TEMP/ci" install linters'
+      - name: Lint repository
+        run: '"$RUNNER_TEMP/ci" lint'
       - name: zizmor
         uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
         with:

@@ -3,14 +3,14 @@
   extends: ["config:recommended", "helpers:pinGitHubActionDigests"],
   semanticCommits: "enabled",
   platformAutomerge: true,
-  // validate_pr_metadata.py requires these sections in every non-Dependabot PR body.
+  // The Go PR metadata validator requires these sections in every non-Dependabot PR body.
   prHeader: "## Summary\n\nAutomated dependency update by Renovate; details below.",
   prFooter: "## Validation\n\n- The pull request gate and the images workflow build, test, and scan every affected image on this pull request.",
   customManagers: [
     {
       // Container images pinned as name:tag@sha256:digest.
       customType: "regex",
-      description: "Base images in tools/versions.hcl",
+      description: "Base images in src/tools/versions.hcl",
       managerFilePatterns: ["/(^|/)versions\\.hcl$/"],
       matchStrings: [
         '# renovate: datasource=(?<datasource>docker) depName=(?<depName>\\S+)\\nvariable "\\w+" \\{\\n\\s+default = "[^":]+:(?<currentValue>[^"@]+)@(?<currentDigest>sha256:[a-f0-9]{64})"',
@@ -19,7 +19,7 @@
     {
       // Plain versions; the value must not contain a digest.
       customType: "regex",
-      description: "Tool versions in tools/versions.hcl",
+      description: "Tool versions in src/tools/versions.hcl",
       managerFilePatterns: ["/(^|/)versions\\.hcl$/"],
       matchStrings: [
         '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?(?: extractVersion=(?<extractVersion>\\S+))?\\nvariable "\\w+" \\{\\n\\s+default = "(?<currentValue>[^"@]+)"',
@@ -28,7 +28,7 @@
     {
       // Git commits tracked against a branch (currentValue) with the commit as digest.
       customType: "regex",
-      description: "Git commit pins in tools/versions.hcl",
+      description: "Git commit pins in src/tools/versions.hcl",
       managerFilePatterns: ["/(^|/)versions\\.hcl$/"],
       matchStrings: [
         '# renovate: datasource=(?<datasource>git-refs) depName=(?<depName>\\S+) currentValue=(?<currentValue>\\S+)\\nvariable "\\w+" \\{\\n\\s+default = "(?<currentDigest>[a-f0-9]{40})"',
@@ -54,7 +54,7 @@
     },
     {
       description: "Agent CLIs: automerge minor and patch updates once CI passes",
-      matchFileNames: ["tools/versions.hcl"],
+      matchFileNames: ["src/tools/versions.hcl"],
       matchDatasources: ["npm", "pypi", "custom.cursor-agent"],
       matchDepNames: [
         "@anthropic-ai/claude-code",
@@ -75,7 +75,7 @@
     },
     {
       description: "Base images and the devbox toolchain: one weekly group",
-      matchFileNames: ["tools/versions.hcl"],
+      matchFileNames: ["src/tools/versions.hcl"],
       matchDepNames: [
         "docker.io/library/alpine",
         "docker.io/library/ubuntu",
@@ -121,15 +121,9 @@
     {
       description: "Web UI npm dependencies",
       matchManagers: ["npm"],
-      matchFileNames: ["web-ui/**"],
+      matchFileNames: ["src/web-ui/**"],
       groupName: "web-ui dependencies",
       semanticCommitScope: "web-ui",
-    },
-    {
-      description: "Validation dependency",
-      matchManagers: ["pip_requirements"],
-      semanticCommitType: "chore",
-      semanticCommitScope: "python",
     },
     {
       description: "Our own images in examples use moving tags on purpose",

@@ -1,0 +1,2 @@
+# Upstream bundle the Trivy gate skips; see src/tools/base/devbox/tests/trivy-skip-files.txt.
+**/usr/local/lib/node_modules/@github/copilot/**

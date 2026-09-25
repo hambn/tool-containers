@@ -11,12 +11,12 @@ Every image is published to both registries with identical tags:
 
 `<repo>` is the tool name (`core`, `devbox`, `codex`, …). Build cache lives at
 `ghcr.io/hambn/buildcache` and is never a published image. Add a registry only by
-changing `tools/docker-bake.hcl` namespaces, CI authentication, documentation, and validation
+changing `src/tools/docker-bake.hcl` namespaces, CI authentication, documentation, and validation
 together.
 
 ## Tags
 
-Tags are computed in `tools/docker-bake.hcl` (`base_tags`, `agent_tags`); CI selects which set
+Tags are computed in `src/tools/docker-bake.hcl` (`base_tags`, `agent_tags`); CI selects which set
 to push with `TAG_SET` (`all`, `moving`, `immutable`).
 
 | Kind | Base images (core, devbox, agentbloat) | Agent images |
@@ -41,7 +41,7 @@ push, delete, or repoint them. Mention them only in a short deprecation note.
 
 ## Labels
 
-`tools/docker-bake.hcl` sets labels through `oci_labels`:
+`src/tools/docker-bake.hcl` sets labels through `oci_labels`:
 
 - OCI keys: `org.opencontainers.image.{title,description,source,url,documentation,
   licenses,vendor,version,revision,created,base.name}` (core adds `base.digest`).
@@ -49,7 +49,7 @@ push, delete, or repoint them. Mention them only in a short deprecation note.
   `io.github.hambn.containers.tool.<name>.version` for each pinned tool.
 
 Labels are informational only. CI planning, tagging, and tests must not read them to
-make decisions; the source of truth is `tools/docker-bake.hcl` plus `tools/versions.hcl`.
+make decisions; the source of truth is `src/tools/docker-bake.hcl` plus `src/tools/versions.hcl`.
 
 Helm charts stay local. If chart publication is ever enabled, use
 `oci://ghcr.io/hambn/charts/<tool>` and update chart docs and automation together.

@@ -34,19 +34,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - name: List published repositories and moving tags
         id: catalog
-        run: |
-          set -euo pipefail
-          bake=$(TAG_SET=moving .github/scripts/bake.sh --print all)
-          repos=$(jq -c '[.target[] | select(any(.tags[]?; startswith("ghcr.io/") and endswith(":latest"))) | {
-              repo: (.tags[0] | split("/")[-1] | split(":")[0]),
-              readme: "\(.context)/README.md",
-              description: .labels["org.opencontainers.image.description"][0:100]
-          }] | sort_by(.repo)' <<<"$bake")
-          refs=$(jq -c '[.target[].tags[]? | select(startswith("ghcr.io/") and (endswith(":latest") | not))] | sort' <<<"$bake")
-          echo "repos=$repos" >>"$GITHUB_OUTPUT"
-          echo "refs=$refs" >>"$GITHUB_OUTPUT"
+        run: '"$RUNNER_TEMP/ci" catalog'
 
   rescan:
     name: Rescan published images
@@ -61,6 +57,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
           version: v0.70.0
@@ -70,23 +72,7 @@ jobs:
         id: scan
         env:
           REFS: ${{ needs.catalog.outputs.refs }}
-        run: |
-          set -euo pipefail
-          vulnerable=false
-          for ref in $(jq -r '.[]' <<<"$REFS"); do
-              echo "::group::$ref"
-              status=0
-              trivy image --quiet --image-src remote --platform linux/amd64 \
-                  --pkg-types os --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
-                  --ignorefile tools/trivyignore.yaml --exit-code 2 "$ref" || status=$?
-              echo "::endgroup::"
-              case "$status" in
-                  0) ;;
-                  2) vulnerable=true && echo "::warning::$ref has fixable HIGH/CRITICAL OS vulnerabilities" ;;
-                  *) exit "$status" ;;
-              esac
-          done
-          echo "vulnerable=$vulnerable" >>"$GITHUB_OUTPUT"
+        run: '"$RUNNER_TEMP/ci" rescan'
 
   os-refresh:
     name: Open OS refresh pull request
@@ -101,37 +87,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - name: Bump OS_REFRESH and open the pull request
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          branch=maintenance/os-refresh
-          today=$(date -u +%F)
-          sed -i -E '/^variable "OS_REFRESH"/,/^}/ s/(default = ")[^"]*"/\1'"$today"'"/' tools/versions.hcl
-          if git diff --quiet; then
-              echo "OS_REFRESH is already $today"
-              exit 0
-          fi
-          title="fix(images): refresh OS packages ($today)"
-          git switch -C "$branch"
-          git -c user.name='github-actions[bot]' \
-              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-              commit --all --message "$title"
-          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
-              push --force "https://github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$branch"
-          body=$(printf '%s\n' \
-              '## Summary' '' \
-              "- The weekly rescan found fixable HIGH/CRITICAL OS vulnerabilities in published images; set OS_REFRESH to $today to rebuild every OS package layer." '' \
-              '## Validation' '' \
-              '- The images workflow rebuilds, tests, and rescans every image on this pull request.')
-          number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')
-          if [ -n "$number" ]; then
-              gh pr edit "$number" --title "$title" --body "$body"
-          else
-              gh pr create --base main --head "$branch" --title "$title" --body "$body"
-          fi
+        run: '"$RUNNER_TEMP/ci" os-refresh'
 
   ghcr-cleanup:
     name: Prune untagged GHCR versions
@@ -145,6 +110,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
@@ -155,12 +126,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOS: ${{ needs.catalog.outputs.repos }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
-        run: |
-          set -euo pipefail
-          args=()
-          if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
-          mapfile -t packages < <(jq -r '.[].repo' <<<"$REPOS")
-          python3 .github/scripts/ghcr-cleanup.py "${args[@]}" "${packages[@]}"
+        run: '"$RUNNER_TEMP/ci" cleanup-catalog'
 
   hub-readme:
     name: Sync Docker Hub README for ${{ matrix.image.repo }}
@@ -178,10 +144,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: src/ci/go.mod
+          cache-dependency-path: src/ci/go.sum
+      - name: Build CI CLI
+        run: cd src/ci && go build -o "$RUNNER_TEMP/ci" ./cmd/ci
       - name: Rewrite repository links
         env:
           README: ${{ matrix.image.readme }}
-        run: python3 .github/scripts/hub-readme.py "$README" >"$RUNNER_TEMP/README.md"
+        run: '"$RUNNER_TEMP/ci" hub-readme "$README" >"$RUNNER_TEMP/README.md"'
       - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}

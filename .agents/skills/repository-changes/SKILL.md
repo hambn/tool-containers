@@ -29,7 +29,7 @@ for the current phase:
    documentation drift.
 5. Invoke `$maintain-agent-workspace` for its final audit. Update agent guidance only
    when a durable contract changed.
-6. Run [the change validator](scripts/validate-change.sh) plus any targeted checks from
+6. Run [the Go validator](references/verification.md) plus any targeted checks from
    the verification guide. State every skipped check and its reason.
 7. Deliver the task: commit on the task branch, push it, and open a pull request to
    `main` as described in the commits and pull requests guide. Skip publication only
