@@ -2,7 +2,7 @@
 
 Interactive Ubuntu and Alpine development and CI images in three tiers, built on
 [core](../core/README.md). Every [agent image](../../../README.md) in this repository
-starts from a devbox payload and ends with the devbox configuration layer.
+builds `FROM` a published devbox image.
 
 ## Contents
 
@@ -26,7 +26,7 @@ starts from a devbox payload and ends with the devbox configuration layer.
 
 Pull from `ghcr.io/hambn/devbox:<tag>` or `docker.io/hambn/devbox:<tag>`. Moving tags
 follow `main`; dated `<variant>-<YYYYMMDD>-<sha7>` tags are immutable. Every tool version
-is pinned in [`versions.hcl`](../../versions.hcl) and recorded on full and browser
+is pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults and recorded on full and browser
 images as `io.github.hambn.containers.tool.<name>.version` labels.
 
 ## Tiers
@@ -74,6 +74,7 @@ lingering for `sysadmin`, and hardware, getty, and update units masked.
 
 - [`README.md`](README.md)
 - [`Dockerfile`](Dockerfile)
+- [`docker-bake.hcl`](docker-bake.hcl)
 - `packages/`
   - [`lite-ubuntu.txt`](packages/lite-ubuntu.txt), [`lite-alpine.txt`](packages/lite-alpine.txt)
   - [`full-ubuntu.txt`](packages/full-ubuntu.txt), [`full-alpine.txt`](packages/full-alpine.txt)
@@ -111,7 +112,7 @@ lingering for `sysadmin`, and hardware, getty, and update units masked.
   - `kubernetes/` — [`README.md`](examples/kubernetes/README.md), [`pod.yaml`](examples/kubernetes/pod.yaml)
   - `helm/` — [`README.md`](examples/helm/README.md)
     - `chart/` — [`Chart.yaml`](examples/helm/chart/Chart.yaml), [`values.yaml`](examples/helm/chart/values.yaml), [`templates/statefulset.yaml`](examples/helm/chart/templates/statefulset.yaml)
-- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml)
+- [`.github/workflows/base-devbox.yml`](../../../.github/workflows/base-devbox.yml)
 
 ## Sources
 

@@ -40,7 +40,7 @@ Every variant pins and installs:
 | Pi | `pi` | npm `@earendil-works/pi-coding-agent` |
 | ACP Agent | `acp-agent` | PyPI `acp-agent` in `/opt/uv-tools`, with `agent-client-protocol` held at a compatible release |
 
-Pins live in [`versions.hcl`](../../versions.hcl) and are recorded as `io.github.hambn.containers.tool.<name>.version` image labels. Cursor publishes no checksum for its tarball, so that download is pinned by version only. Everything else — Git, GitHub/GitLab CLIs, Docker tooling, Python, Go, Node.js, and the optional browser — comes from [`devbox`](../../base/devbox/).
+Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as `io.github.hambn.containers.tool.<name>.version` image labels. Cursor publishes no checksum for its tarball, so that download is pinned by version only. Everything else — Git, GitHub/GitLab CLIs, Docker tooling, Python, Go, Node.js, and the optional browser — comes from [`devbox`](../../base/devbox/).
 
 ## Use cases
 
@@ -52,6 +52,7 @@ Pins live in [`versions.hcl`](../../versions.hcl) and are recorded as `io.github
 ## File map
 
 - [`Dockerfile`](./Dockerfile)
+- [`docker-bake.hcl`](./docker-bake.hcl)
 - [`README.md`](./README.md)
 - [`examples/`](./examples/)
   - [`docker-compose/`](./examples/docker-compose/)
@@ -79,7 +80,7 @@ Pins live in [`versions.hcl`](../../versions.hcl) and are recorded as `io.github
 - [`tests/`](./tests/)
   - [`structure-alpine.yaml`](./tests/structure-alpine.yaml)
   - [`structure.yaml`](./tests/structure.yaml)
-- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml) — builds, tests, and publishes every variant
+- [`.github/workflows/ai-agentbloat.yml`](../../../.github/workflows/ai-agentbloat.yml) — builds, tests, and publishes every variant
 
 ## Sources
 
