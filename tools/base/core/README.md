@@ -24,7 +24,7 @@ tzdata, curl, bash, and an unprivileged `nonroot` user. `core` is also the base 
 Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Moving tags
 (`wolfi`, `alpine`, `ubuntu`, `latest`) follow `main`; the dated `<variant>-<YYYYMMDD>-<sha7>`
 tags are immutable. Base-image digests and the OS package refresh date are pinned in
-[`versions.hcl`](../../../versions.hcl).
+[`versions.hcl`](../../versions.hcl).
 
 ## Hardening
 

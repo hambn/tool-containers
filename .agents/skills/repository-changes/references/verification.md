@@ -8,7 +8,7 @@ bash .agents/skills/repository-changes/scripts/validate-change.sh
 
 The wrapper runs the static repository validator `.github/scripts/check-repo.py` and
 whitespace checks for staged and unstaged changes. The validator covers agent-workspace
-integrity, workflow YAML, Dockerfile and bake contracts, `versions.hcl` pins, test
+integrity, workflow YAML, Dockerfile and bake contracts, `tools/versions.hcl` pins, test
 layout, executable bits, Markdown links, and Compose/Helm rendering when those tools are
 available. It never builds, pulls, or runs an image.
 
@@ -18,13 +18,12 @@ them locally when installed; otherwise say they are left to CI.
 
 ## Targeted checks
 
-- **Images:** render the graph with
-  `docker buildx bake -f docker-bake.hcl -f versions.hcl --print <target>` and inspect
-  contexts, args, tags, and labels. Building and running images is CI's job
+- **Images:** render the graph with `.github/scripts/bake.sh --print <target>` and
+  inspect contexts, args, tags, and labels. Building and running images is CI's job
   (`images.yml` builds, tests, and scans affected targets); do it locally only when the
   user authorizes it.
 - **Image CI:** run `.github/scripts/test_plan.py` after changing the planner, the bake
-  graph shape, or tool paths. Run `.github/scripts/test_build_tool.py` after changing
+  graph shape, or tool paths. Run `.github/scripts/test_build_tools.py` after changing
   build/test/scan/export orchestration; it uses fake executables and no network.
 - **Deployment examples:** render or lint the affected format and inspect secrets,
   mounts, image references, and offline behavior.

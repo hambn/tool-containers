@@ -1,7 +1,7 @@
 # Every pinned input of every image. Renovate updates the values through the
-# `# renovate:` comment on the line above each one (see renovate.json5).
-# Load together with docker-bake.hcl:
-#   docker buildx bake -f docker-bake.hcl -f versions.hcl --print <target>
+# `# renovate:` comment on the line above each one (see .github/renovate.json5).
+# Load together with docker-bake.hcl, from the repository root:
+#   .github/scripts/bake.sh --print <target>
 
 # Bump to rebuild every OS package layer without changing any other pin. The weekly
 # maintenance workflow opens a PR that sets it to the current date when Trivy finds

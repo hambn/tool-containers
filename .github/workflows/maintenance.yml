@@ -38,7 +38,7 @@ jobs:
         id: catalog
         run: |
           set -euo pipefail
-          bake=$(TAG_SET=moving docker buildx bake -f docker-bake.hcl -f versions.hcl --print all)
+          bake=$(TAG_SET=moving .github/scripts/bake.sh --print all)
           repos=$(jq -c '[.target[] | select(any(.tags[]?; startswith("ghcr.io/") and endswith(":latest"))) | {
               repo: (.tags[0] | split("/")[-1] | split(":")[0]),
               readme: "\(.context)/README.md",
@@ -78,7 +78,7 @@ jobs:
               status=0
               trivy image --quiet --image-src remote --platform linux/amd64 \
                   --pkg-types os --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
-                  --ignorefile .trivyignore.yaml --exit-code 2 "$ref" || status=$?
+                  --ignorefile tools/trivyignore.yaml --exit-code 2 "$ref" || status=$?
               echo "::endgroup::"
               case "$status" in
                   0) ;;
@@ -108,7 +108,7 @@ jobs:
           set -euo pipefail
           branch=maintenance/os-refresh
           today=$(date -u +%F)
-          sed -i -E '/^variable "OS_REFRESH"/,/^}/ s/(default = ")[^"]*"/\1'"$today"'"/' versions.hcl
+          sed -i -E '/^variable "OS_REFRESH"/,/^}/ s/(default = ")[^"]*"/\1'"$today"'"/' tools/versions.hcl
           if git diff --quiet; then
               echo "OS_REFRESH is already $today"
               exit 0

@@ -8,10 +8,10 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 | One reusable agent capability | `.agents/skills/<skill>/SKILL.md` |
 | Conditional skill detail or deterministic helper | That skill's `references/` or `scripts/` |
 | Public repository catalog | `README.md` |
-| Image build target, tags, labels | `docker-bake.hcl` |
-| Any pinned version, base digest, or `OS_REFRESH` | `versions.hcl` |
-| Update-bot rules and custom datasources | `renovate.json5` |
-| Vulnerability exceptions | `.trivyignore.yaml` |
+| Image build target, tags, labels | `tools/docker-bake.hcl` |
+| Any pinned version, base digest, or `OS_REFRESH` | `tools/versions.hcl` |
+| Update-bot rules and custom datasources | `.github/renovate.json5` |
+| Vulnerability exceptions | `tools/trivyignore.yaml` |
 | Human GitHub policy/template | `.github/` |
 | Repository validation or CI helper (+ its tests) | `.github/scripts/` |
 | GitHub automation | `.github/workflows/` |
@@ -23,15 +23,15 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 
 ## Coupled changes
 
-- Adding an image tool changes its directory, a `docker-bake.hcl` target plus group
-  membership, its `versions.hcl` pin, and one root catalog row. It does not add a
+- Adding an image tool changes its directory, a `tools/docker-bake.hcl` target plus group
+  membership, its `tools/versions.hcl` pin, and one root catalog row. It does not add a
   workflow.
 - Adding or renaming a variant changes the bake matrix, Dockerfile stages, tests, tool
   README, and every affected example.
-- Bumping a version changes only `versions.hcl` (plus README text that states it).
+- Bumping a version changes only `tools/versions.hcl` (plus README text that states it).
 - Adding a platform example changes only the owning tool and its file map.
 - Adding a repository skill changes its own directory; update `AGENTS.md` only for a
-  mandatory or deliberately always-on route, and `CLAUDE.md`, docs, or CI only when
+  mandatory or deliberately always-on route, and docs or CI only when
   discovery or validation paths change.
 
 ## Placement rules

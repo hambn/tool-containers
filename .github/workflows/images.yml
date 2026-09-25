@@ -1,19 +1,18 @@
 name: Test and build
 
-# Plan the affected Bake targets, then test and build every tool on native amd64
-# and arm64 runners: one job per tool and architecture, covering all of the tool's
-# selected variants. Only main publishes the verified digests as multi-arch images.
+# Plan the affected Bake targets, then test and build them on native amd64 and arm64
+# runners. The planner packs the affected tools into at most eight jobs per
+# architecture (one tool per job while they fit), so the job count stays bounded as
+# tools are added. Only main publishes the verified digests as multi-arch images, in
+# one job.
 on:
   pull_request:
     paths: &image-paths
-      - "docker-bake.hcl"
-      - "versions.hcl"
       - "tools/**"
-      - ".trivyignore.yaml"
       - ".github/workflows/images.yml"
       - ".github/scripts/plan.py"
-      - ".github/scripts/bake-env.sh"
-      - ".github/scripts/build-tool.sh"
+      - ".github/scripts/bake.sh"
+      - ".github/scripts/build-tools.sh"
       - ".github/scripts/publish.sh"
   push:
     branches: [main]
@@ -21,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: Space-separated published bake targets or groups (see docker-bake.hcl).
+        description: Space-separated published bake targets or groups (see tools/docker-bake.hcl).
         required: true
         default: all
         type: string
@@ -41,7 +40,7 @@ jobs:
       contents: read
     outputs:
       targets: ${{ steps.plan.outputs.targets }}
-      tools: ${{ steps.plan.outputs.tools }}
+      jobs: ${{ steps.plan.outputs.jobs }}
       publish: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,11 +60,11 @@ jobs:
         run: python3 .github/scripts/plan.py
 
   test-and-build:
-    name: ${{ matrix.tool.name }} (${{ matrix.arch }})
+    name: ${{ matrix.job.name }} (${{ matrix.arch }})
     needs: plan
     if: needs.plan.outputs.targets != '[]'
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
       packages: write # Needed to push digests and cache when publishing.
@@ -73,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.plan.outputs.tools) }}
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -83,13 +82,14 @@ jobs:
             runner: ubuntu-24.04-arm
             cst-sha256: 801826ed107222120eb6df8c143b7de752cfebbe3aebfeea576e7098486917c2
     env:
-      TARGETS: ${{ toJSON(matrix.tool.targets) }}
+      TARGETS: ${{ toJSON(matrix.job.targets) }}
       ARCH: ${{ matrix.arch }}
       SCAN: ${{ matrix.arch == 'amd64' }}
-      PR_BUILD: ${{ github.event_name == 'pull_request' }}
       PUBLISH: ${{ needs.plan.outputs.publish }}
       TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
       RESULT_DIR: /tmp/image-results
+      # Main writes the registry cache after tests pass; every build reads it.
+      CACHE_REF: ghcr.io/hambn/buildcache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -102,9 +102,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Export bake variables
-        run: .github/scripts/bake-env.sh
 
       - name: Install container-structure-test
         timeout-minutes: 2
@@ -121,22 +118,8 @@ jobs:
           version: v0.70.0
           cache: true
 
-      # JavaScript actions receive the runtime credentials needed by BuildKit's
-      # GHA cache backend; ordinary shell steps do not. PR caches use ref isolation.
-      - name: Enable pull request build cache
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            for (const name of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL']) {
-              const value = process.env[name];
-              if (!value) throw new Error(`Missing ${name}`);
-              if (name === 'ACTIONS_RUNTIME_TOKEN') core.setSecret(value);
-              core.exportVariable(name, value);
-            }
-
       - name: Test and build
-        run: .github/scripts/build-tool.sh
+        run: .github/scripts/build-tools.sh
 
       - name: Find scan reports
         id: reports
@@ -151,31 +134,30 @@ jobs:
         with:
           sarif_file: /tmp/image-results/sarif
 
+      # Tools that passed leave digests even when another tool in the job failed.
       - name: Upload digests
-        if: needs.plan.outputs.publish == 'true'
+        if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: digest-${{ matrix.tool.artifact }}-${{ matrix.arch }}
+          name: digests-${{ matrix.job.id }}-${{ matrix.arch }}
           path: /tmp/image-results/digests/*
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 1
 
+  # Publishes every target whose tool passed on both architectures, so one broken
+  # tool does not hold back the others; the run still fails for it.
   publish:
-    name: Publish ${{ matrix.target }}
+    name: Publish
     needs: [plan, test-and-build]
-    if: needs.plan.outputs.publish == 'true' && needs.plan.outputs.targets != '[]'
+    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.plan.outputs.targets != '[]' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 120
     environment: dockerhub
     permissions:
       contents: read
-      packages: write # Needed to create GHCR tags and push signatures and attestations.
+      packages: write # Needed to create GHCR tags and push signatures.
       id-token: write # Needed for keyless cosign signing and provenance attestations.
       attestations: write # Needed to record provenance attestations.
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJSON(needs.plan.outputs.targets) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -186,7 +168,7 @@ jobs:
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: digest-*
+          pattern: digests-*
           merge-multiple: true
           path: /tmp/digests
       - name: Log in to GHCR
@@ -201,27 +183,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Export bake variables
-        run: .github/scripts/bake-env.sh
-
-      - name: Create and mirror the multi-arch index
-        id: publish
+      - name: Create, mirror, and sign the multi-arch indexes
         env:
-          TARGET: ${{ matrix.target }}
-        run: .github/scripts/publish.sh "$TARGET" /tmp/digests
+          TARGETS: ${{ needs.plan.outputs.targets }}
+        run: .github/scripts/publish.sh /tmp/digests /tmp/subjects.txt
 
-      - name: Sign
-        env:
-          REPO: ${{ steps.publish.outputs.repo }}
-          DIGEST: ${{ steps.publish.outputs.digest }}
+      # One attestation covers every published index, on GHCR and Docker Hub names;
+      # `gh attestation verify oci://<image>` finds it by digest.
+      - name: Find published images
+        id: subjects
+        if: ${{ !cancelled() }}
         run: |
-          set -euo pipefail
-          cosign sign --yes "ghcr.io/hambn/$REPO@$DIGEST"
-          cosign sign --yes "docker.io/hambn/$REPO@$DIGEST"
-
+          if [ -s /tmp/subjects.txt ]; then
+              echo 'present=true' >>"$GITHUB_OUTPUT"
+          fi
       - name: Attest build provenance
+        if: ${{ !cancelled() && steps.subjects.outputs.present == 'true' }}
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-name: ghcr.io/hambn/${{ steps.publish.outputs.repo }}
-          subject-digest: ${{ steps.publish.outputs.digest }}
-          push-to-registry: true
+          subject-checksums: /tmp/subjects.txt

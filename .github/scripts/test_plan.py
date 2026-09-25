@@ -4,7 +4,7 @@
 import copy
 import unittest
 
-from plan import affected_targets, expand, plan, tool_jobs
+from plan import affected_targets, expand, jobs, plan
 
 
 def cache(name):
@@ -93,11 +93,11 @@ class PlanTests(unittest.TestCase):
         head = copy.deepcopy(FIXTURE)
         head["target"]["claude-ubuntu"]["args"]["CLAUDE_VERSION"] = "1.0.1"
         head["target"]["core-ubuntu"]["labels"]["org.opencontainers.image.revision"] = "1" * 40
-        self.assertEqual(published_affected(["versions.hcl"], head=head), ["claude-ubuntu"])
+        self.assertEqual(published_affected(["tools/versions.hcl"], head=head), ["claude-ubuntu"])
 
     def test_pipeline_change_or_missing_base_rebuilds_everything(self):
         self.assertEqual(published_affected([".github/workflows/images.yml"]), sorted(PUBLISHED))
-        self.assertEqual(published_affected(["docker-bake.hcl"], base=None), sorted(PUBLISHED))
+        self.assertEqual(published_affected(["tools/docker-bake.hcl"], base=None), sorted(PUBLISHED))
 
     def test_dispatch_selects_named_published_targets(self):
         result = plan(FIXTURE, None, [], "workflow_dispatch", ["claude-ubuntu", "core"])
@@ -126,7 +126,7 @@ class PlanTests(unittest.TestCase):
             head["group"]["all"]["targets"].append(name)
             added.append(name)
             parent = payload
-        result = plan(head, FIXTURE, ["docker-bake.hcl"], "pull_request", [])
+        result = plan(head, FIXTURE, ["tools/docker-bake.hcl"], "pull_request", [])
         self.assertEqual(result["targets"], added)
         self.assertEqual(
             plan(head, head, ["tools/ci/new-tool-0/Dockerfile"], "push", [])["targets"],
@@ -141,33 +141,46 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(plan(FIXTURE, FIXTURE, [], "pull_request", []), {"targets": []})
 
     def test_runtime_script_change_selects_all_targets(self):
-        for path in (".github/scripts/publish.sh", ".github/scripts/build-tool.sh"):
+        for path in (".github/scripts/publish.sh", ".github/scripts/build-tools.sh", "tools/trivyignore.yaml"):
             with self.subTest(path=path):
                 self.assertEqual(
                     plan(FIXTURE, FIXTURE, [path], "push", []),
                     {"targets": PUBLISHED},
                 )
 
-    def test_tool_jobs_combine_variants(self):
+    def test_one_job_per_tool_while_they_fit(self):
         head = copy.deepcopy(FIXTURE)
         head["target"]["claude-alpine"] = target("tools/ai/claude", name="claude-alpine")
         self.assertEqual(
-            tool_jobs(head, ["claude-ubuntu", "core-ubuntu", "claude-alpine"]),
+            jobs(head, ["claude-ubuntu", "core-ubuntu", "claude-alpine"]),
             [
-                {"name": "ai/claude", "artifact": "ai-claude", "targets": ["claude-ubuntu", "claude-alpine"]},
-                {"name": "base/core", "artifact": "base-core", "targets": ["core-ubuntu"]},
+                {"id": "1", "name": "base/core", "targets": ["core-ubuntu"]},
+                {"id": "2", "name": "ai/claude", "targets": ["claude-ubuntu", "claude-alpine"]},
             ],
         )
         # A pin affecting one variant must not build every variant of that tool.
-        self.assertEqual(tool_jobs(head, ["claude-alpine"])[0]["targets"], ["claude-alpine"])
-        self.assertEqual(tool_jobs(head, []), [])
+        self.assertEqual(jobs(head, ["claude-alpine"])[0]["targets"], ["claude-alpine"])
+        self.assertEqual(jobs(head, []), [])
 
-    def test_tool_jobs_reject_non_tool_context(self):
+    def test_jobs_are_bounded_and_keep_tool_families_together(self):
+        head = copy.deepcopy(FIXTURE)
+        for index in range(30):
+            head["target"][f"agent{index:02}-ubuntu"] = target(
+                f"tools/ai/agent{index:02}", {"base": "devbox-payload-ubuntu-full"}, name=f"agent{index:02}"
+            )
+        selected = [name for name in head["target"] if "payload" not in name and name != "devbox-config"]
+        planned = jobs(head, selected, limit=8)
+        self.assertEqual(len(planned), 8)
+        self.assertEqual(sorted(t for job in planned for t in job["targets"]), sorted(selected))
+        self.assertLessEqual(max(len(job["targets"]) for job in planned), 5)
+        names = [job["name"] for job in planned]
+        self.assertTrue(any("ai/bloat, ai/omni" in name for name in names), names)
+
+    def test_jobs_reject_non_tool_context(self):
         head = copy.deepcopy(FIXTURE)
         head["target"]["core-ubuntu"]["context"] = "."
         with self.assertRaises(ValueError):
-            tool_jobs(head, ["core-ubuntu"])
-
+            jobs(head, ["core-ubuntu"])
 
 if __name__ == "__main__":
     unittest.main()

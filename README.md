@@ -46,8 +46,8 @@ variants.
 | `<toolversion>-<variant>`, `<toolversion>` (agents) | No | `codex:<version>-ubuntu` |
 | `<variant>-<YYYYMMDD>-<sha7>` (core, devbox, agentbloat) | No | `core:wolfi-<YYYYMMDD>-<sha7>` |
 
-Builds are defined in [`docker-bake.hcl`](./docker-bake.hcl), with every version pin in
-[`versions.hcl`](./versions.hcl), and are built and published by
+Builds are defined in [`tools/docker-bake.hcl`](./tools/docker-bake.hcl), with every version pin in
+[`tools/versions.hcl`](./tools/versions.hcl), and are built and published by
 [`.github/workflows/images.yml`](./.github/workflows/images.yml).
 
 **Deprecated:** the `agentimg` repository and the old `claude-code-v*`, `ocr-v*`, and

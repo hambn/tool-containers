@@ -3,8 +3,8 @@
 The ownership boundary is `tools/<category>/<tool>/`. `<category>` groups purpose
 (`base`, `ai`; `ci` and `sandboxes` are catalog categories with no projects yet),
 `<tool>` is one published image repository, and `<variant>` is one published profile of
-it. The build graph is shared: every target lives in the root `docker-bake.hcl` and every
-pin in the root `versions.hcl`.
+it. The build graph is shared: every target lives in `tools/docker-bake.hcl` and every
+pin in `tools/versions.hcl`.
 
 ## Standard tree
 
@@ -45,12 +45,12 @@ use `examples/`.
 1. Pick the closest existing tool with the same parent (devbox payload or agentbloat
    payload) and read every file before copying its shape.
 2. Write `Dockerfile` per [Dockerfiles](images/dockerfile.md).
-3. Add the tool's `<TOOL>_VERSION` pin with its Renovate comment to `versions.hcl` per
+3. Add the tool's `<TOOL>_VERSION` pin with its Renovate comment to `tools/versions.hcl` per
    [versions and pins](versions.md).
-4. Add a matrix target to `docker-bake.hcl` modeled on a sibling (context, `DISTRO` and
+4. Add a matrix target to `tools/docker-bake.hcl` modeled on a sibling (context, `DISTRO` and
    version args, `contexts`, tags, labels, cache) and list it in the `agents` or `base`
    group so group `all` publishes it. Render it with
-   `docker buildx bake -f docker-bake.hcl -f versions.hcl --print <tool>`.
+   `.github/scripts/bake.sh --print <tool>`.
 5. Add `tests/structure.yaml` and, when runtime behavior needs it, `tests/smoke.sh` per
    [testing](testing.md). List statically linked upstream binaries the tool installs in
    `tests/trivy-skip-files.txt`.

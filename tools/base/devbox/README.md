@@ -26,7 +26,7 @@ starts from a devbox payload and ends with the devbox configuration layer.
 
 Pull from `ghcr.io/hambn/devbox:<tag>` or `docker.io/hambn/devbox:<tag>`. Moving tags
 follow `main`; dated `<variant>-<YYYYMMDD>-<sha7>` tags are immutable. Every tool version
-is pinned in [`versions.hcl`](../../../versions.hcl) and recorded on full and browser
+is pinned in [`versions.hcl`](../../versions.hcl) and recorded on full and browser
 images as `io.github.hambn.containers.tool.<name>.version` labels.
 
 ## Tiers

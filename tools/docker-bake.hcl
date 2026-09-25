@@ -1,5 +1,6 @@
-# Build graph for every image. Pins live in versions.hcl; always load both files:
-#   docker buildx bake -f docker-bake.hcl -f versions.hcl --print all
+# Build graph for every image. Pins live in versions.hcl; always load both files from
+# the repository root (contexts are relative to it). .github/scripts/bake.sh does:
+#   docker buildx bake -f tools/docker-bake.hcl -f tools/versions.hcl --print all
 #
 # Published targets are the members of group "all". Targets outside it are internal
 # stages that other targets consume through `target:` contexts and are never tagged.

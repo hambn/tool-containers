@@ -1,6 +1,6 @@
 ---
 name: container-images
-description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile, docker-bake.hcl target, versions.hcl pins, tests, README, platform examples, root catalog entry, registries, tags, and image CI (images.yml, maintenance.yml, renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
+description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile, tools/docker-bake.hcl target, tools/versions.hcl pins, tests, README, platform examples, root catalog entry, registries, tags, and image CI (images.yml, maintenance.yml, .github/renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
 ---
 
 # Container images
@@ -31,11 +31,11 @@ current task needs.
 ## Workflow
 
 1. Inspect the target `tools/<category>/<tool>/`, its closest neighbor, its targets in
-   `docker-bake.hcl`, its pins in `versions.hcl`, and the root catalog row.
+   `tools/docker-bake.hcl`, its pins in `tools/versions.hcl`, and the root catalog row.
 2. Identify every coupled surface before editing: Dockerfile, bake target and group
    membership, version pins, tests, README and file map, examples, catalog row.
 3. Render the build graph instead of guessing it:
-   `docker buildx bake -f docker-bake.hcl -f versions.hcl --print <target>`.
+   `.github/scripts/bake.sh --print <target>`.
 4. Validate with `$repository-changes`. Static validation never proves runtime
    behavior; `images.yml` builds, tests, and scans affected images (see [CI](references/ci.md)).
 5. Invoke `$maintain-agent-workspace`; update a reference here only when a reusable

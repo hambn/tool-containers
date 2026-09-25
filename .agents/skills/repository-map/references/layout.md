@@ -6,26 +6,26 @@ the root `README.md` catalog for the public list of tools.
 ```text
 tool-containers/
 ├── AGENTS.md                     # mandatory skill trigger router
-├── CLAUDE.md                     # compatibility pointer to AGENTS.md
 ├── README.md                     # public image catalog
 ├── LICENSE
 ├── .gitignore
-├── docker-bake.hcl               # build graph: every image target, tags, labels
-├── versions.hcl                  # every pin (base digests, tool versions, OS_REFRESH)
-├── renovate.json5                # dependency updates for pins and actions
-├── .trivyignore.yaml             # reviewed vulnerability exceptions
 ├── .agents/skills/               # repository-local agent capabilities
 ├── .github/                      # collaboration, validation, and delivery
-├── tools/                        # image projects
+├── tools/                        # image projects, plus:
+│   ├── docker-bake.hcl           # build graph: every image target, tags, labels
+│   ├── versions.hcl              # every pin (base digests, tool versions, OS_REFRESH)
+│   └── trivyignore.yaml          # reviewed vulnerability exceptions
 └── web-ui/                       # static documentation site
 ```
 
 ## Root files
 
-- `AGENTS.md` is the only always-loaded instruction surface; `CLAUDE.md` only points to it.
+- `AGENTS.md` is the only always-loaded instruction surface; Claude Code and Codex both
+  read it, so there is no `CLAUDE.md`.
 - `README.md` lists every image tool exactly once by category.
-- `docker-bake.hcl` and `versions.hcl` are always loaded together; image mechanics are
-  owned by `$container-images`.
+- `tools/docker-bake.hcl` and `tools/versions.hcl` are always loaded together, from the
+  repository root, through `.github/scripts/bake.sh`; image mechanics are owned by
+  `$container-images`.
 
 ## Agent skills
 
@@ -42,18 +42,21 @@ mechanics. There are no global agent references, memory logs, or secondary route
 ├── SECURITY.md
 ├── labeler.yml                   # path-based pull-request labels
 ├── pull_request_template.md      # Summary/Validation/Checklist PR shape
+├── renovate.json5                # dependency updates for pins and actions
 ├── requirements.txt              # Python dependencies of repository scripts
 ├── ISSUE_TEMPLATE/
 ├── scripts/
 │   ├── check-repo.py             # static repository validator
-│   ├── plan.py                   # affected image targets grouped by tool
-│   ├── build-tool.sh             # per-tool build/test/scan/export loop
-│   ├── test_build_tool.py
+│   ├── bake.sh                   # docker buildx bake with the repository's Bake files
+│   ├── plan.py                   # affected image targets packed into bounded jobs
+│   ├── build-tools.sh            # build/test/scan/push the tools of one job
+│   ├── publish.sh                # multi-arch indexes, Docker Hub mirror, signatures
+│   ├── test_build_tools.py
 │   ├── test_plan.py
 │   ├── validate_pr_metadata.py   # PR title/body policy
 │   └── test_validate_pr_metadata.py
 └── workflows/
-    ├── images.yml                # Test and build: plan → tool jobs → publish
+    ├── images.yml                # Test and build: plan → bounded tool jobs → publish
     ├── pr.yml                    # pull-request gate and lint
     ├── pr-labeler.yml
     ├── web-ui.yml                # site build and Pages deploy
@@ -91,5 +94,5 @@ tool README, and every example README with its sibling files. Use `$web-ui`.
 git ls-files
 git ls-files '.github/**' 'tools/**' 'web-ui/**'
 find tools -mindepth 2 -maxdepth 2 -type d -print
-docker buildx bake -f docker-bake.hcl -f versions.hcl --print all
+.github/scripts/bake.sh --print all
 ```

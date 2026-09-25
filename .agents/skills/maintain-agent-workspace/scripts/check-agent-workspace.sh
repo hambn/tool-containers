@@ -34,7 +34,7 @@ agents = root / ".agents"
 skills_root = agents / "skills"
 errors: list[str] = []
 
-for required in (root / "AGENTS.md", root / "CLAUDE.md", skills_root):
+for required in (root / "AGENTS.md", skills_root):
     if not required.exists():
         errors.append(f"missing required path: {required.relative_to(root)}")
 
@@ -59,12 +59,8 @@ if not skill_dirs:
     errors.append("no repository skills found")
 
 agents_text = (root / "AGENTS.md").read_text() if (root / "AGENTS.md").is_file() else ""
-claude_text = (root / "CLAUDE.md").read_text() if (root / "CLAUDE.md").is_file() else ""
-claude_pointer = re.compile(
-    r"(?m)^Follow \[`AGENTS\.md`\]\(\./AGENTS\.md\)(?:[.,]|$)"
-)
-if not claude_pointer.search(claude_text):
-    errors.append("CLAUDE.md must positively route to ./AGENTS.md with a Markdown link")
+if (root / "CLAUDE.md").exists():
+    errors.append("CLAUDE.md is not used: Claude Code reads AGENTS.md directly")
 
 ignored_directories = {
     ".git",
@@ -87,7 +83,7 @@ for current_directory, directories, filenames in os.walk(root):
 unexpected_entrypoints = sorted(
     path
     for path in instruction_entrypoints
-    if path not in {pathlib.Path("AGENTS.md"), pathlib.Path("CLAUDE.md")}
+    if path not in {pathlib.Path("AGENTS.md"), pathlib.Path("CLAUDE.md")}  # root CLAUDE.md reported above
 )
 for path in unexpected_entrypoints:
     errors.append(f"project agent entrypoint must be represented as a skill: {path}")

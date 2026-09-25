@@ -143,12 +143,12 @@ def check_pipeline_layout() -> None:
     obsolete = [p for p in WORKFLOWS.glob("*.yml") if p.name.startswith(("ai-", "base-")) or p.name == "pull-request.yml"]
     obsolete += [p for p in (pathlib.Path(".github/dependabot.yml"),) if p.exists()]
     for path in obsolete:
-        error(f"obsolete file remains: {path} (images.yml and renovate.json5 replace it)")
-    if not pathlib.Path("renovate.json5").is_file():
-        error("missing renovate.json5")
-    ignore = pathlib.Path(".trivyignore.yaml")
+        error(f"obsolete file remains: {path} (images.yml and .github/renovate.json5 replace it)")
+    if not pathlib.Path(".github/renovate.json5").is_file():
+        error("missing .github/renovate.json5")
+    ignore = pathlib.Path("tools/trivyignore.yaml")
     if not ignore.is_file():
-        error("missing .trivyignore.yaml")
+        error("missing tools/trivyignore.yaml")
     else:
         for kind, entries in (load(ignore) or {}).items():
             for entry in entries or []:
@@ -245,7 +245,7 @@ def check_web_ui_workflow() -> None:
 def bake_contexts() -> set[str]:
     if shutil.which("docker"):
         result = subprocess.run(
-            ["docker", "buildx", "bake", "-f", "docker-bake.hcl", "-f", "versions.hcl", "--print", "all"],
+            [".github/scripts/bake.sh", "--print", "all"],
             capture_output=True, text=True,
         )
         if result.returncode == 0:
@@ -253,7 +253,7 @@ def bake_contexts() -> set[str]:
         error(f"docker buildx bake --print failed: {result.stderr.strip().splitlines()[-1:]}")
     else:
         notice("docker unavailable; reading bake contexts with a regex")
-    return set(re.findall(r'^\s*context\s*=\s*"([^"]+)"', pathlib.Path("docker-bake.hcl").read_text(), re.MULTILINE))
+    return set(re.findall(r'^\s*context\s*=\s*"([^"]+)"', pathlib.Path("tools/docker-bake.hcl").read_text(), re.MULTILINE))
 
 
 def tool_dirs() -> list[pathlib.Path]:
@@ -268,7 +268,7 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
     for missing in sorted(names - contexts):
         error(f"{missing}: no bake target uses it as context")
     for missing in sorted(contexts - names):
-        error(f"docker-bake.hcl: context {missing} is not a tools/<category>/<tool> directory")
+        error(f"tools/docker-bake.hcl: context {missing} is not a tools/<category>/<tool> directory")
     for tool in tools:
         for required in ("README.md", "Dockerfile", "tests/structure.yaml"):
             if not (tool / required).is_file():
@@ -295,15 +295,12 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
             if not text.startswith("# syntax=docker/dockerfile:1"):
                 error(f"{path}: first line must be '# syntax=docker/dockerfile:1'")
             if "@sha256:" in text:
-                error(f"{path}: base image digests belong in versions.hcl")
+                error(f"{path}: base image digests belong in tools/versions.hcl")
             if re.search(r"apk\s+upgrade|apt-get\s+(dist-)?upgrade|apt\s+(full-|dist-)?upgrade", text):
                 error(f"{path}: use OS_REFRESH instead of upgrading packages")
 
-    catalog = [
-        target.removeprefix("./").rstrip("/")
-        for target in LINK.findall(pathlib.Path("README.md").read_text())
-        if target.removeprefix("./").startswith("tools/")
-    ]
+    links = (target.removeprefix("./").rstrip("/") for target in LINK.findall(pathlib.Path("README.md").read_text()))
+    catalog = [link for link in links if re.fullmatch(r"tools/[^/]+/[^/]+", link)]
     if len(catalog) != len(set(catalog)):
         error("README.md: duplicate catalog link")
     if set(catalog) != names:
@@ -311,11 +308,11 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
 
 
 def check_versions() -> None:
-    lines = pathlib.Path("versions.hcl").read_text().splitlines()
+    lines = pathlib.Path("tools/versions.hcl").read_text().splitlines()
     for index, line in enumerate(lines):
         match = re.match(r'variable "(\w+)"', line)
         if match and match.group(1) != "OS_REFRESH" and not (index and lines[index - 1].startswith("# renovate: ")):
-            error(f"versions.hcl: {match.group(1)} needs a '# renovate:' comment on the line above")
+            error(f"tools/versions.hcl: {match.group(1)} needs a '# renovate:' comment on the line above")
 
 
 # --- files -------------------------------------------------------------------
@@ -367,7 +364,7 @@ def run_suites() -> None:
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/test-check-agent-workspace.sh"],
         [sys.executable, "-B", ".github/scripts/test_validate_pr_metadata.py"],
         [sys.executable, "-B", ".github/scripts/test_plan.py"],
-        [sys.executable, "-B", ".github/scripts/test_build_tool.py"],
+        [sys.executable, "-B", ".github/scripts/test_build_tools.py"],
     ):
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:

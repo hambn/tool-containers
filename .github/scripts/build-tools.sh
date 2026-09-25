@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Build, test, and scan the selected variants of one tool for one architecture, then
-# push them by digest when publishing. images.yml runs this once per tool and native
-# runner. Nothing here names an image: targets, contexts, tests, and scan exclusions
-# all come from the Bake graph and the tool directories.
+# Test and build the selected Bake targets for one architecture, one tool at a time,
+# and push each tool's variants by digest when publishing. images.yml runs this for
+# every planned job on a native runner. Nothing here names an image: targets,
+# contexts, tests, and scan exclusions all come from the Bake graph and the tool
+# directories.
 #
-# Environment: TARGETS (JSON list of Bake targets), ARCH (amd64 or arm64), SCAN,
-# PR_BUILD, and PUBLISH (true/false), RESULT_DIR (reports and digests).
+# A failing tool does not stop the tools after it; the script fails at the end, and
+# only tools that passed leave digests for publish.sh.
+#
+# Environment: TARGETS (JSON list of Bake targets), ARCH (amd64 or arm64), SCAN and
+# PUBLISH (true/false), RESULT_DIR (reports and digests).
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -15,7 +19,7 @@ arch=${ARCH:?ARCH must be amd64 or arm64}
 export ARCH PLATFORM=linux/$arch
 result_dir=${RESULT_DIR:-/tmp/image-results}
 mkdir -p "$result_dir/digests" "$result_dir/sarif"
-bake=(docker buildx bake -f docker-bake.hcl -f versions.hcl)
+bake=("${BASH_SOURCE[0]%/*}/bake.sh")
 definition=$("${bake[@]}" --print "${targets[@]}")
 
 field() {
@@ -31,23 +35,8 @@ contexts() {
         [chain($t) | $bake.target[.].context] | unique[]' <<<"$definition"
 }
 
-# Build every variant in one Bake call so shared stages build once and in parallel.
-# The results stay in the BuildKit cache; each variant is loaded on its own below.
-build=()
-for target in "${targets[@]}"; do
-    build+=(--set "$target.output=type=cacheonly")
-    if [ "${PR_BUILD:-false}" = true ]; then
-        build+=(--set "$target.cache-from+=type=gha,version=2,scope=$target-$arch")
-        build+=(--set "$target.cache-to=type=gha,version=2,scope=$target-$arch,mode=max,timeout=5m,ignore-error=true")
-    fi
-done
-echo "::group::Build ${targets[*]} ($arch)"
-"${bake[@]}" --provenance=false "${build[@]}" "${targets[@]}"
-echo "::endgroup::"
-
-for target in "${targets[@]}"; do
-    image=local/$target:test
-    tool_dir=$(field "$target" .context)
+check() {
+    local target=$1 tool_dir=$2 image=local/$1:test
     DISTRO=$(field "$target" '.labels["io.github.hambn.containers.distro"]')
     TIER=$(field "$target" '.labels["io.github.hambn.containers.tier"]')
     VARIANT=$(field "$target" '.labels["io.github.hambn.containers.variant"]')
@@ -70,7 +59,7 @@ for target in "${targets[@]}"; do
 
     if [ "${SCAN:-false}" = true ]; then
         echo "::group::Scan $target"
-        scan=(trivy image --image-src docker --scanners "vuln,secret" --ignore-unfixed --ignorefile .trivyignore.yaml --timeout 10m)
+        scan=(trivy image --image-src docker --scanners "vuln,secret" --ignore-unfixed --ignorefile tools/trivyignore.yaml --timeout 10m)
         report="$result_dir/sarif/$target.sarif"
         "${scan[@]}" --format sarif --output "$report" "$image"
         # One code-scanning identity per variant, even though a job uploads several.
@@ -91,24 +80,59 @@ for target in "${targets[@]}"; do
         echo "::endgroup::"
     fi
     docker image rm "$image" >/dev/null
-done
+}
 
-if [ "${PUBLISH:-false}" = true ]; then
-    # Every variant passed: push them by digest from the same cache, with provenance
-    # and SBOM. publish.sh later joins both architectures into one tagged index.
-    push=()
-    for target in "${targets[@]}"; do
-        name=$(field "$target" '.tags[0] | sub(":[^:/]+$"; "")')
-        push+=(--set "$target.tags=")
-        push+=(--set "$target.output=type=image,name=$name,push-by-digest=true,name-canonical=true,push=true,rewrite-timestamp=true")
-    done
-    echo "::group::Push ${targets[*]} ($arch) by digest"
-    CACHE_WRITE=true "${bake[@]}" --provenance=mode=max --sbom=true \
-        --metadata-file "$result_dir/metadata.json" "${push[@]}" "${targets[@]}"
+# Build the variants of one tool in one Bake call so their shared stages build once;
+# the results stay in the BuildKit cache and each variant is loaded on its own to test.
+# Once every variant passed, push them by digest from the same cache with provenance
+# and SBOM; publish.sh later joins both architectures into one tagged index.
+tool() {
+    local tool_dir=$1 target build=() push=()
+    shift
+    for target; do build+=(--set "$target.output=type=cacheonly"); done
+    echo "::group::Build $tool_dir ($arch)"
+    "${bake[@]}" --provenance=false "${build[@]}" "$@"
     echo "::endgroup::"
-    for target in "${targets[@]}"; do
+
+    for target; do check "$target" "$tool_dir"; done
+    [ "${PUBLISH:-false}" = true ] || return 0
+
+    for target; do
+        push+=(--set "$target.tags=")
+        push+=(--set "$target.output=type=image,name=$(field "$target" '.tags[0] | sub(":[^:/]+$"; "")'),push-by-digest=true,name-canonical=true,push=true,rewrite-timestamp=true")
+    done
+    echo "::group::Push $tool_dir ($arch) by digest"
+    CACHE_WRITE=true "${bake[@]}" --provenance=mode=max --sbom=true \
+        --metadata-file "$result_dir/metadata.json" "${push[@]}" "$@"
+    echo "::endgroup::"
+    for target; do
         digest=$(jq -er --arg t "$target" '.[$t]["containerimage.digest"]' "$result_dir/metadata.json")
         [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
         printf '%s\n' "$digest" >"$result_dir/digests/$target-$arch"
     done
-fi
+}
+
+declare -A variants=()
+tools=()
+for target in "${targets[@]}"; do
+    dir=$(field "$target" .context)
+    [ -n "${variants[$dir]:-}" ] || tools+=("$dir")
+    variants[$dir]+=" $target"
+done
+
+failed=()
+for dir in "${tools[@]}"; do
+    # A subshell with its own errexit isolates each tool; `if ! (...)` would disable it.
+    set +e
+    # shellcheck disable=SC2086 # Target names are validated above.
+    (set -e; tool "$dir" ${variants[$dir]})
+    status=$?
+    set -e
+    if [ "$status" -ne 0 ]; then
+        echo "::error::$dir failed on $arch"
+        failed+=("$dir")
+    fi
+    # Keep the cache of shared stages for the next tool while leaving disk to build it.
+    if [ "${#tools[@]}" -gt 1 ]; then docker buildx prune --force --min-free-space 10gb >/dev/null; fi
+done
+[ "${#failed[@]}" -eq 0 ] || exit 1

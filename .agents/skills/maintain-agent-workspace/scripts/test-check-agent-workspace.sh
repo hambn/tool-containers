@@ -16,7 +16,7 @@ new_case() {
     local case_root="$temporary_root/$name"
     mkdir -p "$case_root"
     cp -R "$repository_root/.agents" "$case_root/.agents"
-    cp "$repository_root/AGENTS.md" "$repository_root/CLAUDE.md" "$case_root/"
+    cp "$repository_root/AGENTS.md" "$case_root/"
     git -C "$case_root" init --quiet
     printf '%s\n' "$case_root"
 }
@@ -80,8 +80,8 @@ mkdir -p "$nested_root/nested"
 printf '# Nested agent instructions\n' >"$nested_root/nested/AGENTS.md"
 expect_failure nested-entrypoint "$nested_root"
 
-pointer_root="$(new_case claude-pointer)"
-sed -i 's/^Follow /Do not follow /' "$pointer_root/CLAUDE.md"
-expect_failure claude-pointer "$pointer_root"
+claude_root="$(new_case claude-entrypoint)"
+printf 'Follow [`AGENTS.md`](./AGENTS.md).\n' >"$claude_root/CLAUDE.md"
+expect_failure claude-entrypoint "$claude_root"
 
 echo "Agent workspace checker tests passed."
