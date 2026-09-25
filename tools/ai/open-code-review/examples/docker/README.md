@@ -1,75 +1,46 @@
 # open-code-review · Docker
 
-Open Code Review is Alibaba's code-review CLI, packaged on the agentimg foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) runs the Open Code Review CLI (`ocr`) with the arguments you pass, for example `review`, mounting the current directory at `/workspace`.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine 23 or newer.
+- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e`.
 
-## Quick start
-
-```bash
-docker run -it --rm \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run OCR against the current directory.
-set -euo pipefail
-
-IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}"
-docker run -it --rm \
-  -v "$PWD:/workspace" \
-  "$IMAGE" "$@"
+./run.sh
+./airgapped.run.sh open-code-review.tar
 ```
 
-### `airgapped.run.sh`
+For an air-gapped host, save the image on a connected machine first:
 
 ```bash
-#!/usr/bin/env bash
-# Offline host. Load open-code-review from a local tar and never pull.
-set -euo pipefail
-
-TAR="${1:-open-code-review.tar}"
-shift $(( $# > 0 ? 1 : 0 ))
-[ -f "$TAR" ] || { echo "missing $TAR" >&2; exit 1; }
-docker load -i "$TAR"
-docker run -it --rm --pull=never \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest "$@"
+docker save ghcr.io/hambn/open-code-review:ubuntu-browser -o open-code-review.tar
 ```
 
-## More examples
+## Variables
 
-### Pin a specific image tag
+| Variable | Required | Purpose |
+|---|---|---|
+| `OPEN_CODE_REVIEW_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`. |
 
-Every moving tag from the [image table](../../README.md#images) works; override with an environment variable:
+## Workspace
 
-```bash
-OCR_IMAGE=ghcr.io/hambn/open-code-review:<tag> ./run.sh
-```
+The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
 
-### One-off non-interactive command
+## Files
 
-```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/open-code-review:latest --help
-```
+- [`run.sh`](./run.sh) — pull and run the published image.
+- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
 
-### Constrain resources
+## Cleanup
 
-```bash
-docker run -it --rm \
-  --cpus=2 \
-  --memory=4g \
-  --memory-swap=4g \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest
-```
+Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/open-code-review:ubuntu-browser`.
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

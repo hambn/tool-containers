@@ -1,59 +1,38 @@
 # agentbloat · Podman
 
-agentbloat bundles the current Codex, Claude Code, Cursor, Grok, OpenCode, Copilot, Gemini, ACP Registry, and Pi coding-agent CLIs in one image. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) opens an interactive Zsh login shell with every bundled agent CLI under rootless Podman.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
+- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e`.
 
-## Quick start
-
-```bash
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/agentbloat:latest zsh
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Open a rootless agentbloat shell; :Z supports SELinux hosts.
-set -euo pipefail
-
-IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}"
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -v "$PWD:/workspace:Z" \
-  "$IMAGE" zsh "$@"
+./run.sh
 ```
 
-## More examples
+## Variables
 
-Run it as a systemd user service (quadlet)
+| Variable | Required | Purpose |
+|---|---|---|
+| `AGENTBLOAT_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/agentbloat:ubuntu-browser`. |
 
-Save as `~/.config/containers/systemd/agentbloat.container`, then run `systemctl --user daemon-reload && systemctl --user start agentbloat`:
+## Workspace
 
-```ini
-[Unit]
-Description=agentbloat container
+The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
 
-[Container]
-AutoUpdate=registry
-Image=ghcr.io/hambn/agentbloat:latest
-Volume=%h/workspace:/workspace:Z
-Exec=zsh
-Interactive=true
-[Service]
-Restart=on-failure
+## Files
 
-[Install]
-WantedBy=default.target
-```
+- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
 
-### Rootless with SELinux labeling
+## Cleanup
 
-`:Z` relabels the bind mount for container use on SELinux hosts; drop it on non-SELinux systems if you prefer.
+The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/agentbloat:ubuntu-browser`.
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a `<variant>-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.

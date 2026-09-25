@@ -23,6 +23,7 @@ spec:
       containers:
         - name: t3
           image: ghcr.io/hambn/t3code:ubuntu-browser
+          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

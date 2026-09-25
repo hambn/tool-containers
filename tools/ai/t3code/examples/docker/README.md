@@ -1,110 +1,48 @@
 # t3code · Docker
 
-T3 Code is a web GUI for coding agents, served from a container on port 3773. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) serves the T3 Code web GUI on `http://127.0.0.1:3773`, mounting the current directory at `/workspace`.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine 23 or newer.
+- Authenticate the agents from inside the T3 Code UI.
 
-## Quick start
-
-```bash
-docker run -it --rm \
-  -p 127.0.0.1:3773:3773 \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run T3 Code web GUI on the current directory, reachable at http://localhost:3773.
-# Uses the Ubuntu browser-enabled agentbloat image, which bundles the current coding agents.
-set -euo pipefail
-
-docker_options=()
-if [[ -n "${T3CODE_DOCKER_SOCKET:-}" ]]; then
-  [[ -S "$T3CODE_DOCKER_SOCKET" ]] || {
-    echo "not a Docker socket: $T3CODE_DOCKER_SOCKET" >&2
-    exit 1
-  }
-  docker_options+=(
-    --volume "$T3CODE_DOCKER_SOCKET:/var/run/docker.sock"
-    --group-add "$(stat -c %g "$T3CODE_DOCKER_SOCKET")"
-  )
-fi
-
-docker run -it --rm \
-  "${docker_options[@]}" \
-  -p 127.0.0.1:3773:3773 \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+./run.sh
+./airgapped.run.sh t3code.tar
 ```
 
-### `airgapped.run.sh`
+For an air-gapped host, save the image on a connected machine first:
 
 ```bash
-#!/usr/bin/env bash
-# Offline host. Loads image from a local tar, never pulls.
-# Prep on an online host: docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
-set -euo pipefail
-
-TAR="${1:-t3code.tar}"
-if [ "$#" -gt 0 ]; then shift; fi
-[ -f "$TAR" ] || { echo "missing $TAR — docker save it on an online host first" >&2; exit 1; }
-
-docker load -i "$TAR"
-docker run -it --rm \
-  --pull=never \
-  -p 127.0.0.1:3773:3773 \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
 ```
 
-## More examples
+## Variables
 
-### Pin a specific image tag
+| Variable | Required | Purpose |
+|---|---|---|
+| `T3CODE_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
+| `T3CODE_DOCKER_SOCKET` | no | Host Docker socket path to mount at `/var/run/docker.sock`. |
 
-Edit `run.sh` (or copy it) and replace the image reference with any moving tag from the [image table](../../README.md#images):
+## Workspace
 
-```bash
-docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser
-```
+The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
 
-### One-off non-interactive command
+## Files
 
-```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser --help
-```
+- [`run.sh`](./run.sh) — pull and run the published image.
+- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
 
-### Give the container access to the Docker socket
+## Cleanup
 
-The helpers mount the host socket only when you ask for it:
+Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/t3code:ubuntu-browser`.
 
-```bash
-T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
-```
+## Limitations
 
-### Chromium needs shared memory
-
-The browser-enabled variants run headless Chromium; give the sandbox at least 1 GB of /dev/shm:
-
-```bash
-docker run -it --rm --shm-size=1g -p 127.0.0.1:3773:3773 -v "$PWD:/workspace" ghcr.io/hambn/t3code:ubuntu-browser
-```
-
-### Constrain resources
-
-```bash
-docker run -it --rm \
-  --cpus=2 \
-  --memory=4g \
-  --memory-swap=4g \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser
-```
+- The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

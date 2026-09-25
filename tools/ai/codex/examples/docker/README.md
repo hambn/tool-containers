@@ -1,93 +1,47 @@
 # codex · Docker
 
-Codex is OpenAI's coding agent CLI, packaged on the agentimg foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) runs the Codex CLI (`codex`) with the arguments you pass, mounting the current directory at `/workspace`.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
-- `OPENAI_API_KEY` set in your environment (never baked into the image)
+- Docker Engine 23 or newer.
+- `OPENAI_API_KEY` exported in your shell.
 
-## Quick start
-
-```bash
-docker run -it --rm \
-  -e OPENAI_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run Codex against the current directory.
-set -euo pipefail
-
-: "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
-IMAGE="${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}"
-docker run -it --rm \
-  -e OPENAI_API_KEY \
-  -v "$PWD:/workspace" \
-  "$IMAGE" "$@"
+./run.sh
+./airgapped.run.sh codex.tar
 ```
 
-### `airgapped.run.sh`
+For an air-gapped host, save the image on a connected machine first:
 
 ```bash
-#!/usr/bin/env bash
-# Offline host. Load Codex from a local tar and never pull.
-set -euo pipefail
-
-: "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
-TAR="${1:-codex.tar}"
-shift $(( $# > 0 ? 1 : 0 ))
-[ -f "$TAR" ] || { echo "missing $TAR" >&2; exit 1; }
-docker load -i "$TAR"
-docker run -it --rm --pull=never \
-  -e OPENAI_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest "$@"
+docker save ghcr.io/hambn/codex:ubuntu-browser -o codex.tar
 ```
 
-## More examples
+## Variables
 
-### Pin a specific image tag
+| Variable | Required | Purpose |
+|---|---|---|
+| `OPENAI_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
+| `CODEX_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/codex:ubuntu-browser`. |
 
-Every moving tag from the [image table](../../README.md#images) works; override with an environment variable:
+## Workspace
 
-```bash
-CODEX_IMAGE=ghcr.io/hambn/codex:<tag> ./run.sh
-```
+The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
 
-### Pass the API key without exporting it
+## Files
 
-```bash
-docker run -it --rm \
-  -e OPENAI_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex
-```
+- [`run.sh`](./run.sh) — pull and run the published image.
+- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
 
-### One-off non-interactive command
+## Cleanup
 
-```bash
-docker run --rm \
-  -e OPENAI_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex --version
-```
+Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/codex:ubuntu-browser`.
 
-### Constrain resources
+## Limitations
 
-```bash
-docker run -it --rm \
-  --cpus=2 \
-  --memory=4g \
-  --memory-swap=4g \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/codex:latest codex
-```
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

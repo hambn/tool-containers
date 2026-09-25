@@ -1,61 +1,39 @@
 # t3code · Podman
 
-T3 Code is a web GUI for coding agents, served from a container on port 3773. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) serves the T3 Code web GUI on `http://127.0.0.1:3773` under rootless Podman.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
+- Authenticate the agents from inside the T3 Code UI.
 
-## Quick start
-
-```bash
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -p 127.0.0.1:3773:3773 \
-  -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/t3code:ubuntu-browser
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Rootless podman. :Z relabels the volume for SELinux hosts. GUI at http://localhost:3773
-# Auth the agent from inside the T3 Code UI — no API key needed here.
-set -euo pipefail
-
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -p 127.0.0.1:3773:3773 \
-  -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+./run.sh
 ```
 
-## More examples
+## Variables
 
-Run it as a systemd user service (quadlet)
+| Variable | Required | Purpose |
+|---|---|---|
+| `T3CODE_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
 
-Save as `~/.config/containers/systemd/t3code.container`, then run `systemctl --user daemon-reload && systemctl --user start t3code`:
+## Workspace
 
-```ini
-[Unit]
-Description=t3code container
+The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
 
-[Container]
-AutoUpdate=registry
-Image=ghcr.io/hambn/t3code:ubuntu-browser
-PublishPort=127.0.0.1:3773:3773
-Volume=%h/workspace:/workspace:Z
+## Files
 
-[Service]
-Restart=on-failure
+- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
 
-[Install]
-WantedBy=default.target
-```
+## Cleanup
 
-### Rootless with SELinux labeling
+The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/t3code:ubuntu-browser`.
 
-`:Z` relabels the bind mount for container use on SELinux hosts; drop it on non-SELinux systems if you prefer.
+## Limitations
+
+- The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

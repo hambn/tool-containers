@@ -1,0 +1,27 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: sysadmin
+  workdir: /workspace
+  entrypoint: []
+  cmd: ["/bin/zsh", "-l"]
+
+commandTests:
+  - name: runs as sysadmin (uid 1000)
+    command: id
+    args: [-u]
+    expectedOutput: ["^1000\\n?$"]
+  - name: node and npm are inherited
+    command: bash
+    args: [-c, node --version && npm --version]
+  - name: every agent CLI is on PATH
+    command: bash
+    args:
+      - -c
+      - for tool in acp-agent agent claude codex copilot cursor-agent gemini grok opencode pi; do command -v "$tool"; done
+  - name: claude --version
+    command: claude
+    args: [--version]
+  - name: codex --version
+    command: codex
+    args: [--version]

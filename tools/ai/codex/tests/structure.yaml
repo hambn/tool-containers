@@ -1,0 +1,18 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: sysadmin
+  workdir: /workspace
+  entrypoint: ["codex"]
+
+commandTests:
+  - name: runs as sysadmin (uid 1000)
+    command: id
+    args: [-u]
+    expectedOutput: ["^1000\\n?$"]
+  - name: node and npm are inherited
+    command: bash
+    args: [-c, node --version && npm --version]
+  - name: codex --version
+    command: codex
+    args: [--version]

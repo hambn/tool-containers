@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Offline host. Load open-code-review from a local tar and never pull.
+# Offline host: load the image from a tar saved on an online host, never pull.
+#   docker save ghcr.io/hambn/open-code-review:ubuntu-browser -o open-code-review.tar
 set -euo pipefail
 
-TAR="${1:-open-code-review.tar}"
-shift $(( $# > 0 ? 1 : 0 ))
-[ -f "$TAR" ] || { echo "missing $TAR" >&2; exit 1; }
-docker load -i "$TAR"
+tar=${1:-open-code-review.tar}
+shift $(($# > 0 ? 1 : 0))
+[[ -f "$tar" ]] || {
+    echo "missing $tar; docker save it on an online host first" >&2
+    exit 1
+}
+
+docker load -i "$tar"
 docker run -it --rm --pull=never \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/open-code-review:latest "$@"
+    -v "$PWD:/workspace" \
+    ghcr.io/hambn/open-code-review:ubuntu-browser "$@"

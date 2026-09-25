@@ -3,15 +3,10 @@ name: codex
 
 services:
   codex:
-    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:latest}
+    image: ${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-browser}
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [codex]
-
-networks:
-  codex:
-    name: codex

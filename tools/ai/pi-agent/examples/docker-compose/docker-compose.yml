@@ -3,13 +3,8 @@ name: pi-agent
 
 services:
   pi-agent:
-    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}
+    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:ubuntu-browser}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [pi-agent]
-
-networks:
-  pi-agent:
-    name: pi-agent
