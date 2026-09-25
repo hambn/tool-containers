@@ -10,16 +10,17 @@ on:
   push:
     branches: [main]
     paths: *paths
-  # Rebuild on the new parent image as soon as it is published.
-  workflow_run:
-    workflows: [base/devbox]
-    types: [completed]
-    branches: [main]
   # Daily check: rebuilds variants whose parent moved or whose published image has
   # fixable OS vulnerabilities.
   schedule:
     - cron: "45 6 * * *"
+  # The parent's workflow dispatches this one with outdated-only after publishing.
   workflow_dispatch:
+    inputs:
+      outdated-only:
+        description: Only rebuild variants whose parent moved or that have fixable OS vulnerabilities.
+        type: boolean
+        default: false
 
 concurrency:
   group: ai-pi-agent-${{ github.ref }}
@@ -30,9 +31,6 @@ permissions: {}
 jobs:
   image:
     name: pi-agent
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.event != 'pull_request')
     permissions:
       contents: read
       packages: write
@@ -47,3 +45,4 @@ jobs:
       tool: tools/ai/pi-agent
       primary: ubuntu-browser
       version-arg: PI_VERSION
+      outdated-only: ${{ inputs.outdated-only || false }}

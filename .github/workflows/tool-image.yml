@@ -10,12 +10,13 @@ name: tool-image
 #            multi-arch image, tag it on GHCR and Docker Hub, sign, and attest
 #   upkeep   once per run after publishing: sync the Docker Hub README and prune
 #            unreferenced untagged GHCR versions
+#   dependents  after publishing, dispatch the workflows of images built on this one
 #
 # The image repository is the tool directory's name. Variants whose parent image
 # (the BASE_IMAGE build arg) lives in ghcr.io/hambn are built on its current digest.
-# Scheduled and upstream workflow_run events only rebuild variants whose parent
-# moved, and scheduled runs also rebuild variants whose published image has fixable
-# HIGH/CRITICAL OS vulnerabilities, with a fresh OS_REFRESH to renew the OS packages.
+# Scheduled runs and outdated-only dispatches rebuild only the variants that are
+# unpublished, whose parent moved, or whose published image has fixable
+# HIGH/CRITICAL OS vulnerabilities (with a fresh OS_REFRESH to renew OS packages).
 on:
   workflow_call:
     inputs:
@@ -31,6 +32,16 @@ on:
         description: >-
           Dockerfile ARG holding the upstream version (e.g. CLAUDE_CODE_VERSION).
           It names the immutable tags; without it they use the commit date and SHA.
+        required: false
+        default: ""
+        type: string
+      outdated-only:
+        description: Only rebuild outdated variants, as scheduled runs do.
+        required: false
+        default: false
+        type: boolean
+      dependents:
+        description: Space-separated workflow files to dispatch after publishing.
         required: false
         default: ""
         type: string
@@ -68,7 +79,7 @@ jobs:
         with:
           driver: docker # Only reads bake files and registry manifests.
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.outdated-only
         with:
           version: v0.70.0
           cache: true
@@ -78,7 +89,7 @@ jobs:
         env:
           TOOL: ${{ inputs.tool }}
           VERSION_ARG: ${{ inputs.version-arg }}
-          EVENT: ${{ github.event_name }}
+          OUTDATED_ONLY: ${{ github.event_name == 'schedule' || inputs.outdated-only }}
           PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         run: |
           set -euo pipefail
@@ -93,10 +104,10 @@ jobs:
           fi
 
           # Parent images of ours are pinned to their current digest. Pull requests,
-          # pushes, and manual runs build every variant. Scheduled and upstream runs
-          # only build a variant that is unpublished, was built on an older parent,
-          # or (scheduled only) has fixable OS vulnerabilities; the last case also
-          # overrides OS_REFRESH so the OS package layers are rebuilt.
+          # pushes, and manual runs build every variant. Outdated-only runs build a
+          # variant only if it is unpublished, was built on an older parent, or has
+          # fixable OS vulnerabilities; the last case also overrides OS_REFRESH so the
+          # OS package layers are rebuilt.
           fixable_os_vulns() {
               local status=0
               trivy image --quiet --image-src remote --platform linux/amd64 \
@@ -127,14 +138,14 @@ jobs:
                   digest=$(jq -r .digest <<<"$manifest")
                   base_ref="${base%:*}@$digest"
               fi
-              if [[ $EVENT == schedule || $EVENT == workflow_run ]]; then
+              if [ "$OUTDATED_ONLY" = true ]; then
                   published=$GHCR/$image:$variant
                   if ! built_on=$(docker buildx imagetools inspect "$published" --format '{{json .Image}}' 2>/dev/null |
                       jq -r '[.. | .config?.Labels?["org.opencontainers.image.base.digest"]? // empty][0] // ""'); then
                       echo "$variant: not published yet"
                   elif [ -n "$digest" ] && [ "$built_on" != "$digest" ]; then
                       echo "$variant: parent $base moved (${built_on:-unknown} -> $digest)"
-                  elif [[ $EVENT == schedule ]] && fixable_os_vulns "$published"; then
+                  elif fixable_os_vulns "$published"; then
                       echo "::warning::$variant: $published has fixable HIGH/CRITICAL OS vulnerabilities"
                       os_refresh=$(date -u +%F)
                   else
@@ -461,3 +472,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/ghcr-cleanup.py "$IMAGE"
+
+  dependents:
+    name: Dispatch dependent images
+    needs: publish
+    if: ${{ !cancelled() && inputs.dependents != '' && needs.publish.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write # Dispatch the dependent workflows.
+    steps:
+      - name: Rebuild images whose parent moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPENDENTS: ${{ inputs.dependents }}
+        run: |
+          set -euo pipefail
+          for workflow in $DEPENDENTS; do
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main -f outdated-only=true
+          done

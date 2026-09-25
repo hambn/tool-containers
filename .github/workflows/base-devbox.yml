@@ -10,16 +10,17 @@ on:
   push:
     branches: [main]
     paths: *paths
-  # Rebuild on the new parent image as soon as it is published.
-  workflow_run:
-    workflows: [base/core]
-    types: [completed]
-    branches: [main]
   # Daily check: rebuilds variants whose parent moved or whose published image has
   # fixable OS vulnerabilities.
   schedule:
     - cron: "15 6 * * *"
+  # The parent's workflow dispatches this one with outdated-only after publishing.
   workflow_dispatch:
+    inputs:
+      outdated-only:
+        description: Only rebuild variants whose parent moved or that have fixable OS vulnerabilities.
+        type: boolean
+        default: false
 
 concurrency:
   group: base-devbox-${{ github.ref }}
@@ -30,15 +31,13 @@ permissions: {}
 jobs:
   image:
     name: devbox
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.event != 'pull_request')
     permissions:
       contents: read
       packages: write
       security-events: write
       id-token: write
       attestations: write
+      actions: write
     uses: ./.github/workflows/tool-image.yml
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -46,3 +45,5 @@ jobs:
     with:
       tool: tools/base/devbox
       primary: ubuntu-full
+      outdated-only: ${{ inputs.outdated-only || false }}
+      dependents: ai-agentbloat.yml ai-claude-code.yml ai-codex.yml ai-open-code-review.yml ai-pi-agent.yml

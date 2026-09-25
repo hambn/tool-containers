@@ -14,6 +14,11 @@ on:
   schedule:
     - cron: "5 6 * * *"
   workflow_dispatch:
+    inputs:
+      outdated-only:
+        description: Only rebuild variants that have fixable OS vulnerabilities.
+        type: boolean
+        default: false
 
 concurrency:
   group: base-core-${{ github.ref }}
@@ -30,6 +35,7 @@ jobs:
       security-events: write
       id-token: write
       attestations: write
+      actions: write
     uses: ./.github/workflows/tool-image.yml
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -37,3 +43,5 @@ jobs:
     with:
       tool: tools/base/core
       primary: wolfi
+      outdated-only: ${{ inputs.outdated-only || false }}
+      dependents: base-devbox.yml

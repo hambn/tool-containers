@@ -25,9 +25,11 @@ upstream workflow, cron minute, concurrency group, and `with:` inputs:
   one; it names the immutable tags ([tags](registries-and-tags.md)).
 
 Triggers: `pull_request` and `push` to main on the tool directory,
-`tools/trivyignore.yaml`, its own workflow, and `tool-image.yml`; `workflow_run` when the
-parent's workflow completes on main (devbox after core, agents after devbox, omnigent
-and t3code after agentbloat); a daily `schedule` safety net; and `workflow_dispatch`.
+`tools/trivyignore.yaml`, its own workflow, and `tool-image.yml`; a daily `schedule`; and
+`workflow_dispatch` with an `outdated-only` input. A parent's run dispatches its
+`dependents` with `outdated-only` after publishing (devbox after core, agents after
+devbox, omnigent and t3code after agentbloat). `workflow_run` is not used; zizmor
+rejects it.
 `check-repo.py` requires a matching workflow that calls `tool-image.yml` for every tool.
 
 ## tool-image.yml
@@ -35,12 +37,12 @@ and t3code after agentbloat); a daily `schedule` safety net; and `workflow_dispa
 1. **Plan.** Reads the tool's `docker-bake.hcl` (`docker buildx bake --print`) and the
    version from the `version-arg`, or the commit date and SHA. A `BASE_IMAGE` under
    `ghcr.io/hambn` is pinned to its current digest. Pull requests, pushes, and manual
-   runs build every variant; `schedule` and `workflow_run` build only variants whose
-   published image carries an older `org.opencontainers.image.base.digest` (or is not
-   published yet). The daily `schedule` also rescans each published variant and
-   rebuilds any with fixable HIGH/CRITICAL OS-package vulnerabilities, passing
+   runs build every variant; `schedule` and `outdated-only` dispatches build only variants
+   whose published image carries an older `org.opencontainers.image.base.digest` (or is
+   not published yet), and rescan the rest, rebuilding any with fixable HIGH/CRITICAL OS-package vulnerabilities, passing
    `OS_REFRESH=<today>` as a build arg so the OS layers reinstall; no refresh pull
-   request is opened.
+   request is opened. A variant is skipped with a warning while its parent is not yet
+   published for both amd64 and arm64.
 2. **Build.** One job per variant and architecture on native runners (`ubuntu-24.04`
    for amd64, `ubuntu-24.04-arm` for arm64); `fail-fast` is off. Each job bakes the
    variant with the pinned parent, repository labels, and the registry cache

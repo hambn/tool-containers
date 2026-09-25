@@ -54,7 +54,8 @@ use `examples/`.
 4. Add `tests/structure.yaml` and, when runtime behavior needs it, `tests/smoke.sh` per
    [testing](testing.md).
 5. Copy a sibling workflow to `.github/workflows/<category>-<tool>.yml` and adjust its
-   name, paths, upstream `workflow_run`, cron minute, concurrency group, and inputs; see
+   name, paths, cron minute, concurrency group, and inputs, and add it to the parent
+   workflow's `dependents`; see
    [CI](ci.md).
 6. Add the README, only the platform examples that serve real use cases
    ([conventions](deployment/conventions.md)), and one root catalog row, all per
