@@ -1,6 +1,6 @@
 ---
 name: maintain-agent-workspace
-description: Maintain, review, repair, or reorganize repository agent guidance, including AGENTS.md, CLAUDE.md, and project skills. Use after repository changes to keep durable agent contracts synchronized, and when guidance is reported wrong, stale, inefficient, duplicated, or missing.
+description: Maintain, review, repair, or reorganize repository agent guidance, including AGENTS.md and project skills. Use after repository changes to keep durable agent contracts synchronized, and when guidance is reported wrong, stale, inefficient, duplicated, or missing.
 ---
 
 # Maintain the agent workspace
@@ -22,7 +22,7 @@ outside `.agents/`. An audit may correctly conclude that no agent file needs to 
    the change would affect how a future agent should work.
 3. Create, merge, rename, or remove a skill when its trigger or responsibility has
    materially changed. Do not preserve obsolete guidance as historical memory.
-4. Synchronize `AGENTS.md`, `CLAUDE.md`, documentation links, and CI validation whenever
+4. Synchronize `AGENTS.md`, documentation links, and CI validation whenever
    discovery paths or required checks change.
 5. During focused iteration, run [the workspace checker](scripts/check-agent-workspace.sh).
    Finish with the validation routed by `$repository-changes`, which includes this

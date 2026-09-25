@@ -1,75 +1,46 @@
 # pi-agent · Docker
 
-Pi is a coding agent from Earendil Works, packaged on the agentimg foundations. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) runs Pi (`pi`) with the arguments you pass, mounting the current directory at `/workspace`.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine 23 or newer.
+- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e`.
 
-## Quick start
-
-```bash
-docker run -it --rm \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/pi-agent:latest
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run Pi against the current directory.
-set -euo pipefail
-
-IMAGE="${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}"
-docker run -it --rm \
-  -v "$PWD:/workspace" \
-  "$IMAGE" "$@"
+./run.sh
+./airgapped.run.sh pi-agent.tar
 ```
 
-### `airgapped.run.sh`
+For an air-gapped host, save the image on a connected machine first:
 
 ```bash
-#!/usr/bin/env bash
-# Offline host. Load Pi from a local tar and never pull.
-set -euo pipefail
-
-TAR="${1:-pi-agent.tar}"
-shift $(( $# > 0 ? 1 : 0 ))
-[ -f "$TAR" ] || { echo "missing $TAR" >&2; exit 1; }
-docker load -i "$TAR"
-docker run -it --rm --pull=never \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/pi-agent:latest "$@"
+docker save ghcr.io/hambn/pi-agent:ubuntu-browser -o pi-agent.tar
 ```
 
-## More examples
+## Variables
 
-### Pin a specific image tag
+| Variable | Required | Purpose |
+|---|---|---|
+| `PI_AGENT_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
 
-Every moving tag from the [image table](../../README.md#images) works; override with an environment variable:
+## Workspace
 
-```bash
-PI_AGENT_IMAGE=ghcr.io/hambn/pi-agent:<tag> ./run.sh
-```
+The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
 
-### One-off non-interactive command
+## Files
 
-```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/pi-agent:latest --help
-```
+- [`run.sh`](./run.sh) — pull and run the published image.
+- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
 
-### Constrain resources
+## Cleanup
 
-```bash
-docker run -it --rm \
-  --cpus=2 \
-  --memory=4g \
-  --memory-swap=4g \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/pi-agent:latest
-```
+Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/pi-agent:ubuntu-browser`.
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

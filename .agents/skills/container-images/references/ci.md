@@ -1,74 +1,91 @@
-# Image CI and publication
+# Image CI and automation
 
-Each image project has one `.github/workflows/<category>-<tool>.yml` workflow. Inspect a
-current workflow with the same inheritance pattern rather than assembling one from
-memory.
+Inspect the live workflow before changing it; this guide states the contracts it must
+keep.
 
-## Events and selection
+| File | Role |
+|---|---|
+| `.github/workflows/images.yml` | Test and build: plan → bounded tool jobs → publish |
+| `.github/workflows/pr.yml` | pull-request gate (metadata, dependency review, static validation) and `lint` job |
+| `.github/workflows/maintenance.yml` | scheduled scan of published images; opens an `OS_REFRESH` PR on fixable findings |
+| `.github/renovate.json5` | pin updates in `tools/versions.hcl` and GitHub Actions |
+| `tools/trivyignore.yaml` | reviewed vulnerability exceptions |
+| `.github/scripts/bake.sh` | `docker buildx bake` with both Bake files and the commit-derived variables |
+| `.github/scripts/plan.py` | affected-target planner and job packing (`test_plan.py` covers it) |
+| `.github/scripts/build-tools.sh` | build/test/scan/push the tools of one job on both architectures (`test_build_tools.py` covers it offline) |
+| `.github/scripts/publish.sh` | multi-arch indexes, Docker Hub mirror, and signatures for every published target |
 
-- A push to `main` selects variants affected by changes to the project's `images/`
-  build contexts, its workflow, or `.github/scripts/registry-inspect.sh`. Documentation
-  and platform-example-only changes do not rebuild images.
-- Manual dispatch is permitted only from `main` and normally builds all variants.
-- Derived tools use staggered hourly schedules to detect upstream foundation,
-  parent-image, and packaged-tool updates without privileged workflow chaining.
-- `base/agentimg` uses a weekly refresh that selects all variants so base and package
-  repository updates are not missed.
-- Pull requests never build or publish images. The pull-request gate validates image
-  contracts statically.
+There are no per-tool workflows and no Dependabot configuration.
 
-Keep path filters synchronized with every input that can alter output. A source-only or
-parent-base refresh normally repoints moving tags; emit a primary immutable release tag
-only when the owning upstream version actually changes.
+## images.yml
 
-## Plan, build by digest, push
+1. **Plan.** `plan.py` reads the rendered bake graph and the diff: changed tool
+   directories, `tools/docker-bake.hcl`, and `tools/versions.hcl` pins. It selects
+   affected members of group `all`, including descendants. There is no fixed
+   dependency-depth limit or list of image names in the workflow. Unaffected targets
+   are not rebuilt.
+2. **Test and build.** The workflow is named `Test and build`. `plan.py` groups the
+   affected variants by their `tools/<category>/<tool>` context and packs the tools into
+   at most `MAX_JOBS` (16) jobs: one tool per job while they fit, otherwise contiguous
+   runs of similar size in which a tool follows the tool it builds on. Each job is
+   named after its tools, e.g. `ai/codex`, and covers both architectures on one
+   `ubuntu-24.04` runner: amd64 natively and arm64 under QEMU (`docker/setup-qemu-action`
+   with a digest-pinned `tonistiigi/binfmt`). The jobs plus plan and the pull request
+   checks stay within the 20 concurrent jobs of a free plan however many tools exist.
+   The workflow names no tool, so a new tool needs no workflow edit.
+   - `build-tools.sh` handles one tool at a time and runs its architectures
+     concurrently, each logging to a file that is printed when it finishes (and
+     uploaded as an artifact if the job fails or times out). Per architecture it builds
+     all of the tool's variants in one Bake call, so their shared stages build once,
+     loads each variant, runs its [tests](testing.md), and, on amd64, scans it with
+     Trivy. The gate skips the files that the tool and its bases list in
+     `tests/trivy-skip-files.txt`. On main, once every variant passed on both
+     architectures, it pushes them by digest. A failing tool stops only itself: the job
+     continues with its next tool and fails at the end. Between tools it prunes the
+     BuildKit cache only as far as needed to keep 10 GB free, so later tools reuse
+     shared stages.
+   - The arm64 binfmt registration needs `F` (usable inside containers) and `C`
+     (setuid programs such as `sudo` keep their credentials); the workflow checks both.
+     binfmt_misc is not namespaced, so a privileged container that runs
+     `systemd-binfmt` unregisters the runner's handlers when it stops; the devbox
+     systemd profile masks it.
+   - Every build reads the registry cache that main writes after its tests pass
+     (`CACHE_REF`, one tag per target and architecture). Pull requests write no cache.
+   - Jobs share no images. A dependency changed in the same PR is built in every job
+     that needs it, in parallel, so there are no dependency waves to wait on.
+3. **Publish.** Only main publishes, in one job that runs once every build job has
+   finished. `publish.sh` merges the per-arch digests of each target into a
+   multi-platform index and applies tags: immutable tags only if absent, moving tags
+   always ([tags](registries-and-tags.md)). GHCR is the digest source for Docker Hub.
+   It signs each index with cosign, and one provenance attestation covers every
+   published index. A target missing a digest for either architecture (its tool
+   failed) is not published, and the run fails; the other targets still publish.
 
-1. **Plan** resolves upstream versions, discovers variants, resolves each final base
-   reference to a digest, determines what changed, and exposes JSON-safe matrix and tag
-   metadata through `GITHUB_OUTPUT`.
-2. **Build** runs the selected variant matrix for `linux/amd64`, passes digest-pinned base
-   arguments, builds from the correct context, labels source/upstream/base metadata,
-   pushes content to GHCR by digest, emits SBOM and provenance attestations, smoke-tests
-   the runtime, and blocks on HIGH/CRITICAL Trivy findings. The vulnerability gate ignores
-   unfixed findings and excludes vendored upstream release artifacts (CLIs, language
-   runtimes, npm's own bundled dependencies, and the internal dependency trees of prebuilt
-   third-party npm packages) that this repository does not compile; OS packages,
-   application dependency trees, and everything else stay gated. A second
-   unfiltered secret-only Trivy scan of the same image runs beside it so the vendored-file
-   exclusions never reduce secret coverage.
-3. **Push** downloads the recorded digests and applies registry tags without rebuilding.
-   Each job authenticates only to its target registry; GHCR is the digest source for
-   Docker Hub fan-out.
+Bake variables CI sets: `GIT_SHA`, `BUILD_DATE`, `CREATED`, `SOURCE_DATE_EPOCH` (commit
+time, for reproducibility; `bake.sh` derives these four from Git), `PLATFORM`, `ARCH`,
+`CACHE_REF`, `CACHE_WRITE`, `TAG_SET`. Adding a tool needs no workflow edit: the planner
+discovers group `all` and derives the tool name from its build context. Run
+`python3 -B .github/scripts/test_plan.py` and
+`python3 -B .github/scripts/test_build_tools.py` when changing this orchestration. The
+latter uses fake executables and performs no builds, pulls, or network requests.
 
-Do not add arm64 through unproven QEMU emulation. Validate the toolchain on a native arm
-runner, then merge architecture digests into a multi-platform manifest.
+## pr.yml
+
+The single `Pull request gate` covers PR metadata policy, dependency review, and the
+static repository validator (`.github/scripts/check-repo.py`). The `lint` job runs tools
+that cannot be verified by the static validator locally (for example hadolint,
+shellcheck, actionlint) and is the authority for their findings.
 
 ## Security and reliability
 
-- Declare one `PRIMARY` variant; only it owns `latest` and normal release tags.
-- Serialize each publisher with non-canceling concurrency and finite job timeouts.
-- Use an explicit supported runner image and disable persisted checkout credentials.
-- Deny token permissions at workflow scope, then grant only each job's required package
-  and content access.
-- Bind registry-promotion jobs to the registry-named GitHub Environment. Keep
-  `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as `dockerhub` environment secrets rather
-  than repository-wide secrets; GHCR publishing uses the job-scoped `GITHUB_TOKEN`.
-- Pin every third-party action to a full 40-character commit SHA with a readable version
-  comment; keep GitHub Actions Dependabot enabled.
-- Grant the narrowest job permissions and secrets. Never echo credentials or pass them as
-  Docker build arguments.
-- Fail closed when diff classification, version resolution, base-digest inspection,
-  immutable-tag safety, build, smoke test, scan, or fan-out cannot establish success.
-- Use a distinct BuildKit cache scope for every image and variant.
-- Do not hardcode a version that the plan job owns; pass it as a build argument and keep
-  tags aligned with [registry policy](registries-and-tags.md).
-
-## Validation boundary
-
-The PR validator requires one publisher and one root catalog entry per image project,
-parses workflow YAML and embedded Bash, checks pinned actions and publisher hardening,
-enforces Dockerfile/runtime contracts, checks executable bits and Markdown links, and
-renders Compose/Helm when tools are available. It intentionally does not build, pull,
-execute, scan, or publish an image. Run a targeted BuildKit check, representative build,
-and runtime smoke test locally when the modified behavior warrants them, and report any
-unavailable check explicitly.
+- Pin every third-party action to a full commit SHA with a version comment; Renovate
+  updates them.
+- Deny token permissions at workflow scope and grant each job only what it needs.
+  Registry-push jobs bind to the registry-named environment; never echo credentials or
+  pass them as build args.
+- Use non-canceling concurrency for publishing, finite job timeouts, an explicit runner
+  image, and `persist-credentials: false` on checkout.
+- Fail closed: a planning failure stops publication, and a build, test, scan, or
+  tag-safety failure stops publication of the affected targets.
+- Add an exception to `tools/trivyignore.yaml` only with a reason and expiry; prefer bumping a
+  pin or `OS_REFRESH`.

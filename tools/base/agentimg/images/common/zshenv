@@ -1,2 +1,0 @@
-# Anchor Zsh startup files in the sysadmin user's home and prevent the new-user wizard.
-export ZDOTDIR=/home/sysadmin

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Run OCR against the current directory.
+# Run Open Code Review against the current directory.
 set -euo pipefail
 
-IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}"
+image=${OPEN_CODE_REVIEW_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-browser}
 docker run -it --rm \
-  -v "$PWD:/workspace" \
-  "$IMAGE" "$@"
+    -v "$PWD:/workspace" \
+    "$image" "$@"

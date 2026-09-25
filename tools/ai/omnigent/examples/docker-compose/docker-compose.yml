@@ -3,13 +3,8 @@ name: omnigent
 
 services:
   omnigent:
-    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}
+    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:ubuntu-browser}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [omnigent]
-
-networks:
-  omnigent:
-    name: omnigent

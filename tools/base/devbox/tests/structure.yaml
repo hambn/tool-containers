@@ -1,0 +1,82 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: sysadmin
+  workdir: /home/sysadmin
+  cmd: ["/bin/zsh", "-l"]
+  envVars:
+    - key: HOME
+      value: /home/sysadmin
+    - key: ZDOTDIR
+      value: /home/sysadmin
+    - key: SHELL
+      value: /bin/zsh
+    - key: EDITOR
+      value: nvim
+    - key: VISUAL
+      value: nvim
+    - key: LANG
+      value: C.UTF-8
+    - key: XDG_RUNTIME_DIR
+      value: /run/user/1000
+    - key: PATH
+      value: /home/sysadmin/.local/bin
+      isRegex: true
+
+fileExistenceTests:
+  - name: home owned by sysadmin
+    path: /home/sysadmin
+    shouldExist: true
+    uid: 1000
+    gid: 1000
+  - name: kube config dir is private
+    path: /home/sysadmin/.kube
+    shouldExist: true
+    permissions: drwx------
+    uid: 1000
+  - name: runtime dir
+    path: /run/user/1000
+    shouldExist: true
+    permissions: drwx------
+    uid: 1000
+  - name: sudoers drop-in
+    path: /etc/sudoers.d/sysadmin
+    shouldExist: true
+    permissions: -r--r-----
+    uid: 0
+    gid: 0
+  - name: zsh-autosuggestions plugin
+    path: /home/sysadmin/.config/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+    shouldExist: true
+  - name: oh-my-zsh git plugin
+    path: /home/sysadmin/.config/zsh/plugins/git/git.plugin.zsh
+    shouldExist: true
+
+commandTests:
+  - name: sysadmin identity
+    command: id
+    expectedOutput: ["(?m)^uid=1000\\(sysadmin\\) gid=1000\\(sysadmin\\)"]
+  - name: lite commands
+    command: /bin/zsh
+    args:
+      - -lc
+      - which bash curl fd fzf git git-lfs infocmp jq less nvim ping ps rg ssh sudo tmux zsh
+  - name: passwordless sudo
+    command: sudo
+    args: ["-n", "id", "-u"]
+    expectedOutput: ["(?m)^0$"]
+  - name: ping has cap_net_raw
+    command: sh
+    args: ["-c", "getcap \"$(readlink -f \"$(command -v ping)\")\""]
+    expectedOutput: ["cap_net_raw"]
+  - name: ghostty terminfo
+    command: infocmp
+    args: ["xterm-ghostty"]
+  - name: git default branch
+    command: git
+    args: ["config", "--system", "--get", "init.defaultBranch"]
+    expectedOutput: ["(?m)^main$"]
+  - name: git lfs filter
+    command: git
+    args: ["config", "--system", "--get", "filter.lfs.process"]
+    expectedOutput: ["git-lfs filter-process"]

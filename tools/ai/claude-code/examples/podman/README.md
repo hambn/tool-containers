@@ -1,62 +1,39 @@
 # claude-code · Podman
 
-Claude Code is Anthropic's coding agent CLI, packaged to run in a container. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) runs Claude Code (`claude`) with the arguments you pass under rootless Podman.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
-- `ANTHROPIC_API_KEY` set in your environment (never baked into the image)
+- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
+- `ANTHROPIC_API_KEY` exported in your shell.
 
-## Quick start
-
-```bash
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/claude-code:latest claude
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Rootless podman. :Z relabels the volume for SELinux hosts.
-set -euo pipefail
-: "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}"
-
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/claude-code:latest "$@"
+./run.sh
 ```
 
-## More examples
+## Variables
 
-Run it as a systemd user service (quadlet)
+| Variable | Required | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
+| `CLAUDE_CODE_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
 
-Save as `~/.config/containers/systemd/claude-code.container`, then run `systemctl --user daemon-reload && systemctl --user start claude-code`:
+## Workspace
 
-```ini
-[Unit]
-Description=claude-code container
+The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
 
-[Container]
-AutoUpdate=registry
-Image=ghcr.io/hambn/claude-code:latest
-Volume=%h/workspace:/workspace:Z
-Exec=claude
-Interactive=true
-[Service]
-Restart=on-failure
+## Files
 
-[Install]
-WantedBy=default.target
-```
+- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
 
-### Rootless with SELinux labeling
+## Cleanup
 
-`:Z` relabels the bind mount for container use on SELinux hosts; drop it on non-SELinux systems if you prefer.
+The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/claude-code:ubuntu-browser`.
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

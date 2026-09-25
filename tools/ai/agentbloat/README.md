@@ -1,6 +1,6 @@
 # agentbloat
 
-[`agentbloat`](https://github.com/hambn/tool-containers/tree/main/tools/ai/agentbloat) bundles the current command-line coding agents on top of the reusable [`agentimg`](../../base/agentimg/) foundations.
+Every current command-line coding agent in one interactive image, built on the [`devbox`](../../base/devbox/) development image. It starts a Zsh login shell and is also the base of [`omnigent`](../omnigent/) and [`t3code`](../t3code/).
 
 ## Contents
 
@@ -12,101 +12,74 @@
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: all agents, full Ubuntu toolset, headless Chromium
-  - Base: `ghcr.io/hambn/agentimg:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Agent update tags: `codex-v<version>`, `claude-code-v<version>`, etc.
-- **`ubuntu`**
-  - Contents: all agents and full Ubuntu toolset, no browser
-  - Base: `ghcr.io/hambn/agentimg:ubuntu`
-  - Moving tags: `ubuntu`
-  - Agent update tags: primary-only tags are not repeated
-- **`alpine-browser`**
-  - Contents: all agents, Alpine toolset, Chromium
-  - Base: `ghcr.io/hambn/agentimg:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Agent update tags: primary-only tags are not repeated
-- **`alpine`**
-  - Contents: all agents and Alpine toolset, no browser
-  - Base: `ghcr.io/hambn/agentimg:alpine`
-  - Moving tags: `alpine`
-  - Agent update tags: primary-only tags are not repeated
+| Variant | Base | Contents | Tags |
+|---|---|---|---|
+| `ubuntu-browser` | [`devbox:ubuntu-browser`](../../base/devbox/) | All agent CLIs; Ubuntu, headless Chromium | `ubuntu-browser`, `latest`, `ubuntu-browser-<YYYYMMDD>-<sha7>` |
+| `ubuntu` | [`devbox:ubuntu-full`](../../base/devbox/) | All agent CLIs; Ubuntu, no browser | `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>` |
+| `alpine-browser` | [`devbox:alpine-browser`](../../base/devbox/) | All agent CLIs; Alpine, Chromium | `alpine-browser`, `alpine-browser-<YYYYMMDD>-<sha7>` |
+| `alpine` | [`devbox:alpine-full`](../../base/devbox/) | All agent CLIs; Alpine, no browser | `alpine`, `alpine-<YYYYMMDD>-<sha7>` |
 
-Pull moving tags from `ghcr.io/hambn/agentbloat:<tag>` or
-`docker.io/hambn/agentbloat:<tag>`. Source edits and `agentimg` base refreshes repoint
-only moving tags. A scheduled agent release also repoints those tags and adds a version
-tag to the primary `ubuntu-browser` image, such as `claude-code-v1.2.3`. See the
-repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
+Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`.
+agentbloat is a base image: moving variant tags (and `latest`) repoint on every rebuild, and `<variant>-<YYYYMMDD>-<sha7>` tags identify one build and are never repointed. Old per-agent tags such as `claude-code-v<version>` are frozen and deprecated.
+
+The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in.
 
 ## Included software
 
-Every variant installs the latest resolved versions of:
+Every variant pins and installs:
 
-- OpenAI Codex CLI (`codex`)
-- Claude Code (`claude`)
-- Cursor Agent (`agent` and `cursor-agent`)
-- xAI Grok CLI (`grok`)
-- OpenCode (`opencode`)
-- GitHub Copilot CLI (`copilot`)
-- Gemini CLI (`gemini`)
-- Pi coding agent (`pi`)
-- `acp-agent`, a CLI for browsing, searching, and running agents from the official ACP Registry
+| CLI | Commands | Source |
+|---|---|---|
+| OpenAI Codex | `codex` | npm `@openai/codex` |
+| Claude Code | `claude` | npm `@anthropic-ai/claude-code` |
+| Cursor Agent | `cursor-agent`, `agent` | Cursor release tarball in `/opt/cursor-agent` |
+| xAI Grok | `grok` | npm `@xai-official/grok` |
+| OpenCode | `opencode` | npm `opencode-ai` |
+| GitHub Copilot | `copilot` | npm `@github/copilot` |
+| Gemini CLI | `gemini` | npm `@google/gemini-cli` |
+| Pi | `pi` | npm `@earendil-works/pi-coding-agent` |
+| ACP Agent | `acp-agent` | PyPI `acp-agent` in `/opt/uv-tools`, with `agent-client-protocol` held at a compatible release |
 
-The inherited `agentimg` inventory also provides Git/GitHub/GitLab CLIs, Docker tooling,
-Python, Go, shell tools, and optional browser support. Credentials are intentionally
-configured at runtime through each upstream tool's supported login flow or environment
-variables.
+Pins live in [`versions.hcl`](../../versions.hcl) and are recorded as `io.github.hambn.containers.tool.<name>.version` image labels. Cursor publishes no checksum for its tarball, so that download is pinned by version only. Everything else — Git, GitHub/GitLab CLIs, Docker tooling, Python, Go, Node.js, and the optional browser — comes from [`devbox`](../../base/devbox/).
 
 ## Use cases
 
 - **Interactive multi-agent workspace** — [`examples/docker/`](./examples/docker/).
+- **Rootless workstation** — [`examples/podman/`](./examples/podman/).
 - **Repeatable local environment** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **Rootless host** — [`examples/podman/`](./examples/podman/).
-- **Long-lived cluster workspace** — [`examples/kubernetes/`](./examples/kubernetes/) or [`examples/helm/`](./examples/helm/).
-- **Shared development service** — [`examples/docker-swarm/`](./examples/docker-swarm/).
+- **Long-lived cluster workspace** — [`examples/kubernetes/`](./examples/kubernetes/) or the Helm chart in [`examples/helm/`](./examples/helm/).
 
 ## File map
 
-```text
-agentbloat/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    ├── docker-swarm/
-    │   ├── README.md
-    │   └── stack.yml
-    ├── helm/
-    │   ├── README.md
-    │   └── chart/
-    │       ├── Chart.yaml
-    │       ├── templates/deployment.yaml
-    │       └── values.yaml
-    ├── kubernetes/
-    │   ├── README.md
-    │   └── deployment.yaml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../../.github/workflows/ai-agentbloat.yml).
+- [`Dockerfile`](./Dockerfile)
+- [`README.md`](./README.md)
+- [`examples/`](./examples/)
+  - [`docker-compose/`](./examples/docker-compose/)
+    - [`README.md`](./examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](./examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml)
+  - [`docker/`](./examples/docker/)
+    - [`README.md`](./examples/docker/README.md)
+    - [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
+    - [`run.sh`](./examples/docker/run.sh)
+  - [`helm/`](./examples/helm/)
+    - [`chart/`](./examples/helm/chart/)
+      - [`templates/`](./examples/helm/chart/templates/)
+        - [`deployment.yaml`](./examples/helm/chart/templates/deployment.yaml)
+      - [`Chart.yaml`](./examples/helm/chart/Chart.yaml)
+      - [`values.yaml`](./examples/helm/chart/values.yaml)
+    - [`README.md`](./examples/helm/README.md)
+  - [`kubernetes/`](./examples/kubernetes/)
+    - [`README.md`](./examples/kubernetes/README.md)
+    - [`deployment.yaml`](./examples/kubernetes/deployment.yaml)
+  - [`podman/`](./examples/podman/)
+    - [`README.md`](./examples/podman/README.md)
+    - [`run.sh`](./examples/podman/run.sh)
+- [`tests/`](./tests/)
+  - [`structure-alpine.yaml`](./tests/structure-alpine.yaml)
+  - [`structure.yaml`](./tests/structure.yaml)
+- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml) — builds, tests, and publishes every variant
 
 ## Sources
 
@@ -117,7 +90,5 @@ CI is defined in [`.github/workflows/ai-agentbloat.yml`](../../../.github/workfl
 - [OpenCode](https://opencode.ai)
 - [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli)
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli)
-- [ACP Registry](https://agentclientprotocol.com/get-started/registry)
-- [ACP Agent CLI](https://pypi.org/project/acp-agent/)
 - [Pi coding agent](https://github.com/earendil-works/pi)
-- [agentimg foundation](../../base/agentimg/)
+- [ACP Agent CLI](https://pypi.org/project/acp-agent/) and the [ACP Registry](https://agentclientprotocol.com/get-started/registry)

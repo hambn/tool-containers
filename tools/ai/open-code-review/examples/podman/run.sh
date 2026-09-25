@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Run OCR rootlessly against the current directory; :Z supports SELinux hosts.
+# Run Open Code Review rootlessly against the current directory; :Z relabels it on SELinux hosts.
 set -euo pipefail
 
-IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}"
+image=${OPEN_CODE_REVIEW_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-browser}
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -v "$PWD:/workspace:Z" \
-  "$IMAGE" "$@"
+    -v "$PWD:/workspace:Z" \
+    "$image" "$@"

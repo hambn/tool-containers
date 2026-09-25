@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Offline host. Loads image from a local tar, never pulls.
-# Prep on an online host: docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
+# Offline host: load the image from a tar saved on an online host, never pull.
+#   docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
 set -euo pipefail
 
-TAR="${1:-t3code.tar}"
-if [ "$#" -gt 0 ]; then shift; fi
-[ -f "$TAR" ] || { echo "missing $TAR — docker save it on an online host first" >&2; exit 1; }
+tar=${1:-t3code.tar}
+shift $(($# > 0 ? 1 : 0))
+[[ -f "$tar" ]] || {
+    echo "missing $tar; docker save it on an online host first" >&2
+    exit 1
+}
 
-docker load -i "$TAR"
-docker run -it --rm \
-  --pull=never \
-  -p 127.0.0.1:3773:3773 \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/t3code:ubuntu-browser "$@"
+docker load -i "$tar"
+docker run -it --rm --pull=never \
+    -p 127.0.0.1:3773:3773 \
+    -v "$PWD:/workspace" \
+    ghcr.io/hambn/t3code:ubuntu-browser "$@"

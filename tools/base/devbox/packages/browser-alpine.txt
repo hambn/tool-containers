@@ -1,0 +1,2 @@
+chromium
+font-noto-emoji

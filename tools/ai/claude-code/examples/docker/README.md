@@ -1,95 +1,47 @@
 # claude-code · Docker
 
-Claude Code is Anthropic's coding agent CLI, packaged to run in a container. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) runs Claude Code (`claude`) with the arguments you pass, mounting the current directory at `/workspace`.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
-- `ANTHROPIC_API_KEY` set in your environment (never baked into the image)
+- Docker Engine 23 or newer.
+- `ANTHROPIC_API_KEY` exported in your shell.
 
-## Quick start
-
-```bash
-docker run -it --rm \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run Claude Code on the current directory.
-set -euo pipefail
-: "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}"
-
-docker run -it --rm \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest "$@"
+./run.sh
+./airgapped.run.sh claude-code.tar
 ```
 
-### `airgapped.run.sh`
+For an air-gapped host, save the image on a connected machine first:
 
 ```bash
-#!/usr/bin/env bash
-# Offline host. Loads image from a local tar, never pulls.
-# Prep on an online host: docker save ghcr.io/hambn/claude-code:latest -o claude-code.tar
-set -euo pipefail
-: "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}"
-
-TAR="${1:-claude-code.tar}"
-if [ "$#" -gt 0 ]; then shift; fi
-[ -f "$TAR" ] || { echo "missing $TAR — docker save it on an online host first" >&2; exit 1; }
-
-docker load -i "$TAR"
-docker run -it --rm \
-  --pull=never \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest "$@"
+docker save ghcr.io/hambn/claude-code:ubuntu-browser -o claude-code.tar
 ```
 
-## More examples
+## Variables
 
-### Pin a specific image tag
+| Variable | Required | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
+| `CLAUDE_CODE_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
 
-Edit `run.sh` (or copy it) and replace the image reference with any moving tag from the [image table](../../README.md#images):
+## Workspace
 
-```bash
-docker run -it --rm -v "$PWD:/workspace" ghcr.io/hambn/claude-code:<tag>
-```
+The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
 
-### Pass the API key without exporting it
+## Files
 
-```bash
-docker run -it --rm \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude
-```
+- [`run.sh`](./run.sh) — pull and run the published image.
+- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
 
-### One-off non-interactive command
+## Cleanup
 
-```bash
-docker run --rm \
-  -e ANTHROPIC_API_KEY \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude --version
-```
+Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/claude-code:ubuntu-browser`.
 
-### Constrain resources
+## Limitations
 
-```bash
-docker run -it --rm \
-  --cpus=2 \
-  --memory=4g \
-  --memory-swap=4g \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/claude-code:latest claude
-```
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

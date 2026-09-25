@@ -3,7 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
 import { resolveConfig, uiRoot, repoRoot } from "../src/lib/config.mjs";
-import { buildSite } from "../src/lib/catalog.mjs";
+import { buildSite, exampleFiles } from "../src/lib/catalog.mjs";
 
 const distRoot = path.join(uiRoot, "dist");
 const config = resolveConfig();
@@ -234,7 +234,11 @@ for (const { page, html } of pages) {
     const url = match[1];
     if (url.startsWith("#") || /^(https?:|mailto:|data:|\/\/)/i.test(url))
       continue;
-    if (!url.startsWith("/")) continue; // relative or protocol-relative — not a site-root link
+    check(
+      url.startsWith("/"),
+      `${label}: relative link "${url}" would resolve against the page route`,
+    );
+    if (!url.startsWith("/")) continue;
     check(
       url === basePath || url.startsWith(`${basePath}/`),
       `${label}: internal link "${url}" does not start with BASE_PATH "${basePath}"`,
@@ -324,6 +328,17 @@ for (const { page, html } of pages) {
         `${page.route}: broken fragment ${href}`,
       );
   }
+}
+/* Every inline-renderable file beside an example README is on its page. */
+for (const { page, html } of pages.filter(
+  ({ page }) => page.kind === "example",
+)) {
+  const files = exampleFiles(path.posix.dirname(page.source));
+  const rendered = (html.match(/<h3 id="file-/g) ?? []).length;
+  check(
+    rendered === files.length,
+    `${page.route}: renders ${rendered} of ${files.length} example files`,
+  );
 }
 check(
   fs.existsSync(path.join(distRoot, ".nojekyll")),

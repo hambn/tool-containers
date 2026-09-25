@@ -1,61 +1,66 @@
 # Image-project layout
 
-The ownership boundary is `tools/<category>/<tool>/`. `<category>` groups purpose;
-`<tool>` is one independently documented and published container project; `<variant>` is
-a stable public image profile.
+The ownership boundary is `tools/<category>/<tool>/`. `<category>` groups purpose
+(`base`, `ai`; `ci` and `sandboxes` are catalog categories with no projects yet),
+`<tool>` is one published image repository, and `<variant>` is one published profile of
+it. The build graph is shared: every target lives in `tools/docker-bake.hcl` and every
+pin in `tools/versions.hcl`.
 
 ## Standard tree
 
 ```text
-tool-containers/
+tools/<category>/<tool>/
 ├── README.md
-├── .github/workflows/
-│   └── <category>-<tool>.yml
-└── tools/<category>/<tool>/
+├── Dockerfile                 # one per tool; per-distro named stages
+├── tests/
+│   ├── structure.yaml         # container-structure-test, every variant
+│   ├── structure-<x>.yaml     # optional distro/tier/variant additions
+│   ├── smoke.sh               # optional runtime check
+│   └── trivy-skip-files.txt   # optional upstream binaries the scan gate skips
+└── examples/<platform>/
     ├── README.md
-    ├── images/
-    │   └── <variant>/Dockerfile
-    └── examples/
-        └── <platform>/
-            ├── README.md
-            └── runnable files
+    └── runnable files
 ```
 
-Every current tool owns a README, image sources, and platform examples, but each tool
-supports only the platforms present in its `examples/` directory. Do not create empty
-platform placeholders.
+`tools/base/devbox/` also owns `packages/` (plain-text package lists), `rootfs/` (the
+config layer), and `scripts/` (build-time helpers). There are no `images/` directories
+and no per-tool workflows.
 
-The repository directory is always `examples/`, never `deployment/` or `deployments/`.
-The `references/deployment/` directory belongs to this skill and contains platform
-guidance; it is not a path for image-project files.
-
-Derived variants use their own directory as build context and may not copy from outside
-it. `tools/base/agentimg` is the deliberate exception: its four flat
-`images/*.Dockerfile` variants share distro-local scripts and common shell assets from
-the tool's `images/` build context.
+A tool's build context is its own directory. Cross-tool inputs arrive only through bake
+`contexts` (for example `base`, `core`, `devbox-config`); never `COPY` from another tool's
+path. The `references/deployment/` directory belongs to this skill; image projects always
+use `examples/`.
 
 ## Naming
 
-- Use lowercase kebab-case category, tool, profile, and platform directory names.
-- Treat tool and variant names as public registry identifiers; rename with an explicit
-  compatibility and tag migration plan.
-- Keep one workflow per tool at `.github/workflows/<category>-<tool>.yml`.
-- Name scenario files `<scenario>.<base-name>`, for example
-  `airgapped.docker-compose.yml`; keep the ordinary case at the base name.
+- Lowercase kebab-case category, tool, variant, and platform directory names.
+- Tool and variant names are public registry identifiers; renaming one is a migration
+  (see [registries and tags](registries-and-tags.md)).
+- Bake target names are `<tool>-<variant>`; internal targets use `-payload`/`-config`.
+- Scenario files are `<scenario>.<base-name>`, for example
+  `airgapped.docker-compose.yml`; the ordinary case keeps the base name.
 
 ## Adding a tool
 
-1. Select an existing project with the closest inheritance, runtime, and platform-example
-   layout. Copy structure only after understanding every retained file.
-2. Create its README, at least one buildable image variant, and only the platform
-   examples that serve real use cases.
-3. Add one matching publication workflow with explicit upstream/base update detection,
-   primary variant, registry namespace, and immutable tag rules.
-4. Add exactly one root `README.md` catalog row under the correct category. Create a new
-   category only when the concrete tool does not belong to an existing one.
-5. Replace every copied tool name, image path, secret, command, chart value, label, and
-   source link. Compare the final file map with `git ls-files`.
+1. Pick the closest existing tool with the same parent (devbox payload or agentbloat
+   payload) and read every file before copying its shape.
+2. Write `Dockerfile` per [Dockerfiles](images/dockerfile.md).
+3. Add the tool's `<TOOL>_VERSION` pin with its Renovate comment to `tools/versions.hcl` per
+   [versions and pins](versions.md).
+4. Add a matrix target to `tools/docker-bake.hcl` modeled on a sibling (context, `DISTRO` and
+   version args, `contexts`, tags, labels, cache) and list it in the `agents` or `base`
+   group so group `all` publishes it. Render it with
+   `.github/scripts/bake.sh --print <tool>`.
+5. Add `tests/structure.yaml` and, when runtime behavior needs it, `tests/smoke.sh` per
+   [testing](testing.md). List statically linked upstream binaries the tool installs in
+   `tests/trivy-skip-files.txt`.
+6. Add the README, only the platform examples that serve real use cases
+   ([conventions](deployment/conventions.md)), and one root catalog row, all per
+   `$documentation`.
+7. Confirm `.github/scripts/plan.py` discovers the new target (run its tests) and that
+   `images.yml` needs no per-tool edit; see [CI](ci.md).
+8. Replace every copied name, image path, command, label, and source link; compare the
+   file map with `git ls-files`.
 
-Keep the project self-contained. Shared executable mechanics belong in
-`.github/scripts/` only when multiple workflows genuinely use them; shared runtime
-capabilities belong in a published foundation image rather than cross-directory copies.
+Put shared runtime capability in a published tier (core or devbox) rather than copying
+files between tools. Do not create a category or tier for one speculative use.

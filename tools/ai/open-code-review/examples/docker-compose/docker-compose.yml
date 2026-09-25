@@ -1,16 +1,10 @@
-# WORKSPACE="$PWD" ./compose.sh run --rm open-code-review review
+# WORKSPACE="$PWD" ./compose.sh run --rm open-code-review
 name: open-code-review
 
 services:
   open-code-review:
-    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}
-    command: ["--help"]
+    image: ${OPEN_CODE_REVIEW_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-browser}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [open-code-review]
-
-networks:
-  open-code-review:
-    name: open-code-review

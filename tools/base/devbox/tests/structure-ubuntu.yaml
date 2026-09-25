@@ -1,0 +1,26 @@
+schemaVersion: 2.0.0
+
+fileExistenceTests:
+  - name: dpkg keeps documentation excluded
+    path: /etc/dpkg/dpkg.cfg.d/excludes
+    shouldExist: true
+  - name: fd shim
+    path: /usr/local/bin/fd
+    shouldExist: true
+
+commandTests:
+  # systemd is part of the full and browser tiers; smoke.sh boots it there.
+  - name: systemd container profile
+    command: bash
+    args:
+      - -c
+      - |
+        set -eu
+        command -v systemctl >/dev/null || exit 0
+        test "$(systemctl --root=/ get-default)" = multi-user.target
+        test -e /var/lib/systemd/linger/sysadmin
+        grep -qx "Storage=volatile" /etc/systemd/journald.conf.d/devbox-container.conf
+        grep -qx "LogTarget=console" /etc/systemd/system.conf.d/devbox-container.conf
+        grep -qx "d /tmp 1777 root root 30d" /etc/tmpfiles.d/tmp.conf
+        test "$(readlink /etc/systemd/system/systemd-resolved.service)" = /dev/null
+        test "$(readlink /etc/systemd/system/systemd-binfmt.service)" = /dev/null

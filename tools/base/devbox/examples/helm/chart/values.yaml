@@ -1,0 +1,16 @@
+image:
+  repository: ghcr.io/hambn/devbox
+  tag: ubuntu-full
+  pullPolicy: Always
+
+workspace:
+  size: 10Gi
+  storageClassName: ""
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 4Gi

@@ -1,58 +1,38 @@
 # open-code-review · Podman
 
-Open Code Review is Alibaba's code-review CLI, packaged on the agentimg foundations. This page runs it on Podman with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) runs the Open Code Review CLI (`ocr`) with the arguments you pass, for example `review` under rootless Podman.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
+- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e`.
 
-## Quick start
-
-```bash
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -v "$PWD:/workspace:Z" \
-  ghcr.io/hambn/open-code-review:latest
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run OCR rootlessly against the current directory; :Z supports SELinux hosts.
-set -euo pipefail
-
-IMAGE="${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}"
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 \
-  -v "$PWD:/workspace:Z" \
-  "$IMAGE" "$@"
+./run.sh
 ```
 
-## More examples
+## Variables
 
-Run it as a systemd user service (quadlet)
+| Variable | Required | Purpose |
+|---|---|---|
+| `OPEN_CODE_REVIEW_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`. |
 
-Save as `~/.config/containers/systemd/open-code-review.container`, then run `systemctl --user daemon-reload && systemctl --user start open-code-review`:
+## Workspace
 
-```ini
-[Unit]
-Description=open-code-review container
+The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
 
-[Container]
-AutoUpdate=registry
-Image=ghcr.io/hambn/open-code-review:latest
-Volume=%h/workspace:/workspace:Z
+## Files
 
-[Service]
-Restart=on-failure
+- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
 
-[Install]
-WantedBy=default.target
-```
+## Cleanup
 
-### Rootless with SELinux labeling
+The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/open-code-review:ubuntu-browser`.
 
-`:Z` relabels the bind mount for container use on SELinux hosts; drop it on non-SELinux systems if you prefer.
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

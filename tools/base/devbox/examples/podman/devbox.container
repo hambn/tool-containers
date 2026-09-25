@@ -1,0 +1,18 @@
+# ~/.config/containers/systemd/devbox.container
+# systemctl --user daemon-reload && systemctl --user start devbox
+[Unit]
+Description=devbox development container
+
+[Container]
+Image=ghcr.io/hambn/devbox:ubuntu-full
+AutoUpdate=registry
+UserNS=keep-id:uid=1000,gid=1000
+Volume=%h/workspace:/workspace:Z
+WorkingDir=/workspace
+Exec=sleep infinity
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

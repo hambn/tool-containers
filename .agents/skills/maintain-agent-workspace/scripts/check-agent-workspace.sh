@@ -4,15 +4,15 @@ set -euo pipefail
 
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(git -C "$script_directory" rev-parse --show-toplevel 2>/dev/null)" || {
-  echo "error: run this command inside a Git repository" >&2
-  exit 2
+    echo "error: run this command inside a Git repository" >&2
+    exit 2
 }
 
 cd "$repository_root"
 
 command -v python3 >/dev/null || {
-  echo "error: python3 is required for agent workspace validation" >&2
-  exit 1
+    echo "error: python3 is required for agent workspace validation" >&2
+    exit 1
 }
 
 python3 - <<'PY'
@@ -34,7 +34,7 @@ agents = root / ".agents"
 skills_root = agents / "skills"
 errors: list[str] = []
 
-for required in (root / "AGENTS.md", root / "CLAUDE.md", skills_root):
+for required in (root / "AGENTS.md", skills_root):
     if not required.exists():
         errors.append(f"missing required path: {required.relative_to(root)}")
 
@@ -59,12 +59,8 @@ if not skill_dirs:
     errors.append("no repository skills found")
 
 agents_text = (root / "AGENTS.md").read_text() if (root / "AGENTS.md").is_file() else ""
-claude_text = (root / "CLAUDE.md").read_text() if (root / "CLAUDE.md").is_file() else ""
-claude_pointer = re.compile(
-    r"(?m)^Follow \[`AGENTS\.md`\]\(\./AGENTS\.md\)(?:[.,]|$)"
-)
-if not claude_pointer.search(claude_text):
-    errors.append("CLAUDE.md must positively route to ./AGENTS.md with a Markdown link")
+if (root / "CLAUDE.md").exists():
+    errors.append("CLAUDE.md is not used: Claude Code reads AGENTS.md directly")
 
 ignored_directories = {
     ".git",
@@ -87,7 +83,7 @@ for current_directory, directories, filenames in os.walk(root):
 unexpected_entrypoints = sorted(
     path
     for path in instruction_entrypoints
-    if path not in {pathlib.Path("AGENTS.md"), pathlib.Path("CLAUDE.md")}
+    if path not in {pathlib.Path("AGENTS.md"), pathlib.Path("CLAUDE.md")}  # root CLAUDE.md reported above
 )
 for path in unexpected_entrypoints:
     errors.append(f"project agent entrypoint must be represented as a skill: {path}")
@@ -187,6 +183,7 @@ mandatory_routes = {
     "maintain-agent-workspace",
     "repository-map",
     "container-images",
+    "documentation",
     "web-ui",
 }
 for name in sorted(mandatory_routes - routed_names):
@@ -201,11 +198,11 @@ if errors:
 PY
 
 while IFS= read -r -d '' script; do
-  bash -n "$script"
-  [[ -x "$script" ]] || {
-    echo "error: skill script is not executable: $script" >&2
-    exit 1
-  }
+    bash -n "$script"
+    [[ -x "$script" ]] || {
+        echo "error: skill script is not executable: $script" >&2
+        exit 1
+    }
 done < <(find .agents/skills -path '*/scripts/*' -type f -name '*.sh' -print0)
 
 echo "Agent workspace checks passed."

@@ -1,90 +1,50 @@
 # t3code · Docker Compose
 
-T3 Code is a web GUI for coding agents, served from a container on port 3773. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+The `t3code` service serves the T3 Code web GUI on `http://127.0.0.1:3773`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs `docker compose` from this directory.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine with the Compose v2 plugin.
+- Authenticate the agents from inside the T3 Code UI.
 
-## Files in this directory
-
-### `compose.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-case "${WORKSPACE:-}" in
-  /*) ;;
-  "") echo "Set WORKSPACE to an absolute host path." >&2; exit 2 ;;
-  *) echo "WORKSPACE must be an absolute host path: $WORKSPACE" >&2; exit 2 ;;
-esac
-
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-cd "$script_dir"
-exec docker compose "$@"
-```
-
-### `docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh up  → open http://localhost:3773
-# Auth the agent from inside the T3 Code UI — no API key env needed.
-name: t3code
-
-services:
-  t3:
-    image: ghcr.io/hambn/t3code:ubuntu-browser
-    container_name: t3code
-    hostname: t3code
-    networks: [t3code]
-    ports:
-      - "127.0.0.1:3773:3773"
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-
-networks:
-  t3code:
-    name: t3code
-```
-
-### `airgapped.docker-compose.yml`
-
-```yaml
-# Offline: build from the repo's Dockerfile instead of pulling a registry image.
-# Run from this directory:
-#   WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
-name: t3code
-
-services:
-  t3:
-    build:
-      context: ../../images/ubuntu-browser
-    image: t3code:airgapped
-    pull_policy: build
-    container_name: t3code
-    hostname: t3code
-    networks: [t3code]
-    ports:
-      - "127.0.0.1:3773:3773"
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-
-networks:
-  t3code:
-    name: t3code
-```
-
-## More examples
-
-### Point the stack at a different workspace
+## Commands
 
 ```bash
-WORKSPACE=/srv/projects/my-app ./compose.sh run --rm t3code
+WORKSPACE="$PWD" ./compose.sh up
 ```
 
-### Use a pinned image
+Air-gapped host, after `docker load -i t3code.tar`:
 
-Edit `image:` in `docker-compose.yml` to any moving tag from the [image table](../../README.md#images), then re-run the helper.
+```bash
+WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
+```
+
+## Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
+| `T3CODE_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
+
+## Workspace
+
+`WORKSPACE` is bind-mounted at `/workspace`; the container runs as UID 1000.
+
+## Files
+
+- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) — pulls the published image.
+- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) — uses a pre-loaded image with `pull_policy: never`.
+
+## Cleanup
+
+```bash
+WORKSPACE="$PWD" ./compose.sh down
+```
+
+## Limitations
+
+- The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

@@ -9,7 +9,10 @@ enough.
 | Request | Expected routing |
 |---|---|
 | “Where should a new repository-wide config live?” | `repository-map`, then `repository-changes` if implementing |
-| “Update the Alpine Codex Dockerfile and its release workflow.” | `repository-changes` + `container-images` |
+| “Update the Codex Dockerfile's alpine stage and its tests.” | `repository-changes` + `container-images` |
+| “Bump Claude Code to the latest release.” | `container-images` versions guide; edit `tools/versions.hcl` only |
+| “Add a Helm example for pi-agent.” | `container-images` (Job, not Deployment) + `documentation` |
+| “Rewrite the codex README Images section.” | `documentation`; `container-images` only for tag facts |
 | “Scaffold the empty web app.” | `repository-changes` + `web-ui`, then maintainer audit |
 | “Explain this Dockerfile without editing it.” | `container-images`; no mutation or publishing |
 | “Commit and open a PR for the completed change.” | `repository-changes` publishing guidance |
@@ -36,7 +39,7 @@ The checker must accept the valid workspace and reject each of these independent
 - a non-executable or syntactically invalid shell helper;
 - a reintroduced top-level `.agents` area or `memory.md`;
 - a missing mandatory root route or a root route to a nonexistent skill;
-- a `CLAUDE.md` that no longer routes to `AGENTS.md`.
+- a `CLAUDE.md` beside `AGENTS.md` (Claude Code reads `AGENTS.md` directly).
 
 The automated checker test covers representative structural failures. For semantic
 corrections, replay the user's actual request against the repaired description and

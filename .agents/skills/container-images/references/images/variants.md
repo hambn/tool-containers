@@ -1,29 +1,25 @@
 # Image variants
 
-A variant is one buildable functional profile. Its name is a stable public tag and
-describes contents or purpose, not merely an interchangeable base distribution.
+A variant is one published profile of an image repository. Its name is the moving tag
+and the bake target suffix, and it encodes `<distro>[-<tier>]`.
 
-The current shared profiles are:
+| Repository | Variants | `latest` |
+|---|---|---|
+| `core` | `alpine`, `ubuntu`, `wolfi` | `wolfi` |
+| `devbox` | `alpine-lite`, `ubuntu-lite`, `alpine-full`, `ubuntu-full`, `alpine-browser`, `ubuntu-browser` | `ubuntu-full` |
+| every agent | `ubuntu`, `alpine`, `ubuntu-browser`, `alpine-browser` | `ubuntu-browser` |
 
-| Variant | Contract |
-|---|---|
-| `ubuntu-browser` | primary, broad Ubuntu tooling plus headless browser |
-| `ubuntu` | broad Ubuntu tooling without browser payload |
-| `alpine-browser` | compact Alpine tooling plus browser |
-| `alpine` | compact Alpine tooling without browser payload |
+An agent variant without a tier suffix builds on devbox `full`; `-browser` builds on
+devbox `browser`. Agents have no `lite` variant.
 
-This four-profile set is an actual current inheritance contract, not a universal
-template for all future projects. A new project needs at least one primary variant; add
-`minimal`, `full`, `gpu`, `cuda`, `ci`, `distroless`, or another profile only for a
-demonstrated use case.
+## Rules
 
-## Naming and compatibility
-
-- Use lowercase kebab-case names based on functional capability.
-- Include a base distinction only when it changes runtime behavior or compatibility.
-- Keep one primary variant declared in CI. It owns `latest` and its own moving tag; every
-  other variant owns its matching moving tag.
-- Treat renames and removals as public API changes. Update inheritance, tags, platform
-  examples, documentation, and migration guidance together.
-- Do not assume a universal immutable version/base tag. Use the owning workflow's actual
-  release mapping from [registry policy](../registries-and-tags.md).
+- Variant names describe capability, not an interchangeable base; add a new tier or
+  distro only for a demonstrated use case, and add it to the bake matrix, tests, README
+  Images table, and examples together.
+- Exactly one variant per repository owns `latest`; it is set in `tools/docker-bake.hcl`
+  (`base_tags` flag or `PRIMARY_AGENT_VARIANT`).
+- Renaming or removing a variant is a public API change: keep the old tags frozen, note
+  the deprecation in the README, and update every example that referenced it.
+- Labels `io.github.hambn.containers.{tier,variant,distro}` describe each image; tests
+  use the same distro, tier, and variant vocabulary ([testing](../testing.md)).

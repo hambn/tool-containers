@@ -1,7 +1,6 @@
 # omnigent
 
-[Omnigent](https://github.com/omnigent-ai/omnigent) is an open-source AI agent
-meta-harness packaged on the reusable [`agentbloat`](../agentbloat/) foundations.
+[Omnigent](https://github.com/omnigent-ai/omnigent), an open-source AI agent meta-harness, on the [`agentbloat`](../agentbloat/) image so every bundled agent CLI is available to it. The entrypoint is `omnigent`.
 
 ## Contents
 
@@ -12,75 +11,49 @@ meta-harness packaged on the reusable [`agentbloat`](../agentbloat/) foundations
 
 ## Images
 
-- **`ubuntu-browser`** (primary)
-  - Contents: Omnigent, all agentbloat agents, Ubuntu tools, headless Chromium
-  - Base: `ghcr.io/hambn/agentbloat:ubuntu-browser`
-  - Moving tags: `latest`, `ubuntu-browser`
-  - Omnigent release tag: `omnigent-v<version>`
-- **`ubuntu`**
-  - Contents: Omnigent, all agentbloat agents, Ubuntu tools
-  - Base: `ghcr.io/hambn/agentbloat:ubuntu`
-  - Moving tags: `ubuntu`
-  - Omnigent release tag: primary-only tag is not repeated
-- **`alpine-browser`**
-  - Contents: Omnigent, all agentbloat agents, Alpine tools, Chromium
-  - Base: `ghcr.io/hambn/agentbloat:alpine-browser`
-  - Moving tags: `alpine-browser`
-  - Omnigent release tag: primary-only tag is not repeated
-- **`alpine`**
-  - Contents: Omnigent, all agentbloat agents, Alpine tools
-  - Base: `ghcr.io/hambn/agentbloat:alpine`
-  - Moving tags: `alpine`
-  - Omnigent release tag: primary-only tag is not repeated
+| Variant | Base | Contents | Tags |
+|---|---|---|---|
+| `ubuntu-browser` | [`agentbloat:ubuntu-browser`](../agentbloat/) | Omnigent plus every agentbloat CLI; Ubuntu, headless Chromium | `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>` |
+| `ubuntu` | [`agentbloat:ubuntu`](../agentbloat/) | Omnigent plus every agentbloat CLI; Ubuntu, no browser | `ubuntu`, `<version>-ubuntu` |
+| `alpine-browser` | [`agentbloat:alpine-browser`](../agentbloat/) | Omnigent plus every agentbloat CLI; Alpine, Chromium | `alpine-browser`, `<version>-alpine-browser` |
+| `alpine` | [`agentbloat:alpine`](../agentbloat/) | Omnigent plus every agentbloat CLI; Alpine, no browser | `alpine`, `<version>-alpine` |
 
-Pull moving tags from `ghcr.io/hambn/omnigent:<tag>` or
-`docker.io/hambn/omnigent:<tag>`. Omnigent releases repoint all moving tags and
-add `omnigent-v<version>` to the primary image. `agentbloat` base refreshes and
-repository edits repoint moving tags only. See the repository's
-[registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
+Pull from `ghcr.io/hambn/omnigent:<tag>` or `docker.io/hambn/omnigent:<tag>`.
+Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned Omnigent PyPI release; version tags are created once and never repointed. The old `omnigent-v<version>` tags are frozen and deprecated.
 
-Omnigent discovers credentials and harness logins at runtime. No credentials are
-stored in the image or deployment files.
+The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Omnigent lives in a uv tool environment under `/opt/uv-tools/omnigent` with `omni` and `omnigent` launchers in `/usr/local/bin`, usable by any UID. On Alpine its `google-re2` dependency is compiled in a separate build stage, so only the `re2` runtime library ships in the image.
 
 ## Use cases
 
-- **Interactive local orchestration** — [`examples/docker/`](./examples/docker/).
+- **Orchestrate agents over a local checkout** — [`examples/docker/`](./examples/docker/).
+- **Rootless workstation** — [`examples/podman/`](./examples/podman/).
 - **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **Rootless development** — [`examples/podman/`](./examples/podman/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
 
 ## File map
 
-```text
-omnigent/
-├── README.md
-├── images/
-│   ├── alpine/
-│   │   └── Dockerfile
-│   ├── alpine-browser/
-│   │   └── Dockerfile
-│   ├── ubuntu/
-│   │   └── Dockerfile
-│   └── ubuntu-browser/
-│       └── Dockerfile
-└── examples/
-    ├── docker/
-    │   ├── README.md
-    │   ├── airgapped.run.sh
-    │   └── run.sh
-    ├── docker-compose/
-    │   ├── README.md
-    │   ├── airgapped.docker-compose.yml
-    │   └── docker-compose.yml
-    └── podman/
-        ├── README.md
-        └── run.sh
-```
-
-CI is defined in [`.github/workflows/ai-omnigent.yml`](../../../.github/workflows/ai-omnigent.yml).
+- [`Dockerfile`](./Dockerfile)
+- [`README.md`](./README.md)
+- [`examples/`](./examples/)
+  - [`docker-compose/`](./examples/docker-compose/)
+    - [`README.md`](./examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](./examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml)
+  - [`docker/`](./examples/docker/)
+    - [`README.md`](./examples/docker/README.md)
+    - [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
+    - [`run.sh`](./examples/docker/run.sh)
+  - [`podman/`](./examples/podman/)
+    - [`README.md`](./examples/podman/README.md)
+    - [`run.sh`](./examples/podman/run.sh)
+- [`tests/`](./tests/)
+  - [`structure-alpine.yaml`](./tests/structure-alpine.yaml)
+  - [`structure.yaml`](./tests/structure.yaml)
+- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml) — builds, tests, and publishes every variant
 
 ## Sources
 
-- [Omnigent source repository](https://github.com/omnigent-ai/omnigent)
+- [Omnigent repository](https://github.com/omnigent-ai/omnigent)
+- [PyPI package `omnigent`](https://pypi.org/project/omnigent/)
 - [Omnigent documentation](https://omnigent.ai/quickstart/install)
-- [Omnigent package on PyPI](https://pypi.org/project/omnigent/)
-- [agentbloat foundation](../agentbloat/)

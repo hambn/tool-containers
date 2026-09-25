@@ -1,0 +1,42 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: "65532:65532"
+  workdir: /home/nonroot
+  cmd: ["bash"]
+
+fileExistenceTests:
+  - name: nonroot home
+    path: /home/nonroot
+    shouldExist: true
+    uid: 65532
+    gid: 65532
+  - name: zoneinfo
+    path: /usr/share/zoneinfo/UTC
+    shouldExist: true
+  - name: no sudo
+    path: /usr/bin/sudo
+    shouldExist: false
+
+commandTests:
+  - name: runs as nonroot
+    command: id
+    args: ["-u"]
+    expectedOutput: ["(?m)^65532$"]
+  - name: nonroot account
+    command: sh
+    args: ["-c", "grep '^nonroot:' /etc/passwd | cut -d: -f3,4,6"]
+    expectedOutput: ["(?m)^65532:65532:/home/nonroot$"]
+  - name: required commands
+    command: bash
+    args: ["-c", "command -v bash curl"]
+  - name: no sudo command
+    command: sh
+    args: ["-c", "! command -v sudo"]
+  - name: CA bundle for TLS
+    command: sh
+    args: ["-c", "test -s /etc/ssl/certs/ca-certificates.crt"]
+  - name: no setuid or setgid files
+    command: sh
+    args: ["-c", "find / -xdev -type f \\( -perm -4000 -o -perm -2000 \\) 2>/dev/null | wc -l"]
+    expectedOutput: ["(?m)^\\s*0\\s*$"]

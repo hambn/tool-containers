@@ -1,87 +1,49 @@
 # open-code-review · Docker Compose
 
-Open Code Review is Alibaba's code-review CLI, packaged on the agentimg foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+The `open-code-review` service runs the Open Code Review CLI (`ocr`) with the arguments you pass, for example `review`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs `docker compose` from this directory.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine with the Compose v2 plugin.
+- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e`.
 
-## Files in this directory
-
-### `compose.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-case "${WORKSPACE:-}" in
-  /*) ;;
-  "") echo "Set WORKSPACE to an absolute host path." >&2; exit 2 ;;
-  *) echo "WORKSPACE must be an absolute host path: $WORKSPACE" >&2; exit 2 ;;
-esac
-
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-cd "$script_dir"
-exec docker compose "$@"
-```
-
-### `docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh run --rm open-code-review review
-name: open-code-review
-
-services:
-  open-code-review:
-    image: ${OCR_IMAGE:-ghcr.io/hambn/open-code-review:latest}
-    command: ["--help"]
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-    stdin_open: true
-    tty: true
-    networks: [open-code-review]
-
-networks:
-  open-code-review:
-    name: open-code-review
-```
-
-### `airgapped.docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm open-code-review review
-name: open-code-review-airgapped
-
-services:
-  open-code-review:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/open-code-review:ubuntu-browser
-    pull_policy: never
-    command: ["--help"]
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-    stdin_open: true
-    tty: true
-    networks: [open-code-review]
-
-networks:
-  open-code-review:
-    name: open-code-review-airgapped
-```
-
-## More examples
-
-### Point the stack at a different workspace
+## Commands
 
 ```bash
-WORKSPACE=/srv/projects/my-app ./compose.sh run --rm open-code-review
+WORKSPACE="$PWD" ./compose.sh run --rm open-code-review
 ```
 
-### Use a pinned image
+Air-gapped host, after `docker load -i open-code-review.tar`:
 
 ```bash
-OCR_IMAGE=ghcr.io/hambn/open-code-review:<tag> ./compose.sh run --rm open-code-review
+WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm open-code-review
 ```
+
+## Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
+| `OPEN_CODE_REVIEW_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`. |
+
+## Workspace
+
+`WORKSPACE` is bind-mounted at `/workspace`; the container runs as UID 1000.
+
+## Files
+
+- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) — pulls the published image.
+- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) — uses a pre-loaded image with `pull_policy: never`.
+
+## Cleanup
+
+```bash
+WORKSPACE="$PWD" ./compose.sh down
+```
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

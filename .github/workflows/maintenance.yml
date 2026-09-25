@@ -1,0 +1,191 @@
+name: maintenance
+
+# Weekly: rescan the published moving tags and open an OS_REFRESH pull request when
+# fixable OS vulnerabilities appear, prune unreferenced untagged GHCR versions, and
+# sync Docker Hub descriptions from the tool READMEs.
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only list the GHCR versions that would be deleted.
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  catalog:
+    name: Read image catalog
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      repos: ${{ steps.catalog.outputs.repos }}
+      refs: ${{ steps.catalog.outputs.refs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: List published repositories and moving tags
+        id: catalog
+        run: |
+          set -euo pipefail
+          bake=$(TAG_SET=moving .github/scripts/bake.sh --print all)
+          repos=$(jq -c '[.target[] | select(any(.tags[]?; startswith("ghcr.io/") and endswith(":latest"))) | {
+              repo: (.tags[0] | split("/")[-1] | split(":")[0]),
+              readme: "\(.context)/README.md",
+              description: .labels["org.opencontainers.image.description"][0:100]
+          }] | sort_by(.repo)' <<<"$bake")
+          refs=$(jq -c '[.target[].tags[]? | select(startswith("ghcr.io/") and (endswith(":latest") | not))] | sort' <<<"$bake")
+          echo "repos=$repos" >>"$GITHUB_OUTPUT"
+          echo "refs=$refs" >>"$GITHUB_OUTPUT"
+
+  rescan:
+    name: Rescan published images
+    needs: catalog
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    outputs:
+      vulnerable: ${{ steps.scan.outputs.vulnerable }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: v0.70.0
+          cache: true
+      # Only OS packages matter here: bumping OS_REFRESH rebuilds exactly those layers.
+      - name: Scan for fixable OS vulnerabilities
+        id: scan
+        env:
+          REFS: ${{ needs.catalog.outputs.refs }}
+        run: |
+          set -euo pipefail
+          vulnerable=false
+          for ref in $(jq -r '.[]' <<<"$REFS"); do
+              echo "::group::$ref"
+              status=0
+              trivy image --quiet --image-src remote --platform linux/amd64 \
+                  --pkg-types os --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+                  --ignorefile tools/trivyignore.yaml --exit-code 2 "$ref" || status=$?
+              echo "::endgroup::"
+              case "$status" in
+                  0) ;;
+                  2) vulnerable=true && echo "::warning::$ref has fixable HIGH/CRITICAL OS vulnerabilities" ;;
+                  *) exit "$status" ;;
+              esac
+          done
+          echo "vulnerable=$vulnerable" >>"$GITHUB_OUTPUT"
+
+  os-refresh:
+    name: Open OS refresh pull request
+    needs: rescan
+    if: needs.rescan.outputs.vulnerable == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # Needed to push the refresh branch.
+      pull-requests: write # Needed to open or update the pull request.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Bump OS_REFRESH and open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch=maintenance/os-refresh
+          today=$(date -u +%F)
+          sed -i -E '/^variable "OS_REFRESH"/,/^}/ s/(default = ")[^"]*"/\1'"$today"'"/' tools/versions.hcl
+          if git diff --quiet; then
+              echo "OS_REFRESH is already $today"
+              exit 0
+          fi
+          title="fix(images): refresh OS packages ($today)"
+          git switch -C "$branch"
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit --all --message "$title"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+              push --force "https://github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$branch"
+          body=$(printf '%s\n' \
+              '## Summary' '' \
+              "- The weekly rescan found fixable HIGH/CRITICAL OS vulnerabilities in published images; set OS_REFRESH to $today to rebuild every OS package layer." '' \
+              '## Validation' '' \
+              '- The images workflow rebuilds, tests, and rescans every image on this pull request.')
+          number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+              gh pr edit "$number" --title "$title" --body "$body"
+          else
+              gh pr create --base main --head "$branch" --title "$title" --body "$body"
+          fi
+
+  ghcr-cleanup:
+    name: Prune untagged GHCR versions
+    needs: catalog
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # Needed to delete package versions.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Delete unreferenced untagged versions older than 14 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOS: ${{ needs.catalog.outputs.repos }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
+          mapfile -t packages < <(jq -r '.[].repo' <<<"$REPOS")
+          python3 .github/scripts/ghcr-cleanup.py "${args[@]}" "${packages[@]}"
+
+  hub-readme:
+    name: Sync Docker Hub README for ${{ matrix.image.repo }}
+    needs: catalog
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: dockerhub
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.catalog.outputs.repos) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rewrite repository links
+        env:
+          README: ${{ matrix.image.readme }}
+        run: python3 .github/scripts/hub-readme.py "$README" >"$RUNNER_TEMP/README.md"
+      - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: hambn/${{ matrix.image.repo }}
+          short-description: ${{ matrix.image.description }}
+          readme-filepath: ${{ runner.temp }}/README.md

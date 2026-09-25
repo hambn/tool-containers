@@ -1,0 +1,101 @@
+# Security and trust
+acl
+dirmngr
+gnupg
+
+# Shell and editors
+bash-completion
+dialog
+nano
+vim
+
+# Build toolchain
+autoconf
+automake
+bison
+build-essential
+cmake
+fakeroot
+flex
+make
+ninja-build
+parallel
+patch
+pkg-config
+
+# Archives
+brotli
+bzip2
+unzip
+xz-utils
+zip
+zstd
+
+# Files and text
+bsdextrautils
+file
+gettext-base
+tree
+
+# Version control and linters
+mercurial
+shellcheck
+shfmt
+yamllint
+
+# Python and databases
+pipx
+python-is-python3
+python3
+python3-pip
+python3-venv
+sqlite3
+
+# Networking
+aria2
+dnsutils
+httpie
+iperf3
+iproute2
+mtr-tiny
+net-tools
+netcat-openbsd
+nmap
+socat
+tcpdump
+traceroute
+wget
+whois
+
+# Remote access and proxies
+mitmproxy
+nginx
+openssh-server
+rsync
+
+# Containers and system integration
+bubblewrap
+dbus-user-session
+docker-buildx
+docker-compose-v2
+docker.io
+systemd
+systemd-sysv
+
+# Media
+ffmpeg
+imagemagick
+
+# Monitoring and debugging
+atop
+btop
+htop
+iotop
+lsof
+man-db
+ncdu
+psmisc
+strace
+
+# Locales
+locales

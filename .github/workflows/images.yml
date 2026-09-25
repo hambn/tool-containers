@@ -1,0 +1,214 @@
+name: Test and build
+
+# Plan the affected Bake targets, then test and build them in one job per tool that
+# covers amd64 natively and arm64 under QEMU, both at once. The planner packs the
+# affected tools into at most sixteen jobs (one tool per job while they fit), so the
+# job count stays bounded as tools are added. Only main publishes the verified
+# digests as multi-arch images, in one job.
+on:
+  pull_request:
+    paths: &image-paths
+      - "tools/**"
+      - ".github/workflows/images.yml"
+      - ".github/scripts/plan.py"
+      - ".github/scripts/bake.sh"
+      - ".github/scripts/build-tools.sh"
+      - ".github/scripts/publish.sh"
+  push:
+    branches: [main]
+    paths: *image-paths
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: Space-separated published bake targets or groups (see tools/docker-bake.hcl).
+        required: true
+        default: all
+        type: string
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  plan:
+    name: Plan image builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      targets: ${{ steps.plan.outputs.targets }}
+      jobs: ${{ steps.plan.outputs.jobs }}
+      publish: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker # Planning only renders local Bake files.
+      - name: Plan
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          DISPATCH_TARGETS: ${{ inputs.targets }}
+        run: python3 .github/scripts/plan.py
+
+  test-and-build:
+    name: ${{ matrix.job.name }}
+    needs: plan
+    if: needs.plan.outputs.targets != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: write # Needed to push digests and cache when publishing.
+      security-events: write # Needed to upload Trivy SARIF.
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    env:
+      TARGETS: ${{ toJSON(matrix.job.targets) }}
+      ARCHES: amd64 arm64
+      SCAN: true
+      PUBLISH: ${{ needs.plan.outputs.publish }}
+      TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      RESULT_DIR: /tmp/image-results
+      # Main writes the registry cache after tests pass; every build reads it.
+      CACHE_REF: ghcr.io/hambn/buildcache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # tonistiigi/binfmt registers with the F flag (usable inside containers) and the
+      # C flag (setuid programs such as sudo keep their credentials).
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: arm64
+      - name: Check arm64 emulation
+        run: |
+          grep -q '^flags: .*C' /proc/sys/fs/binfmt_misc/qemu-aarch64
+          grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Log in to GHCR
+        if: env.TRUSTED == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install container-structure-test
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          curl -fsSLo /tmp/cst https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-amd64
+          echo 'fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca  /tmp/cst' | sha256sum -c -
+          sudo install -m 0755 /tmp/cst /usr/local/bin/container-structure-test
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: v0.70.0
+          cache: true
+
+      - name: Test and build
+        run: .github/scripts/build-tools.sh
+
+      # Each architecture logs to a file that is printed when it finishes; keep the
+      # files when a job fails or times out before printing them.
+      - name: Upload build logs
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ matrix.job.id }}
+          path: /tmp/image-results/logs/*
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Find scan reports
+        id: reports
+        if: ${{ !cancelled() }}
+        run: |
+          if compgen -G "$RESULT_DIR/sarif/*.sarif" >/dev/null; then
+              echo 'present=true' >>"$GITHUB_OUTPUT"
+          fi
+      - name: Upload Trivy SARIF
+        if: ${{ !cancelled() && env.TRUSTED == 'true' && steps.reports.outputs.present == 'true' }}
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: /tmp/image-results/sarif
+
+      # Tools that passed leave digests even when another tool in the job failed.
+      - name: Upload digests
+        if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-${{ matrix.job.id }}
+          path: /tmp/image-results/digests/*
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Publishes every target whose tool passed on both architectures, so one broken
+  # tool does not hold back the others; the run still fails for it.
+  publish:
+    name: Publish
+    needs: [plan, test-and-build]
+    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.plan.outputs.targets != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: dockerhub
+    permissions:
+      contents: read
+      packages: write # Needed to create GHCR tags and push signatures.
+      id-token: write # Needed for keyless cosign signing and provenance attestations.
+      attestations: write # Needed to record provenance attestations.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker # Manifest operations do not need a BuildKit container.
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: digests-*
+          merge-multiple: true
+          path: /tmp/digests
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create, mirror, and sign the multi-arch indexes
+        env:
+          TARGETS: ${{ needs.plan.outputs.targets }}
+        run: .github/scripts/publish.sh /tmp/digests /tmp/subjects.txt
+
+      # One attestation covers every published index, on GHCR and Docker Hub names;
+      # `gh attestation verify oci://<image>` finds it by digest.
+      - name: Find published images
+        id: subjects
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -s /tmp/subjects.txt ]; then
+              echo 'present=true' >>"$GITHUB_OUTPUT"
+          fi
+      - name: Attest build provenance
+        if: ${{ !cancelled() && steps.subjects.outputs.present == 'true' }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: /tmp/subjects.txt

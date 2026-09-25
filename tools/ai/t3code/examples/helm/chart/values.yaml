@@ -1,7 +1,7 @@
 image:
   repository: ghcr.io/hambn/t3code
   tag: ubuntu-browser
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   port: 3773
