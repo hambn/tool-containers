@@ -4,7 +4,7 @@
 import copy
 import unittest
 
-from plan import affected_targets, expand, plan
+from plan import affected_targets, expand, plan, tool_jobs
 
 
 def cache(name):
@@ -140,11 +140,33 @@ class PlanTests(unittest.TestCase):
     def test_empty_selection(self):
         self.assertEqual(plan(FIXTURE, FIXTURE, [], "pull_request", []), {"targets": []})
 
-    def test_publish_script_change_selects_all_targets(self):
+    def test_runtime_script_change_selects_all_targets(self):
+        for path in (".github/scripts/publish.sh", ".github/scripts/build-tool.sh"):
+            with self.subTest(path=path):
+                self.assertEqual(
+                    plan(FIXTURE, FIXTURE, [path], "push", []),
+                    {"targets": PUBLISHED},
+                )
+
+    def test_tool_jobs_combine_variants(self):
+        head = copy.deepcopy(FIXTURE)
+        head["target"]["claude-alpine"] = target("tools/ai/claude", name="claude-alpine")
         self.assertEqual(
-            plan(FIXTURE, FIXTURE, [".github/scripts/publish.sh"], "push", []),
-            {"targets": PUBLISHED},
+            tool_jobs(head, ["claude-ubuntu", "core-ubuntu", "claude-alpine"]),
+            [
+                {"name": "ai/claude", "artifact": "ai-claude", "targets": ["claude-ubuntu", "claude-alpine"]},
+                {"name": "base/core", "artifact": "base-core", "targets": ["core-ubuntu"]},
+            ],
         )
+        # A pin affecting one variant must not build every variant of that tool.
+        self.assertEqual(tool_jobs(head, ["claude-alpine"])[0]["targets"], ["claude-alpine"])
+        self.assertEqual(tool_jobs(head, []), [])
+
+    def test_tool_jobs_reject_non_tool_context(self):
+        head = copy.deepcopy(FIXTURE)
+        head["target"]["core-ubuntu"]["context"] = "."
+        with self.assertRaises(ValueError):
+            tool_jobs(head, ["core-ubuntu"])
 
 
 if __name__ == "__main__":

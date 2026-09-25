@@ -367,6 +367,7 @@ def run_suites() -> None:
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/test-check-agent-workspace.sh"],
         [sys.executable, "-B", ".github/scripts/test_validate_pr_metadata.py"],
         [sys.executable, "-B", ".github/scripts/test_plan.py"],
+        [sys.executable, "-B", ".github/scripts/test_build_tool.py"],
     ):
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:

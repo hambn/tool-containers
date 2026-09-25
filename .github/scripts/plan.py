@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan which published bake targets to build, as independent matrix jobs.
+"""Plan which published bake targets to build, grouped into one matrix job per tool.
 
 A target is affected when a file in its build context changes (README.md and
 examples/ excepted), when its printed bake definition changes, or when a target it
@@ -22,6 +22,7 @@ PIPELINE_FILES = {
     ".github/workflows/images.yml",
     ".github/scripts/plan.py",
     ".github/scripts/bake-env.sh",
+    ".github/scripts/build-tool.sh",
     ".github/scripts/publish.sh",
     ".trivyignore.yaml",
 }
@@ -114,6 +115,20 @@ def plan(head: dict, base: dict | None, changed: list[str], event: str, requeste
     return {"targets": [name for name in published if name in selected]}
 
 
+def tool_jobs(bake: dict, targets: list[str]) -> list[dict]:
+    """Group selected variants by their tool context, without adding other variants."""
+    jobs: dict[str, dict] = {}
+    for target in targets:
+        context = pathlib.PurePosixPath(bake["target"][target]["context"])
+        if len(context.parts) != 3 or context.parts[0] != "tools" or ".." in context.parts:
+            raise ValueError(f"expected tools/<category>/<tool> context for {target}: {context}")
+        name = "/".join(context.parts[1:])
+        if name not in jobs:
+            jobs[name] = {"name": name, "artifact": "-".join(context.parts[1:]), "targets": []}
+        jobs[name]["targets"].append(target)
+    return list(jobs.values())
+
+
 def bake_print(directory: pathlib.Path, cwd: pathlib.Path) -> dict:
     files = [argument for name in BAKE_FILES for argument in ("-f", str(directory / name))]
     result = subprocess.run(
@@ -160,7 +175,10 @@ def main() -> int:
         base = base_definition(args.base, root)
     result = plan(head, base, changed, args.event, args.targets.split() or ["all"])
 
-    outputs = {"targets": json.dumps(result["targets"])}
+    outputs = {
+        "targets": json.dumps(result["targets"]),
+        "tools": json.dumps(tool_jobs(head, result["targets"])),
+    }
     if args.dry_run or "GITHUB_OUTPUT" not in os.environ:
         print(json.dumps(outputs, indent=2))
     else:

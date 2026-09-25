@@ -23,8 +23,9 @@ them locally when installed; otherwise say they are left to CI.
   contexts, args, tags, and labels. Building and running images is CI's job
   (`images.yml` builds, tests, and scans affected targets); do it locally only when the
   user authorizes it.
-- **CI planner:** run the planner tests in `.github/scripts/test_plan.py` after changing
-  the planner, the bake graph shape, or tool paths.
+- **Image CI:** run `.github/scripts/test_plan.py` after changing the planner, the bake
+  graph shape, or tool paths. Run `.github/scripts/test_build_tool.py` after changing
+  build/test/scan/export orchestration; it uses fake executables and no network.
 - **Deployment examples:** render or lint the affected format and inspect secrets,
   mounts, image references, and offline behavior.
 - **GitHub Actions:** inspect events, path filters, permissions, secrets, concurrency,
