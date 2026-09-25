@@ -137,7 +137,7 @@ def check_pull_request_gate() -> None:
 
 
 def check_pipeline_layout() -> None:
-    for required in ("images.yml", "image-build.yml", "maintenance.yml", "pr.yml"):
+    for required in ("images.yml", "maintenance.yml", "pr.yml"):
         if not (WORKFLOWS / required).is_file():
             error(f"missing workflow {WORKFLOWS / required}")
     obsolete = [p for p in WORKFLOWS.glob("*.yml") if p.name.startswith(("ai-", "base-")) or p.name == "pull-request.yml"]

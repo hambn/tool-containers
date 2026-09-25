@@ -46,13 +46,12 @@ mechanics. There are no global agent references, memory logs, or secondary route
 ├── ISSUE_TEMPLATE/
 ├── scripts/
 │   ├── check-repo.py             # static repository validator
-│   ├── plan.py                   # image CI planner (affected targets, waves)
+│   ├── plan.py                   # image CI planner (affected targets)
 │   ├── test_plan.py
 │   ├── validate_pr_metadata.py   # PR title/body policy
 │   └── test_validate_pr_metadata.py
 └── workflows/
-    ├── images.yml                # plan → build waves → publish, all images
-    ├── image-build.yml           # reusable wave build/test/scan
+    ├── images.yml                # plan → build/test matrix → publish, all images
     ├── pr.yml                    # pull-request gate and lint
     ├── pr-labeler.yml
     ├── web-ui.yml                # site build and Pages deploy

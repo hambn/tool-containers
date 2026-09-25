@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
-"""Plan which published bake targets to build, grouped into dependency waves.
+"""Plan which published bake targets to build, as independent matrix jobs.
 
 A target is affected when a file in its build context changes (README.md and
 examples/ excepted), when its printed bake definition changes, or when a target it
 consumes through a `target:` context is affected. Changes to the image pipeline
 itself affect every target.
-
-Waves follow cache-sharing edges: an internal target (never tagged) that reads a
-published target's registry cache must wait for that target so the cache is warm.
-A direct `target:` context on a published target is built inside the same bake
-invocation and does not add a wave, so core and devbox share the first wave.
 """
 
 from __future__ import annotations
@@ -25,9 +20,9 @@ import tempfile
 BAKE_FILES = ("docker-bake.hcl", "versions.hcl")
 PIPELINE_FILES = {
     ".github/workflows/images.yml",
-    ".github/workflows/image-build.yml",
     ".github/scripts/plan.py",
     ".github/scripts/bake-env.sh",
+    ".github/scripts/publish.sh",
     ".trivyignore.yaml",
 }
 IGNORED_KEYS = {"tags", "cache-from", "cache-to", "output", "platforms"}
@@ -36,7 +31,6 @@ IGNORED_LABELS = {
     "org.opencontainers.image.created",
     "org.opencontainers.image.version",
 }
-MAX_WAVES = 3
 ZERO_SHA = "0" * 40
 
 
@@ -108,40 +102,6 @@ def affected_targets(head: dict, base: dict | None, changed: list[str]) -> set[s
     return {name for name in targets if visit(name)}
 
 
-def depths(bake: dict, published: list[str]) -> dict[str, int]:
-    """Wave index per published target, following cache-sharing edges only."""
-    targets = bake["target"]
-    published_set = set(published)
-    cache_owner = {
-        entry["ref"]: name
-        for name in published
-        for entry in targets[name].get("cache-to") or []
-    }
-
-    def owner(name: str) -> str | None:
-        for entry in targets[name].get("cache-from") or []:
-            if cache_owner.get(entry["ref"], name) != name:
-                return cache_owner[entry["ref"]]
-        return None
-
-    memo: dict[str, int] = {}
-
-    def depth(name: str) -> int:
-        if name in memo:
-            return memo[name]
-        memo[name] = 0
-        result = 0
-        for dep in dependencies(targets[name]):
-            if dep in published_set:
-                continue
-            dep_owner = owner(dep)
-            result = max(result, depth(dep_owner) + 1 if dep_owner else depth(dep))
-        memo[name] = result
-        return result
-
-    return {name: depth(name) for name in published}
-
-
 def plan(head: dict, base: dict | None, changed: list[str], event: str, requested: list[str]) -> dict:
     published = expand(head, ["all"])
     if event == "workflow_dispatch":
@@ -151,21 +111,14 @@ def plan(head: dict, base: dict | None, changed: list[str], event: str, requeste
             raise ValueError(f"not published targets: {internal}")
     else:
         selected = affected_targets(head, base, changed) & set(published)
-    wave_of = depths(head, published)
-    count = max(wave_of.values(), default=0) + 1
-    if count > MAX_WAVES:
-        raise ValueError(f"{count} waves exceed the {MAX_WAVES} build jobs in images.yml")
-    waves = [[name for name in published if name in selected and wave_of[name] == index] for index in range(MAX_WAVES)]
-    return {"waves": waves, "targets": [name for wave in waves for name in wave]}
+    return {"targets": [name for name in published if name in selected]}
 
 
 def bake_print(directory: pathlib.Path, cwd: pathlib.Path) -> dict:
     files = [argument for name in BAKE_FILES for argument in ("-f", str(directory / name))]
-    # Cache refs identify which internal targets reuse a published target's cache.
-    env = {**os.environ, "CACHE_REF": "plan", "CACHE_WRITE": "true"}
     result = subprocess.run(
         ["docker", "buildx", "bake", *files, "--print", "all"],
-        cwd=cwd, env=env, check=True, capture_output=True, text=True,
+        cwd=cwd, check=True, capture_output=True, text=True,
     )
     return json.loads(result.stdout)
 
@@ -207,10 +160,7 @@ def main() -> int:
         base = base_definition(args.base, root)
     result = plan(head, base, changed, args.event, args.targets.split() or ["all"])
 
-    outputs = {"waves": json.dumps(result["waves"]), "targets": json.dumps(result["targets"])}
-    for index, wave in enumerate(result["waves"], start=1):
-        outputs[f"wave_{index}"] = json.dumps(wave)
-        outputs[f"has_wave_{index}"] = json.dumps(bool(wave))
+    outputs = {"targets": json.dumps(result["targets"])}
     if args.dry_run or "GITHUB_OUTPUT" not in os.environ:
         print(json.dumps(outputs, indent=2))
     else:

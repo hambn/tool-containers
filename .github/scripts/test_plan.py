@@ -4,7 +4,7 @@
 import copy
 import unittest
 
-from plan import affected_targets, depths, expand, plan
+from plan import affected_targets, expand, plan
 
 
 def cache(name):
@@ -80,12 +80,6 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             expand(FIXTURE, ["missing"])
 
-    def test_waves_follow_cache_sharing_edges(self):
-        self.assertEqual(
-            depths(FIXTURE, PUBLISHED),
-            {"core-ubuntu": 0, "devbox-ubuntu-full": 0, "bloat-ubuntu": 1, "claude-ubuntu": 1, "omni-ubuntu": 2},
-        )
-
     def test_context_change_propagates_to_dependents(self):
         self.assertEqual(published_affected(["tools/base/core/Dockerfile"]), sorted(PUBLISHED))
         self.assertEqual(published_affected(["tools/ai/bloat/Dockerfile"]), ["bloat-ubuntu", "omni-ubuntu"])
@@ -107,13 +101,50 @@ class PlanTests(unittest.TestCase):
 
     def test_dispatch_selects_named_published_targets(self):
         result = plan(FIXTURE, None, [], "workflow_dispatch", ["claude-ubuntu", "core"])
-        self.assertEqual(result["waves"], [["core-ubuntu"], ["claude-ubuntu"], []])
+        self.assertEqual(result["targets"], ["core-ubuntu", "claude-ubuntu"])
         with self.assertRaises(ValueError):
             plan(FIXTURE, None, [], "workflow_dispatch", ["devbox-config"])
 
     def test_pull_request_plan(self):
         result = plan(FIXTURE, FIXTURE, ["tools/ai/omni/Dockerfile"], "pull_request", [])
-        self.assertEqual(result, {"waves": [[], [], ["omni-ubuntu"]], "targets": ["omni-ubuntu"]})
+        self.assertEqual(result, {"targets": ["omni-ubuntu"]})
+
+    def test_new_tool_and_deep_dependency_chain_need_no_ci_configuration(self):
+        head = copy.deepcopy(FIXTURE)
+        parent = "omni-ubuntu"
+        added = []
+        # Each new level has a published image and an untagged payload consumed
+        # by the next level. This used to exceed the three hard-coded CI waves.
+        for index in range(6):
+            name = f"new-tool-{index}"
+            context = f"tools/ci/{name}"
+            head["target"][name] = target(context, {"base": parent}, name=name)
+            payload = f"{name}-payload"
+            head["target"][payload] = target(
+                context, {"base": parent}, cache_from=name, cache_to=False
+            )
+            head["group"]["all"]["targets"].append(name)
+            added.append(name)
+            parent = payload
+        result = plan(head, FIXTURE, ["docker-bake.hcl"], "pull_request", [])
+        self.assertEqual(result["targets"], added)
+        self.assertEqual(
+            plan(head, head, ["tools/ci/new-tool-0/Dockerfile"], "push", [])["targets"],
+            added,
+        )
+        self.assertEqual(
+            plan(head, None, [], "workflow_dispatch", [added[-1]])["targets"],
+            [added[-1]],
+        )
+
+    def test_empty_selection(self):
+        self.assertEqual(plan(FIXTURE, FIXTURE, [], "pull_request", []), {"targets": []})
+
+    def test_publish_script_change_selects_all_targets(self):
+        self.assertEqual(
+            plan(FIXTURE, FIXTURE, [".github/scripts/publish.sh"], "push", []),
+            {"targets": PUBLISHED},
+        )
 
 
 if __name__ == "__main__":
