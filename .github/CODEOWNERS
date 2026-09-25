@@ -2,4 +2,6 @@
 
 /.github/ @hambn
 /.agents/ @hambn
-/tools/ @hambn
+/src/tools/ @hambn
+/src/web-ui/ @hambn
+/src/ci/ @hambn

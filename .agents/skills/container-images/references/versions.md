@@ -1,9 +1,9 @@
 # Versions and pins
 
-`tools/versions.hcl` holds every pinned input of every image as a bake `variable`: base image
+`src/tools/versions.hcl` holds every pinned input of every image as a bake `variable`: base image
 references (`name:tag@sha256:…`), tool versions, git commits, and `OS_REFRESH`.
-Dockerfiles and `tools/docker-bake.hcl` never contain a version literal. Always load both
-files, from the repository root: `.github/scripts/bake.sh …` does.
+Dockerfiles and `src/tools/docker-bake.hcl` never contain a version literal. Always load both
+files, from the repository root: ordinary `docker buildx bake -f src/tools/docker-bake.hcl -f src/tools/versions.hcl …` does.
 
 ## Renovate
 
@@ -25,9 +25,9 @@ affected images before merge.
 ## Adding a pin
 
 1. Add a `variable "<NAME>_VERSION"` (or `<NAME>_IMAGE` with a digest) in the matching
-   section of `tools/versions.hcl`, preceded by its `# renovate:` comment. Verify the datasource
+   section of `src/tools/versions.hcl`, preceded by its `# renovate:` comment. Verify the datasource
    and `depName` resolve to the value you pinned.
-2. Pass it as an arg in the consuming `tools/docker-bake.hcl` target (and, for tool versions, a
+2. Pass it as an arg in the consuming `src/tools/docker-bake.hcl` target (and, for tool versions, a
    `io.github.hambn.containers.tool.<name>.version` label).
 3. Declare `ARG <NAME>_VERSION` in the Dockerfile stage that uses it.
 4. If no built-in datasource fits, add a custom datasource or regex manager to

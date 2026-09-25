@@ -6,19 +6,20 @@ Use the repository skills under `.agents/skills/` through progressive disclosure
   repository file.
 - Use `$repository-map` when locating code, deciding where a new file belongs, or
   changing the repository layout.
-- Use `$container-images` for anything under `tools/` (including the Bake files
-  `tools/docker-bake.hcl` and `tools/versions.hcl`), `.github/renovate.json5`, the image
+- Use `$container-images` for anything under `src/tools/` (including the Bake files
+  `src/tools/docker-bake.hcl` and `src/tools/versions.hcl`), `.github/renovate.json5`, the image
   catalog, platform examples, registries and tags, or image CI workflows.
 - Use `$documentation` when writing, editing, or reviewing any README or document in
   this repository — catalog, tool, or platform example docs — and their cross-links.
 - Use `$web-ui` for product, design, implementation, testing, build, deployment, or CI
-  work whose primary target is `web-ui/`.
+  work whose primary target is `src/web-ui/`.
+- Use `$repository-changes` and the relevant domain skill for CI under `src/ci/`.
 - Use `$maintain-agent-workspace` after every repository-changing task and whenever
   agent guidance is created, corrected, reorganized, or removed.
 
 Load only the selected `SKILL.md` files and the references they route to. Preserve
 unrelated work, keep secrets and generated state out of Git, and treat the repository
-and its validation scripts as the source of truth for facts that can be discovered.
+and its Go validator and tracked files as the source of truth for facts that can be discovered.
 
 ## Task isolation and delivery
 

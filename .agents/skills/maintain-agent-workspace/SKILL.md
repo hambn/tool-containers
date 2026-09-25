@@ -24,14 +24,12 @@ outside `.agents/`. An audit may correctly conclude that no agent file needs to 
    materially changed. Do not preserve obsolete guidance as historical memory.
 4. Synchronize `AGENTS.md`, documentation links, and CI validation whenever
    discovery paths or required checks change.
-5. During focused iteration, run [the workspace checker](scripts/check-agent-workspace.sh).
-   Finish with the validation routed by `$repository-changes`, which includes this
-   checker. Do not run it twice solely for handoff.
+5. During focused iteration, run `ci validate` from the repository root. The Go validator in `src/ci/` checks this workspace. Finish with the validation routed by `$repository-changes`.
 
 Read [skill design](references/skill-design.md) before changing skill boundaries,
 frontmatter, supporting resources, or the workspace checker. Use the
 [regression scenarios](references/regression-scenarios.md) when correcting behavior, and
-run [the checker tests](scripts/test-check-agent-workspace.sh) after changing the checker.
+run the Go tests under `src/ci/internal/check/` after changing the checker.
 
 ## Sources of truth
 

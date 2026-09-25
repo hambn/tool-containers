@@ -5,9 +5,9 @@ bake `contexts`, so a child always gets the parent built from the same commit.
 
 | Tier | Project | Parent | Published variants | Contract |
 |---|---|---|---|---|
-| core | `tools/base/core` | distro base image | `alpine`, `ubuntu`, `wolfi` | hardened application base |
-| devbox | `tools/base/devbox` | core of the same distro | `<distro>-{lite,full,browser}` for alpine, ubuntu | interactive development and CI |
-| agent | `tools/ai/<tool>` | devbox or agentbloat payload | `ubuntu`, `alpine`, `ubuntu-browser`, `alpine-browser` | one agent CLI or service |
+| core | `src/tools/base/core` | distro base image | `alpine`, `ubuntu`, `wolfi` | hardened application base |
+| devbox | `src/tools/base/devbox` | core of the same distro | `<distro>-{lite,full,browser}` for alpine, ubuntu | interactive development and CI |
+| agent | `src/tools/ai/<tool>` | devbox or agentbloat payload | `ubuntu`, `alpine`, `ubuntu-browser`, `alpine-browser` | one agent CLI or service |
 
 ## core
 

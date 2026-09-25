@@ -17,7 +17,7 @@ devbox `browser`. Agents have no `lite` variant.
 - Variant names describe capability, not an interchangeable base; add a new tier or
   distro only for a demonstrated use case, and add it to the bake matrix, tests, README
   Images table, and examples together.
-- Exactly one variant per repository owns `latest`; it is set in `tools/docker-bake.hcl`
+- Exactly one variant per repository owns `latest`; it is set in `src/tools/docker-bake.hcl`
   (`base_tags` flag or `PRIMARY_AGENT_VARIANT`).
 - Renaming or removing a variant is a public API change: keep the old tags frozen, note
   the deprecation in the README, and update every example that referenced it.

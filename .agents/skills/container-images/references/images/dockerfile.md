@@ -1,16 +1,16 @@
 # Dockerfile authoring
 
-One `Dockerfile` per tool at `tools/<category>/<tool>/Dockerfile`, built only through its
-`tools/docker-bake.hcl` target. The first line is `# syntax=docker/dockerfile:1`.
+One `Dockerfile` per tool at `src/tools/<category>/<tool>/Dockerfile`, built only through its
+`src/tools/docker-bake.hcl` target. The first line is `# syntax=docker/dockerfile:1`.
 
 ## Bases and inputs
 
 - Reference base images only through global `ARG ALPINE_IMAGE`, `UBUNTU_IMAGE`,
-  `WOLFI_IMAGE`, or `HEADLESS_SHELL_IMAGE`. Bake always passes them from `tools/versions.hcl`,
+  `WOLFI_IMAGE`, or `HEADLESS_SHELL_IMAGE`. Bake always passes them from `src/tools/versions.hcl`,
   so they need no defaults. Never hard-code an image reference or digest.
 - Parent tiers arrive as named contexts (`FROM core`, `FROM base`,
   `COPY --from=devbox-config`), never as registry references.
-- Every version is an `ARG <NAME>_VERSION` without a default, passed from `tools/versions.hcl`
+- Every version is an `ARG <NAME>_VERSION` without a default, passed from `src/tools/versions.hcl`
   ([versions and pins](../versions.md)). Declare it in the stage that uses it.
 - Build args every target receives: `DISTRO`, `OS_REFRESH`, `SOURCE_DATE_EPOCH`, and the
   base-image args.
@@ -94,6 +94,6 @@ agentbloat publishes `image` with a login-zsh `CMD` and no entrypoint, and expos
 - Mark a deliberate temporary limitation with a `# ponytail:` comment
   ([tool-specific contracts](../tool-specific-contracts.md)).
 
-Validate statically with `.github/scripts/bake.sh --print <target>` and the
+Validate statically with `docker buildx bake -f src/tools/docker-bake.hcl -f src/tools/versions.hcl --print <target>` and the
 `$repository-changes` validator; runtime behavior is proven by the tests CI runs
 ([testing](../testing.md)).

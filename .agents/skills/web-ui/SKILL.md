@@ -1,11 +1,11 @@
 ---
 name: web-ui
-description: Build, change, review, or troubleshoot the repository's static documentation-showcase website under web-ui/ hosted on GitHub Pages - the build-time markdown pipeline over the root catalog and tools/ READMEs, shadcn-style pre-rendered HTML/CSS interface, SEO, tests, and UI-specific CI. Use when the primary target is web-ui/; do not use for container deployment recipes under tools/.
+description: Build, change, review, or troubleshoot the repository's static documentation-showcase website under src/web-ui/ hosted on GitHub Pages - the build-time markdown pipeline over the root catalog and src/tools/ READMEs, shadcn-style pre-rendered HTML/CSS interface, SEO, tests, and UI-specific CI. Use when the primary target is src/web-ui/; do not use for container deployment recipes under src/tools/.
 ---
 
 # Web UI
 
-Own all application work under `web-ui/`: a static documentation-showcase website for
+Own all application work under `src/web-ui/`: a static documentation-showcase website for
 this repository, hosted on GitHub Pages. These decisions are settled; do not relitigate
 them without an explicit user request.
 
@@ -14,12 +14,12 @@ them without an explicit user request.
 The site automatically showcases the repository's markdown as pages — nothing else:
 
 - Content source of truth is the tracked documents themselves: root `README.md`, every
-  `tools/<category>/<tool>/README.md`, and every
-  `tools/<category>/<tool>/examples/<platform>/README.md`. Document standards live
+  `src/tools/<category>/<tool>/README.md`, and every
+  `src/tools/<category>/<tool>/examples/<platform>/README.md`. Document standards live
   in `$documentation`.
 - Generate pages at build time from those files. Never copy catalog rows, commands, or
   README text into UI code or data files by hand. Adding, editing, or removing anything
-  under `tools/` or its READMEs — or the root catalog — updates the site through a
+  under `src/tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
   Resolve repository README links to the full document so section fragments stay valid.
@@ -27,7 +27,7 @@ The site automatically showcases the repository's markdown as pages — nothing 
   from the tracked files, which is why example READMEs link rather than embed them.
 - Navigation mirrors the repository shape: catalog categories → tools → tool page → its
   platform-example pages. Every discovered document gets a page. Optional display
-  metadata (ordering, descriptions) lives inside `web-ui/` and must not duplicate
+  metadata (ordering, descriptions) lives inside `src/web-ui/` and must not duplicate
   document content.
 
 ## Technical contract
@@ -51,10 +51,10 @@ The site automatically showcases the repository's markdown as pages — nothing 
   focus, sufficient contrast, reduced-motion support.
 - A static showcase has no secrets; never introduce tokens, analytics keys, or private
   endpoints into the build.
-- Keep every application file inside `web-ui/` (source, config, styles, tests, static
+- Keep every application file inside `src/web-ui/` (source, config, styles, tests, static
   assets, UI docs). One deliberate exception: `.github/workflows/web-ui*.yml` lives in
   `.github/workflows/` because GitHub requires it there; keep it filtered to
-  `web-ui/**`.
+  `src/web-ui/**`.
 
 ## Public URL contract
 
@@ -96,5 +96,5 @@ build. Restore the default build before local browser inspection or handoff unle
 user asked to keep a prefixed artifact.
 
 Use `$repository-changes` for Git isolation and handoff. Load `$container-images` only
-when UI packaging is implemented as a cataloged project under `tools/` or changes
+when UI packaging is implemented as a cataloged project under `src/tools/` or changes
 shared image-publication behavior; UI application rules remain owned here.

@@ -1,45 +1,16 @@
 # Change verification
 
-Choose checks based on the risk and affected domain, then always run:
+Build and test the Go CI module, then run its static repository validator from the repository root:
 
 ```sh
-bash .agents/skills/repository-changes/scripts/validate-change.sh
+(cd src/ci && go test ./... && go build -o /tmp/tool-containers-ci ./cmd/ci)
+/tmp/tool-containers-ci validate
+git diff --check
+git diff --cached --check
 ```
 
-The wrapper runs the static repository validator `.github/scripts/check-repo.py` and
-whitespace checks for staged and unstaged changes. The validator covers agent-workspace
-integrity, workflow YAML, Dockerfile and bake contracts, `tools/versions.hcl` pins, test
-layout, executable bits, Markdown links, and Compose/Helm rendering when those tools are
-available. It never builds, pulls, or runs an image.
+The validator checks workflow hardening, the PR gate and labeler, issue forms, agent workspace, Bake contexts, tool and catalog inventories, version pin annotations, Markdown links, shell syntax, Compose and Helm rendering when available. It never builds or pulls an image. Run it again after staging intended paths so the staged diff is checked.
 
-Linters that cannot be verified statically on every machine (for example hadolint,
-shellcheck, shfmt, actionlint) run in the `lint` job of `.github/workflows/pr.yml`. Run
-them locally when installed; otherwise say they are left to CI.
+For image changes, render `docker buildx bake -f src/tools/docker-bake.hcl -f src/tools/versions.hcl --print <target>` and inspect contexts, args, tags and labels. Run relevant local builds only when authorized. For the web UI, run its declared build and tests in default and explicit subpath modes. CI runs linters and image builds, tests, scans and publication when local tools or credentials are unavailable.
 
-## Targeted checks
-
-- **Images:** render the graph with `.github/scripts/bake.sh --print <target>` and
-  inspect contexts, args, tags, and labels. Building and running images is CI's job
-  (`images.yml` builds, tests, and scans affected targets); do it locally only when the
-  user authorizes it.
-- **Image CI:** run `.github/scripts/test_plan.py` after changing the planner, the bake
-  graph shape, or tool paths. Run `.github/scripts/test_build_tools.py` after changing
-  build/test/scan/export orchestration; it uses fake executables and no network.
-- **Deployment examples:** render or lint the affected format and inspect secrets,
-  mounts, image references, and offline behavior.
-- **GitHub Actions:** inspect events, path filters, permissions, secrets, concurrency,
-  matrix selection, shell, and publication gates.
-- **Markdown and maps:** verify local links and compare claimed paths with `git ls-files`.
-- **Web UI:** run the commands selected by `$web-ui`.
-- **Agent skills:** run each changed helper script.
-
-After explicitly staging the intended paths, rerun the wrapper so cached whitespace is
-also checked.
-
-## Truthful reporting
-
-Report each exact command and outcome. If Docker, Helm, a linter, network access, or
-credentials are unavailable, name the skipped check and the reason. Do not claim a
-runtime result from static validation: the `Pull request gate` covers metadata policy,
-dependency review, and the static validator; `lint` covers linters; image build, tests,
-Trivy scan, and publication happen in `images.yml`.
+Report exact commands and outcomes, including skipped checks and their reasons.

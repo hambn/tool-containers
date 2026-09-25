@@ -1,7 +1,7 @@
 # Image tests
 
 CI runs these tests against every built variant before it can publish. They live in
-`tools/<category>/<tool>/tests/` and are the only runtime proof an image change gets.
+`src/tools/<category>/<tool>/tests/` and are the only runtime proof an image change gets.
 
 ## Structure tests
 
@@ -37,7 +37,7 @@ user authorizes running containers.
 ## Scan exclusions
 
 CI scans every amd64 variant with Trivy and fails on fixable HIGH or CRITICAL findings,
-except those accepted in `tools/trivyignore.yaml`. Statically linked upstream binaries only
+except those accepted in `src/tools/trivyignore.yaml`. Statically linked upstream binaries only
 get fixes from a new upstream release, which Renovate bumps, so the gate skips them.
 Each tool lists the binaries it installs in `tests/trivy-skip-files.txt`: one Trivy
 `--skip-files` glob per line, with `#` comments allowed. An image built on another tool

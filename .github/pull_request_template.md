@@ -14,5 +14,5 @@
 
 - [ ] I kept this change focused and preserved unrelated work.
 - [ ] I updated affected documentation and repository skills when required.
-- [ ] I ran `bash .agents/skills/repository-changes/scripts/validate-change.sh` or
+- [ ] I ran `cd src/ci && go test ./...` plus `ci validate` or
       documented exactly why a check was unavailable.
