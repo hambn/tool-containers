@@ -127,7 +127,10 @@ for target in "${targets[@]}"; do
     done
     # A subshell with its own errexit isolates each target; `if ! (...)` would disable it.
     set +e
-    (set -e; publish "$target")
+    (
+        set -e
+        publish "$target"
+    )
     status=$?
     set -e
     if [ "$status" -ne 0 ]; then

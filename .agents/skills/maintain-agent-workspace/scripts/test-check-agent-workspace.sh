@@ -81,6 +81,7 @@ printf '# Nested agent instructions\n' >"$nested_root/nested/AGENTS.md"
 expect_failure nested-entrypoint "$nested_root"
 
 claude_root="$(new_case claude-entrypoint)"
+# shellcheck disable=SC2016 # The backticks are literal Markdown.
 printf 'Follow [`AGENTS.md`](./AGENTS.md).\n' >"$claude_root/CLAUDE.md"
 expect_failure claude-entrypoint "$claude_root"
 
