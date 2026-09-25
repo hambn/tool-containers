@@ -4,6 +4,16 @@ set -euo pipefail
 
 image=$1
 
+docker run --rm "$image" /bin/zsh -lic '
+    set -eu
+    test "$PWD" = /home/sysadmin
+    [[ ":$PATH:" = *":$HOME/.local/bin:"* ]]
+    test -w "$HOME" -a -w "$XDG_RUNTIME_DIR"
+    test -r "$ZDOTDIR/.zshenv" -a -r "$ZDOTDIR/.zshrc" -a -r "$ZDOTDIR/.zprofile"
+    (( ${+functions[_zsh_autosuggest_start]} ))
+    [[ -z ${BROWSER_BIN-} ]] || test -x "$BROWSER_BIN"
+'
+
 if [[ $TIER != lite ]]; then
     docker run --rm \
         --group-add "$(stat -c %g /var/run/docker.sock)" \

@@ -16,14 +16,12 @@ commandTests:
     args:
       - -lc
       - |
-        for tool in aria2c autoconf automake bash bison brotli bwrap bzip2 cmake curl dialog dig \
+        which aria2c autoconf automake bash bison brotli bwrap bzip2 cmake curl dialog dig \
           docker envsubst fakeroot fd ffmpeg flex fzf gh git git-lfs glab go gpg helm hg htop http \
           infocmp iperf3 jq kubectl kustomize make man mitmproxy mtr nano nginx ninja nmap node \
           nodejs npm npx nvim parallel patch pipx pkg-config pnpm ps python3 rg rsync shellcheck \
           shfmt ssh strace sudo tailscale tailscaled tcpdump tmux traceroute uv uvx whois xz \
-          yamllint yarn yq zip zsh zstd; do
-          command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 1; }
-        done
+          yamllint yarn yq zip zsh zstd
   - name: tool versions run
     command: /bin/zsh
     args:

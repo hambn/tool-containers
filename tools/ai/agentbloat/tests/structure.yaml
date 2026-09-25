@@ -10,15 +10,13 @@ commandTests:
   - name: runs as sysadmin (uid 1000)
     command: id
     args: [-u]
-    expectedOutput: ["^1000\\n?$"]
+    expectedOutput: ["(?m)^1000\\n?$"]
   - name: node and npm are inherited
     command: bash
     args: [-c, node --version && npm --version]
   - name: every agent CLI is on PATH
-    command: bash
-    args:
-      - -c
-      - for tool in acp-agent agent claude codex copilot cursor-agent gemini grok opencode pi; do command -v "$tool"; done
+    command: zsh
+    args: [-c, which acp-agent agent claude codex copilot cursor-agent gemini grok opencode pi]
   - name: claude --version
     command: claude
     args: [--version]

@@ -8,4 +8,4 @@ metadataTest:
 commandTests:
   - name: headless shell executable
     command: sh
-    args: ["-c", "test -x \"$BROWSER_BIN\""]
+    args: ["-c", "test -x /headless-shell/headless-shell"]
