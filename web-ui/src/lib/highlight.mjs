@@ -1,11 +1,11 @@
 import { createHighlighter } from "shiki";
 import { escapeHtml } from "./markdown.mjs";
 
-const LANGUAGES = ["bash", "shellscript", "dockerfile", "yaml", "json", "text"];
+const LANGUAGES = ["bash", "shellscript", "dockerfile", "yaml", "json", "toml", "markdown", "text"];
 const THEMES = { light: "github-light", dark: "github-dark-default" };
 
 /** Fence languages the repository uses, mapped onto a grammar Shiki loads. */
-const ALIASES = { sh: "bash", shell: "bash", zsh: "bash", yml: "yaml", console: "bash", "": "text" };
+const ALIASES = { sh: "bash", shell: "bash", zsh: "bash", yml: "yaml", md: "markdown", console: "bash", "": "text" };
 
 /**
  * A syntax theme for one build. Shiki emits an inline style per token; tokens

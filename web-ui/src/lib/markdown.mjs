@@ -81,23 +81,28 @@ export function catalogDescriptions(readme) {
 /* ------------------------------------------------------------- rendering */
 
 /**
- * Rewrite repository-relative links: to a site route when the target is a
- * published page, to GitHub when it is a tracked file the site does not
- * publish, and untouched when it is external or a bare fragment.
+ * Rewrite repository-relative links: to an in-page anchor when the target is
+ * a file (or directory of files) rendered inline, to a site route when it is a
+ * published page, to GitHub for any other repository path, and untouched when
+ * it is external or a bare fragment.
  */
-function rewriteTarget(target, sourceDir, site, image = false) {
+function rewriteTarget(target, sourceDir, site, anchors, image = false) {
   if (/^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i.test(target)) return target;
   const [relative, fragment = ""] = target.split("#", 2);
   const resolved = path.posix.normalize(
     path.posix.join(sourceDir, decodeURI(relative)),
   );
+  const anchor = anchors.get(resolved.replace(/\/$/, ""));
+  if (anchor && !image) return `#${anchor}`;
   const hash = fragment ? `#${fragment}` : "";
   const page =
     site.bySource.get(resolved) ??
     site.bySource.get(`${resolved.replace(/\/$/, "")}/README.md`);
   if (page && !image) return `${site.config.href(page.route)}${hash}`;
+  if (resolved.startsWith("../")) return target;
   const absolute = path.join(repoRoot, resolved);
-  if (!fs.existsSync(absolute)) return target;
+  if (!fs.existsSync(absolute))
+    return `${site.config.blobUrl(resolved)}${hash}`;
   if (image) return `${site.config.repoUrl}/raw/HEAD/${resolved}${hash}`;
   return `${fs.statSync(absolute).isDirectory() ? site.config.treeUrl(resolved) : site.config.blobUrl(resolved)}${hash}`;
 }
@@ -112,18 +117,28 @@ function slugify(text) {
   );
 }
 
+/** An id generator that never hands out the same id twice on one page. */
+function uniqueIds() {
+  const seen = new Set();
+  return (base) => {
+    let id = base;
+    for (let n = 2; seen.has(id); n += 1) id = `${base}-${n}`;
+    seen.add(id);
+    return id;
+  };
+}
+
+const anchoredHeading = (level, id, inner) =>
+  `<h${level} id="${id}"><a class="heading-anchor" href="#${id}">${inner}</a></h${level}>`;
+
 /** Stable, unique ids on headings so the TOC and deep links can target them. */
-function addHeadingAnchors(html) {
-  const seen = new Map();
-  return html.replace(
-    /<h([1-6])>([\s\S]*?)<\/h\1>/g,
-    (_match, level, inner) => {
-      const base = slugify(inner.replace(/<[^>]+>/g, ""));
-      const count = seen.get(base) ?? 0;
-      seen.set(base, count + 1);
-      const id = count === 0 ? base : `${base}-${count + 1}`;
-      return `<h${level} id="${id}"><a class="heading-anchor" href="#${id}">${inner}</a></h${level}>`;
-    },
+function addHeadingAnchors(html, unique) {
+  return html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g, (_match, level, inner) =>
+    anchoredHeading(
+      level,
+      unique(slugify(inner.replace(/<[^>]+>/g, ""))),
+      inner,
+    ),
   );
 }
 
@@ -144,8 +159,31 @@ const LANGUAGE_LABELS = {
   dockerfile: "Dockerfile",
   yaml: "YAML",
   json: "JSON",
+  toml: "TOML",
+  markdown: "Markdown",
   text: "text",
 };
+
+const EXTENSION_LANGUAGES = {
+  sh: "bash",
+  bash: "bash",
+  yml: "yaml",
+  yaml: "yaml",
+  json: "json",
+  toml: "toml",
+  md: "markdown",
+  txt: "text",
+};
+
+/** Highlighting grammar for an inline file, chosen by its name. */
+export function fileLanguage(name) {
+  const base = path.posix.basename(name);
+  if (/^Dockerfile|\.Dockerfile$/i.test(base)) return "dockerfile";
+  return (
+    EXTENSION_LANGUAGES[path.posix.extname(base).slice(1).toLowerCase()] ??
+    "text"
+  );
+}
 
 function codeCard({ label, html }) {
   return `<figure class="code-card">
@@ -166,8 +204,50 @@ function wrapTables(html) {
   );
 }
 
-/** Render one repository document to the HTML shown on its page. */
-export async function renderDocument(markdown, { sourceDir, site, theme }) {
+/** Every inline file as a heading plus highlighted code, after the document. */
+async function filesSection(files, unique, theme) {
+  if (!files.length) return "";
+  const id = unique("file-contents");
+  const blocks = [];
+  for (const file of files) {
+    const lang = fileLanguage(file.name);
+    blocks.push(
+      anchoredHeading(3, file.id, `<code>${escapeHtml(file.name)}</code>`),
+      codeCard({
+        label: LANGUAGE_LABELS[lang] ?? lang,
+        html: await highlight(file.text.replace(/\n$/, ""), lang, theme),
+      }),
+    );
+  }
+  return `<section class="file-contents" aria-labelledby="${id}">
+${anchoredHeading(2, id, "File contents")}
+${blocks.join("\n")}
+</section>`;
+}
+
+/**
+ * Render one repository document to the HTML shown on its page. `files` are
+ * sibling files (`{ name, text }`, relative to `sourceDir`) rendered inline
+ * after the document; links to them, or to directories holding them, become
+ * in-page anchors.
+ */
+export async function renderDocument(
+  markdown,
+  { sourceDir, site, theme, files = [] },
+) {
+  const unique = uniqueIds();
+  const anchors = new Map();
+  const inline = files.map((file) => {
+    const id = unique(
+      `file-${slugify(file.name.replace(/[^a-z0-9]+/gi, " "))}`,
+    );
+    let target = path.posix.join(sourceDir, file.name);
+    while (target !== sourceDir && !anchors.has(target)) {
+      anchors.set(target, id);
+      target = path.posix.dirname(target);
+    }
+    return { ...file, id };
+  });
   const parser = new Marked({
     async: true,
     async walkTokens(token) {
@@ -176,6 +256,7 @@ export async function renderDocument(markdown, { sourceDir, site, theme }) {
           token.href,
           sourceDir,
           site,
+          anchors,
           token.type === "image",
         );
       }
@@ -193,5 +274,6 @@ export async function renderDocument(markdown, { sourceDir, site, theme }) {
       },
     },
   });
-  return wrapTables(addHeadingAnchors(await parser.parse(markdown)));
+  const article = addHeadingAnchors(await parser.parse(markdown), unique);
+  return wrapTables(article) + (await filesSection(inline, unique, theme));
 }

@@ -132,3 +132,38 @@ export function buildSite(config) {
     },
   };
 }
+
+const MAX_INLINE_BYTES = 128 * 1024;
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+/**
+ * Text files beside an example README, recursively (files before
+ * subdirectories), so its page can show what the README links to. Binary,
+ * oversized, and non-regular files stay on GitHub only.
+ */
+export function exampleFiles(dir, root = repoRoot) {
+  const files = [];
+  const walk = (relative) => {
+    const entries = fs
+      .readdirSync(path.join(root, dir, relative), { withFileTypes: true })
+      .sort(
+        (a, b) => a.isDirectory() - b.isDirectory() || byName(a.name, b.name),
+      );
+    for (const entry of entries) {
+      const name = path.posix.join(relative, entry.name);
+      const absolute = path.join(root, dir, name);
+      if (entry.isDirectory()) walk(name);
+      if (!entry.isFile() || name === "README.md") continue;
+      if (fs.statSync(absolute).size > MAX_INLINE_BYTES) continue;
+      const buffer = fs.readFileSync(absolute);
+      if (buffer.includes(0)) continue;
+      try {
+        files.push({ name, text: utf8.decode(buffer) });
+      } catch {
+        // Not UTF-8 text.
+      }
+    }
+  };
+  walk("");
+  return files;
+}
