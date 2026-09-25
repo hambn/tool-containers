@@ -1,52 +1,55 @@
-# Registries and tags
+# Registries, tags, and labels
 
-## Registry targets
+## Registries
 
-| Registry | Image path | Authentication |
+Every image is published to both registries with identical tags:
+
+| Registry | Path | Authentication |
 |---|---|---|
-| GHCR | `ghcr.io/<owner>/<tool>` | repository `GITHUB_TOKEN` |
-| Docker Hub | `docker.io/<owner>/<tool>` | `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` |
-| Quay.io | `quay.io/<owner>/<tool>` | future `QUAY_USERNAME` and `QUAY_TOKEN` if enabled |
+| GHCR | `ghcr.io/hambn/<repo>` | job-scoped `GITHUB_TOKEN` |
+| Docker Hub | `docker.io/hambn/<repo>` | `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` in the `dockerhub` environment |
 
-Current workflows build and push to GHCR by digest, then copy the exact digest to Docker
-Hub. Quay is a documented candidate, not a current target; enable its authentication,
-matrix entry, target mapping, documentation, and validation together.
+`<repo>` is the tool name (`core`, `devbox`, `codex`, …). Build cache lives at
+`ghcr.io/hambn/buildcache` and is never a published image. Add a registry only by
+changing `docker-bake.hcl` namespaces, CI authentication, documentation, and validation
+together.
 
-## Moving and immutable tags
+## Tags
 
-Exactly one primary variant owns `latest`; every variant owns its matching `<variant>`
-moving tag. Workflows repoint moving tags only from the digest fan-out stage.
+Tags are computed in `docker-bake.hcl` (`base_tags`, `agent_tags`); CI selects which set
+to push with `TAG_SET` (`all`, `moving`, `immutable`).
 
-Immutable primary release tags currently are:
+| Kind | Base images (core, devbox, agentbloat) | Agent images |
+|---|---|---|
+| Immutable | `<variant>-<YYYYMMDD>-<sha7>` | `<toolversion>-<variant>`, plus bare `<toolversion>` on `ubuntu-browser` |
+| Moving | `<variant>`, plus `latest` on the primary variant | `<variant>`, plus `latest` on `ubuntu-browser` |
 
-| Tool | Release tag |
-|---|---|
-| `agentbloat` | `<agent>-v<version>` for each changed packaged agent |
-| `claude-code` | `claude-code-v<version>` |
-| `codex` | `codex-v<version>` |
-| `open-code-review` | `ocr-v<version>` |
-| `pi-agent` | `pi-v<version>` |
-| `omnigent` | `omnigent-v<version>` |
-| `t3code` | `t3code-stable-v<version>` or `t3code-nightly-v<version>` |
+`YYYYMMDD` and `sha7` come from the built commit, not the build time.
 
-Release tags are primary-only unless an actual consumer and workflow define another
-mapping. Derived tools do not publish a universal
-`<variant>-<version>-<base-sha>` family. Never repoint an existing immutable tag or add a
-tag family without changing the workflow, validation, and docs together.
+- **Immutable tags are created only if absent.** Publishing checks the registry first and
+  never repoints an existing immutable tag. A rebuild of the same tool version
+  (new base digest, `OS_REFRESH`) therefore updates only moving tags for agents.
+- **Moving tags always repoint** to the newest successful build.
+- Examples and docs reference moving tags; users pin an immutable tag or digest for
+  reproducibility.
 
-## Foundation exception
+### Deprecated tags
 
-`base/agentimg` has no independently versioned upstream package:
+Tags from the previous layout (`agentimg:*`, `claude-code-v*`, `ocr-v*`, other
+`<tool>-v<version>` release tags, and `<variant>-<sha>` commit tags) are frozen: never
+push, delete, or repoint them. Mention them only in a short deprecation note.
 
-- A source push affecting a variant Dockerfile or its shared distro assets publishes
-  `<variant>-<12-character-commit-sha>` for each affected variant, plus its moving tag
-  and primary `latest` where applicable.
-- A scheduled base/package refresh rebuilds all variants and publishes moving tags only.
-- A manual rebuild publishes moving tags only unless explicitly tied to a source commit.
+## Labels
 
-This keeps source changes traceable without producing an immutable tag for every routine
-package refresh.
+`docker-bake.hcl` sets labels through `oci_labels`:
 
-Helm charts stay local by default. If chart publication is deliberately enabled, use
-GHCR OCI at `oci://ghcr.io/<owner>/charts/<tool>` and update chart docs and release
-automation together.
+- OCI keys: `org.opencontainers.image.{title,description,source,url,documentation,
+  licenses,vendor,version,revision,created,base.name}` (core adds `base.digest`).
+- Repository keys: `io.github.hambn.containers.{tier,variant,distro}` and
+  `io.github.hambn.containers.tool.<name>.version` for each pinned tool.
+
+Labels are informational only. CI planning, tagging, and tests must not read them to
+make decisions; the source of truth is `docker-bake.hcl` plus `versions.hcl`.
+
+Helm charts stay local. If chart publication is ever enabled, use
+`oci://ghcr.io/hambn/charts/<tool>` and update chart docs and automation together.

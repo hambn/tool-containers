@@ -9,7 +9,8 @@ Use `examples/helm/chart/` for a parameterized Kubernetes install.
   user-created Secret only when those are genuine configuration surfaces.
 - Templates consume credentials through `secretKeyRef` or secret volumes; never template
   raw credentials into manifests.
-- Keep templates minimal and apply-ready. Add helpers, notes, RBAC, Service, or Ingress
+- One-shot CLIs template a Job; services template a Deployment (plus Service when they
+  listen). Keep templates minimal and apply-ready. Add helpers, notes, RBAC, Service, or Ingress
   only for a concrete repeated need.
 - Keep raw Kubernetes and Helm defaults consistent where they describe the same runtime.
 - Document `helm install <release> ./chart`. Mention the GHCR OCI chart path only after

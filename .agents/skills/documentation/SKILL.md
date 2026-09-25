@@ -37,12 +37,16 @@ materially helps operation:
 
 1. **Title and one-line description** identifying and linking the upstream tool.
 2. **Contents** linking the remaining sections.
-3. **Images** with one table of variants, functional contents, bases, and owned moving
-   and immutable tags; state GHCR and Docker Hub pull paths.
+3. **Images** with exactly one table, columns `Variant | Base | Contents | Tags`, one row
+   per published variant; Tags lists the moving tag (and `latest` where owned) and the
+   immutable tag pattern. State the GHCR (`ghcr.io/hambn/<repo>`) and Docker Hub
+   (`docker.io/hambn/<repo>`) pull paths. Previous-layout tags get at most a one-line
+   deprecation note.
 4. **Use cases** with three to five concrete scenarios linking the relevant platform
    examples.
-5. **File map** as a linked nested map of every tracked file in the tool, plus its
-   `.github/workflows/<category>-<tool>.yml` workflow.
+5. **File map** as a linked nested tree of every tracked file in the tool (including
+   `Dockerfile` and `tests/`), plus the shared `.github/workflows/images.yml` workflow.
+   There are no per-tool workflows.
 6. **Sources** linking upstream repository, package registry, and authoritative docs
    where available.
 
@@ -54,9 +58,14 @@ update section when CI is the sole supported build/update path.
 ## Platform example README
 
 Each present platform README explains, in this order where applicable: prerequisites,
-exact commands, required variables or secrets, workspace behavior, a file map, cleanup,
-and limitations. Keep commands copy-pasteable and consistent with the Dockerfile and
-tool README; technical conventions live in `$container-images`.
+exact commands, required variables or secrets, workspace behavior, files, cleanup, and
+limitations. Keep commands copy-pasteable and consistent with the Dockerfile and tool
+README; technical conventions live in `$container-images`.
+
+Link each example file with a relative link such as `./run.sh` instead of embedding its
+contents: the web-ui renders sibling example files inline, so embedded copies duplicate
+and drift. Short command lines to type are fine. Example image references use moving
+tags from `ghcr.io/hambn/<repo>`.
 
 ## Cross-linking contract
 

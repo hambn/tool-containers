@@ -5,12 +5,12 @@ parameterization or repeated releases.
 
 - Consume user-created Secrets with `secretKeyRef` or mounted secret volumes. Document
   the `kubectl create secret` command without including real values.
-- Choose the workload controller that matches execution. For one-shot agents use
-  `batch/v1` Job, `restartPolicy: Never`, and a deliberate `backoffLimit`; use Deployment
-  only for an actual long-running service.
+- Match the controller to execution: one-shot CLIs use `batch/v1` Job with
+  `restartPolicy: Never` and a deliberate `backoffLimit`; only services (t3code,
+  omnigent) use a Deployment.
 - Mount `/workspace` from `emptyDir` for ephemeral work or a PVC for deliberately
   persistent work. State which data survives pod replacement.
-- Use a real default `ghcr.io/<owner>/<tool>:<tag>` and declare `imagePullPolicy`
+- Use a real default `ghcr.io/hambn/<tool>:<variant>` and declare `imagePullPolicy`
   explicitly instead of relying on the `:latest` default. A pull policy cannot make a
   moving tag reproducible; pin an immutable version tag or digest when a workload must
   keep running one exact image.

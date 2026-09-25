@@ -9,7 +9,10 @@ enough.
 | Request | Expected routing |
 |---|---|
 | “Where should a new repository-wide config live?” | `repository-map`, then `repository-changes` if implementing |
-| “Update the Alpine Codex Dockerfile and its release workflow.” | `repository-changes` + `container-images` |
+| “Update the Codex Dockerfile's alpine stage and its tests.” | `repository-changes` + `container-images` |
+| “Bump Claude Code to the latest release.” | `container-images` versions guide; edit `versions.hcl` only |
+| “Add a Helm example for pi-agent.” | `container-images` (Job, not Deployment) + `documentation` |
+| “Rewrite the codex README Images section.” | `documentation`; `container-images` only for tag facts |
 | “Scaffold the empty web app.” | `repository-changes` + `web-ui`, then maintainer audit |
 | “Explain this Dockerfile without editing it.” | `container-images`; no mutation or publishing |
 | “Commit and open a PR for the completed change.” | `repository-changes` publishing guidance |

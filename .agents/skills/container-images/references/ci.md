@@ -1,74 +1,55 @@
-# Image CI and publication
+# Image CI and automation
 
-Each image project has one `.github/workflows/<category>-<tool>.yml` workflow. Inspect a
-current workflow with the same inheritance pattern rather than assembling one from
-memory.
+Inspect the live workflow before changing it; this guide states the contracts it must
+keep.
 
-## Events and selection
+| File | Role |
+|---|---|
+| `.github/workflows/images.yml` | plan → build waves → publish for every image |
+| `.github/workflows/image-build.yml` | reusable build/test/scan of one wave |
+| `.github/workflows/pr.yml` | pull-request gate (metadata, dependency review, static validation) and `lint` job |
+| `.github/workflows/maintenance.yml` | scheduled scan of published images; opens an `OS_REFRESH` PR on fixable findings |
+| `renovate.json5` | pin updates in `versions.hcl` and GitHub Actions |
+| `.trivyignore.yaml` | reviewed vulnerability exceptions |
+| `.github/scripts/plan.py` | affected-target and wave planner (`test_plan.py` covers it) |
 
-- A push to `main` selects variants affected by changes to the project's `images/`
-  build contexts, its workflow, or `.github/scripts/registry-inspect.sh`. Documentation
-  and platform-example-only changes do not rebuild images.
-- Manual dispatch is permitted only from `main` and normally builds all variants.
-- Derived tools use staggered hourly schedules to detect upstream foundation,
-  parent-image, and packaged-tool updates without privileged workflow chaining.
-- `base/agentimg` uses a weekly refresh that selects all variants so base and package
-  repository updates are not missed.
-- Pull requests never build or publish images. The pull-request gate validates image
-  contracts statically.
+There are no per-tool workflows and no Dependabot configuration.
 
-Keep path filters synchronized with every input that can alter output. A source-only or
-parent-base refresh normally repoints moving tags; emit a primary immutable release tag
-only when the owning upstream version actually changes.
+## images.yml
 
-## Plan, build by digest, push
+1. **Plan.** `plan.py` reads the rendered bake graph and the diff (changed tool
+   directories, `docker-bake.hcl`, `versions.hcl` pins) and emits the affected published
+   targets, expanded to their descendants, ordered into waves (core → devbox →
+   agentbloat → agents). Unaffected targets are not rebuilt.
+2. **Build waves.** Each wave builds its targets natively per architecture
+   (`PLATFORM`/`ARCH`), with registry cache (`CACHE_REF`, written only on `main`), runs
+   the [tests](testing.md), blocks on HIGH/CRITICAL Trivy findings not excepted in
+   `.trivyignore.yaml`, and pushes by digest. Later waves consume earlier waves through
+   bake `target:` contexts, never through registry tags.
+3. **Publish.** Merges per-arch digests into multi-platform manifests and applies tags:
+   immutable tags only if absent, moving tags always ([tags](registries-and-tags.md)).
+   Only `main` publishes. GHCR is the digest source for Docker Hub.
 
-1. **Plan** resolves upstream versions, discovers variants, resolves each final base
-   reference to a digest, determines what changed, and exposes JSON-safe matrix and tag
-   metadata through `GITHUB_OUTPUT`.
-2. **Build** runs the selected variant matrix for `linux/amd64`, passes digest-pinned base
-   arguments, builds from the correct context, labels source/upstream/base metadata,
-   pushes content to GHCR by digest, emits SBOM and provenance attestations, smoke-tests
-   the runtime, and blocks on HIGH/CRITICAL Trivy findings. The vulnerability gate ignores
-   unfixed findings and excludes vendored upstream release artifacts (CLIs, language
-   runtimes, npm's own bundled dependencies, and the internal dependency trees of prebuilt
-   third-party npm packages) that this repository does not compile; OS packages,
-   application dependency trees, and everything else stay gated. A second
-   unfiltered secret-only Trivy scan of the same image runs beside it so the vendored-file
-   exclusions never reduce secret coverage.
-3. **Push** downloads the recorded digests and applies registry tags without rebuilding.
-   Each job authenticates only to its target registry; GHCR is the digest source for
-   Docker Hub fan-out.
+Bake variables CI sets: `GIT_SHA`, `BUILD_DATE`, `CREATED`, `SOURCE_DATE_EPOCH` (commit
+time, for reproducibility), `PLATFORM`, `ARCH`, `CACHE_REF`, `CACHE_WRITE`, `TAG_SET`.
+Adding a tool normally needs no workflow edit: the planner discovers group `all`.
 
-Do not add arm64 through unproven QEMU emulation. Validate the toolchain on a native arm
-runner, then merge architecture digests into a multi-platform manifest.
+## pr.yml
+
+The single `Pull request gate` covers PR metadata policy, dependency review, and the
+static repository validator (`.github/scripts/check-repo.py`). The `lint` job runs tools
+that cannot be verified by the static validator locally (for example hadolint,
+shellcheck, actionlint) and is the authority for their findings.
 
 ## Security and reliability
 
-- Declare one `PRIMARY` variant; only it owns `latest` and normal release tags.
-- Serialize each publisher with non-canceling concurrency and finite job timeouts.
-- Use an explicit supported runner image and disable persisted checkout credentials.
-- Deny token permissions at workflow scope, then grant only each job's required package
-  and content access.
-- Bind registry-promotion jobs to the registry-named GitHub Environment. Keep
-  `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as `dockerhub` environment secrets rather
-  than repository-wide secrets; GHCR publishing uses the job-scoped `GITHUB_TOKEN`.
-- Pin every third-party action to a full 40-character commit SHA with a readable version
-  comment; keep GitHub Actions Dependabot enabled.
-- Grant the narrowest job permissions and secrets. Never echo credentials or pass them as
-  Docker build arguments.
-- Fail closed when diff classification, version resolution, base-digest inspection,
-  immutable-tag safety, build, smoke test, scan, or fan-out cannot establish success.
-- Use a distinct BuildKit cache scope for every image and variant.
-- Do not hardcode a version that the plan job owns; pass it as a build argument and keep
-  tags aligned with [registry policy](registries-and-tags.md).
-
-## Validation boundary
-
-The PR validator requires one publisher and one root catalog entry per image project,
-parses workflow YAML and embedded Bash, checks pinned actions and publisher hardening,
-enforces Dockerfile/runtime contracts, checks executable bits and Markdown links, and
-renders Compose/Helm when tools are available. It intentionally does not build, pull,
-execute, scan, or publish an image. Run a targeted BuildKit check, representative build,
-and runtime smoke test locally when the modified behavior warrants them, and report any
-unavailable check explicitly.
+- Pin every third-party action to a full commit SHA with a version comment; Renovate
+  updates them.
+- Deny token permissions at workflow scope and grant each job only what it needs.
+  Registry-push jobs bind to the registry-named environment; never echo credentials or
+  pass them as build args.
+- Use non-canceling concurrency for publishing, finite job timeouts, an explicit runner
+  image, and `persist-credentials: false` on checkout.
+- Fail closed: a planning, build, test, scan, or tag-safety failure stops publication.
+- Add an exception to `.trivyignore.yaml` only with a reason and expiry; prefer bumping a
+  pin or `OS_REFRESH`.

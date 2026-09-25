@@ -14,14 +14,15 @@ Keep connected and offline cases separate:
 - Do not add the obsolete top-level `version` key.
 - Set an explicit project `name`, one service named after the tool, and a dedicated
   network. Use stable `container_name` or `hostname` only when useful for local operation.
-- For interactive agents, set `stdin_open: true` and `tty: true`, then document
-  `docker compose run --rm` rather than treating the service as a daemon.
+- For one-shot CLIs, set `stdin_open: true` and `tty: true`, then document
+  `docker compose run --rm` rather than treating the service as a daemon. Only services
+  (t3code, omnigent) use `docker compose up`.
 - Require an explicit absolute host workspace such as
   `${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace`. Route user commands
   through `compose.sh` when validation is needed before Compose interpolates the value.
 - Require secrets with fail-loud interpolation or an external env file whose permissions
   and non-commit status are documented.
-- The connected file uses `image: ghcr.io/<owner>/<tool>:<tag>`. The offline file uses a
+- The connected file uses `image: ghcr.io/hambn/<tool>:<variant>`. The offline file uses a
   preloaded local tag or self-contained build and a pull policy that prevents registry
   access.
 - Keep dependencies, health checks, ports, restart behavior, and volumes minimal and

@@ -1,49 +1,45 @@
 ---
 name: container-images
-description: Add, change, review, or troubleshoot a container project under tools/ and its coupled README, Dockerfiles, variants, platform examples, root catalog entry, publication workflow, registries, and tags. Use for any tools/ change or its matching image-delivery automation; do not use for the application under web-ui/.
+description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile, docker-bake.hcl target, versions.hcl pins, tests, README, platform examples, root catalog entry, registries, tags, and image CI (images.yml, maintenance.yml, renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
 ---
 
 # Container images
 
-Own the complete image-project lifecycle while loading only the detail needed for the
-current task.
+Own the image build graph and every image project's lifecycle. Load only the detail the
+current task needs.
 
 ## Route the task
 
 - **Add or reorganize a tool:** read [project layout](references/project-layout.md),
-  use `$documentation` for every written document, read the relevant image and
-  platform-example guides, then [CI](references/ci.md).
-- **Write or review a README or other document:** follow `$documentation`; this skill
-  owns only the mechanics behind the documents.
-- **Choose or rename a profile:** read [variants](references/images/variants.md), then
-  [base images](references/images/base-images.md) when the runtime base is in question.
-- **Write or review a Dockerfile:** read
-  [Dockerfiles](references/images/dockerfile.md) and, when applicable, the variants and
-  base-image guides.
+  then the image, testing, and platform-example guides it links. Use `$documentation`
+  for every README.
+- **Understand inheritance or pick a base/tier:** read [tiers](references/images/tiers.md)
+  and [variants](references/images/variants.md).
+- **Write or review a Dockerfile:** read [Dockerfiles](references/images/dockerfile.md).
+- **Bump, add, or hold a version or base digest; refresh OS packages:** read
+  [versions and pins](references/versions.md).
+- **Change tags, registries, or labels:** read
+  [registries, tags, and labels](references/registries-and-tags.md).
+- **Add or change image tests:** read [testing](references/testing.md).
+- **Change build, publish, scan, or update automation:** read [CI](references/ci.md).
 - **Add or change a platform example:** read
   [platform example conventions](references/deployment/conventions.md), then only the
-  selected platform guide linked there.
-- **Change publishing, update detection, registries, or tags:** read
-  [CI](references/ci.md) and [registries and tags](references/registries-and-tags.md).
-- **Touch a special inheritance or compatibility rule:** read
+  platform guide linked there.
+- **Touch agentbloat, omnigent, or a `# ponytail:` limitation:** read
   [tool-specific contracts](references/tool-specific-contracts.md).
 
 ## Workflow
 
-1. Inspect the target project, its closest valid neighbor, root catalog row, matching
-   `.github/workflows/<category>-<tool>.yml`, and actual published tag contract.
-2. Identify every coupled surface before editing: Dockerfiles, shared build assets,
-   platform examples, tool README/file map, workflow planning and tags, and root
-   catalog.
-3. Keep build contexts self-contained, runtime secrets external, deployment workspace
-   mounts at `/workspace`, and published names backward-compatible unless the user
-   requests a migration.
-4. Validate the narrowest affected artifacts and run the repository validation from
-   `$repository-changes`. Static validation is not a substitute for a representative
-   image build or smoke test when runtime behavior changed.
-5. Invoke `$maintain-agent-workspace` after every image mutation. Update this skill's
-   owning reference only when the change alters a reusable image convention; never
-   record chronological memory.
+1. Inspect the target `tools/<category>/<tool>/`, its closest neighbor, its targets in
+   `docker-bake.hcl`, its pins in `versions.hcl`, and the root catalog row.
+2. Identify every coupled surface before editing: Dockerfile, bake target and group
+   membership, version pins, tests, README and file map, examples, catalog row.
+3. Render the build graph instead of guessing it:
+   `docker buildx bake -f docker-bake.hcl -f versions.hcl --print <target>`.
+4. Validate with `$repository-changes`. Static validation never proves runtime
+   behavior; `images.yml` builds, tests, and scans affected images (see [CI](references/ci.md)).
+5. Invoke `$maintain-agent-workspace`; update a reference here only when a reusable
+   image convention changed.
 
-Do not publish images, dispatch workflows, change registry settings, or expose secrets
-unless the user explicitly authorizes that external mutation.
+Do not build or run images, publish, dispatch workflows, change registry settings, or
+expose secrets unless the user explicitly authorizes it.
