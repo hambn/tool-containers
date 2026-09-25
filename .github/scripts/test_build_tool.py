@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise per-tool CI orchestration with fake tools; no builds or network calls."""
+"""Exercise build-tool.sh with fake executables; no builds or network calls."""
 
 import json
 import os
@@ -7,11 +7,25 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
-
-import yaml
 
 SCRIPT = Path(__file__).with_name("build-tool.sh").resolve()
+
+# Two variants of ai/sample, built on an internal payload from tools/base/box.
+BAKE = {"target": {
+    "box-payload": {"context": "tools/base/box"},
+    **{
+        f"sample-{variant}": {
+            "context": "tools/ai/sample",
+            "contexts": {"base": "target:box-payload"},
+            "tags": [f"ghcr.io/hambn/sample:{variant}", f"docker.io/hambn/sample:{variant}"],
+            "labels": {"io.github.hambn.containers.distro": "ubuntu",
+                       "io.github.hambn.containers.tier": "agent",
+                       "io.github.hambn.containers.variant": variant},
+        }
+        for variant in ("ubuntu", "browser")
+    },
+}}
+
 FAKE_TOOL = r'''#!/usr/bin/env python3
 import json
 import os
@@ -20,29 +34,25 @@ import sys
 
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
-record = {"tool": name, "args": args, "arch": os.getenv("ARCH"),
-          "platform": os.getenv("PLATFORM"), "docker_platform": os.getenv("DOCKER_DEFAULT_PLATFORM")}
 with open(os.environ["CALL_LOG"], "a") as handle:
-    handle.write(json.dumps(record) + "\n")
+    handle.write(json.dumps({"tool": name, "args": args, "platform": os.getenv("PLATFORM")}) + "\n")
 if name == "docker" and "--print" in args:
-    target = args[-1]
-    print(json.dumps({"target": {target: {
-        "context": "tools/ai/sample", "tags": ["ghcr.io/hambn/sample:test"],
-        "labels": {"io.github.hambn.containers.distro": "ubuntu",
-                   "io.github.hambn.containers.tier": "agent",
-                   "io.github.hambn.containers.variant": "ubuntu"}
-    }}}))
-if name == "container-structure-test" and os.getenv("FAIL_ARCH") == os.getenv("ARCH"):
+    print(os.environ["BAKE_JSON"])
+if name == "container-structure-test" and os.getenv("FAIL_TEST"):
     sys.exit(1)
 if name == "trivy" and "--exit-code" in args and os.getenv("FAIL_SCAN"):
     sys.exit(1)
 if name == "trivy" and "--output" in args:
-    Path(args[args.index("--output") + 1]).write_text('{"version":"2.1.0","runs":[]}')
+    Path(args[args.index("--output") + 1]).write_text('{"version":"2.1.0","runs":[{}]}')
 if name == "docker" and "--metadata-file" in args:
-    target = args[6]
-    Path(args[args.index("--metadata-file") + 1]).write_text(json.dumps({
-        target: {"containerimage.digest": "sha256:" + "a" * 64}}))
+    targets = [a for a in args if a.startswith("sample-")]
+    Path(args[args.index("--metadata-file") + 1]).write_text(json.dumps(
+        {t: {"containerimage.digest": "sha256:" + "a" * 64} for t in targets}))
 '''
+
+
+def bake_calls(calls):
+    return [c["args"] for c in calls if c["tool"] == "docker" and c["args"][:2] == ["buildx", "bake"] and "--print" not in c["args"]]
 
 
 class BuildToolTests(unittest.TestCase):
@@ -55,19 +65,23 @@ class BuildToolTests(unittest.TestCase):
                 path = binaries / name
                 path.write_text(FAKE_TOOL)
                 path.chmod(0o755)
-            test_dir = root / "tools/ai/sample/tests"
-            test_dir.mkdir(parents=True)
-            (test_dir / "structure.yaml").write_text("schemaVersion: 2.0.0\n")
-            (test_dir / "structure-ubuntu.yaml").write_text("schemaVersion: 2.0.0\n")
-            (test_dir / "smoke.sh").symlink_to(binaries / "smoke.sh")
+            tests = root / "tools/ai/sample/tests"
+            tests.mkdir(parents=True)
+            (tests / "structure.yaml").write_text("schemaVersion: 2.0.0\n")
+            (tests / "structure-ubuntu.yaml").write_text("schemaVersion: 2.0.0\n")
+            (tests / "smoke.sh").symlink_to(binaries / "smoke.sh")
+            (tests / "trivy-skip-files.txt").write_text("# comment\n**/sample-bin  # trailing\n\n")
+            box = root / "tools/base/box/tests"
+            box.mkdir(parents=True)
+            (box / "trivy-skip-files.txt").write_text("**/usr/local/bin/box\n")
             log = root / "calls.jsonl"
             results = root / "results"
             env = {
                 **os.environ,
                 "PATH": f"{binaries}:{os.environ['PATH']}",
-                "CALL_LOG": str(log), "RESULT_DIR": str(results),
-                "TARGETS": '["sample-ubuntu", "sample-browser"]',
-                "PR_BUILD": "true", "PUBLISH": "false", "FAIL_ARCH": "", "FAIL_SCAN": "",
+                "CALL_LOG": str(log), "RESULT_DIR": str(results), "BAKE_JSON": json.dumps(BAKE),
+                "TARGETS": '["sample-ubuntu", "sample-browser"]', "ARCH": "arm64",
+                "SCAN": "false", "PR_BUILD": "true", "PUBLISH": "false",
                 **overrides,
             }
             result = subprocess.run(["bash", str(SCRIPT)], cwd=root, env=env, text=True, capture_output=True)
@@ -75,86 +89,55 @@ class BuildToolTests(unittest.TestCase):
             digests = sorted(path.name for path in results.glob("digests/*"))
             return result, calls, digests
 
-    def test_both_architectures_and_variants_share_one_job(self):
+    def test_variants_build_together_then_test_one_at_a_time(self):
         result, calls, digests = self.run_script()
         self.assertEqual(result.returncode, 0, result.stderr)
-        builds = [c for c in calls if "--provenance=false" in c["args"]]
-        self.assertEqual([c["arch"] for c in builds], ["amd64", "arm64", "amd64", "arm64"])
-        self.assertEqual(len([c for c in calls if c["tool"] == "container-structure-test"]), 4)
-        self.assertEqual(len([c for c in calls if c["tool"] == "smoke.sh"]), 4)
-        for call in builds:
-            self.assertEqual(call["platform"], f"linux/{call['arch']}")
-            self.assertEqual(call["docker_platform"], call["platform"])
-            self.assertTrue(any("cache-to=type=gha" in arg for arg in call["args"]))
-        for call in calls:
-            if call["tool"] == "trivy":
-                self.assertEqual(call["arch"], "amd64")
-            if call["tool"] == "container-structure-test":
-                self.assertEqual(call["args"].count("tools/ai/sample/tests/structure-ubuntu.yaml"), 1)
-        self.assertEqual(len([c for c in calls if c["args"][:2] == ["image", "rm"]]), 4)
+        build, *loads = bake_calls(calls)
+        self.assertEqual(build[-2:], ["sample-ubuntu", "sample-browser"])
+        self.assertIn("sample-ubuntu.output=type=cacheonly", build)
+        self.assertIn("sample-browser.cache-to=type=gha,version=2,scope=sample-browser-arm64,mode=max,timeout=5m,ignore-error=true", build)
+        self.assertEqual([load[6] for load in loads], ["sample-ubuntu", "sample-browser"])
+        self.assertTrue(all(c["platform"] == "linux/arm64" for c in calls))
+        structure = [c["args"] for c in calls if c["tool"] == "container-structure-test"]
+        self.assertEqual(len(structure), 2)
+        self.assertEqual(structure[0].count("tools/ai/sample/tests/structure-ubuntu.yaml"), 1)
+        self.assertEqual(len([c for c in calls if c["tool"] == "smoke.sh"]), 2)
+        self.assertFalse(any(c["tool"] == "trivy" for c in calls))
+        self.assertEqual(len([c for c in calls if c["args"][:2] == ["image", "rm"]]), 2)
         self.assertEqual(digests, [])
 
-    def test_publish_exports_both_verified_architectures(self):
+    def test_scan_gate_skips_files_listed_by_the_tool_and_its_bases(self):
+        result, calls, _ = self.run_script(SCAN="true")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        gate = [c["args"] for c in calls if c["tool"] == "trivy" and "--exit-code" in c["args"]]
+        self.assertEqual(len(gate), 2)
+        skips = [gate[0][i + 1] for i, arg in enumerate(gate[0]) if arg == "--skip-files"]
+        self.assertEqual(skips, ["**/sample-bin", "**/usr/local/bin/box"])
+        report = [c["args"] for c in calls if c["tool"] == "trivy" and "--output" in c["args"]]
+        self.assertNotIn("--skip-files", report[0])
+
+    def test_publish_pushes_all_variants_after_tests(self):
         result, calls, digests = self.run_script(PR_BUILD="false", PUBLISH="true")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(digests, ["sample-browser-amd64", "sample-browser-arm64", "sample-ubuntu-amd64", "sample-ubuntu-arm64"])
-        self.assertEqual(len([c for c in calls if "--metadata-file" in c["args"]]), 4)
-        self.assertFalse(any("type=gha" in arg for c in calls for arg in c["args"]))
+        self.assertEqual(digests, ["sample-browser-arm64", "sample-ubuntu-arm64"])
+        push = bake_calls(calls)[-1]
+        self.assertIn("sample-ubuntu.output=type=image,name=ghcr.io/hambn/sample,push-by-digest=true,name-canonical=true,push=true,rewrite-timestamp=true", push)
+        self.assertFalse(any("type=gha" in arg for args in bake_calls(calls) for arg in args))
 
-    def test_failed_test_stops_before_push(self):
-        result, calls, digests = self.run_script(PUBLISH="true", FAIL_ARCH="amd64")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(any("--metadata-file" in c["args"] for c in calls))
-        self.assertEqual(digests, [])
+    def test_failed_test_or_scan_stops_before_push(self):
+        for failure in ({"FAIL_TEST": "1"}, {"SCAN": "true", "FAIL_SCAN": "1"}):
+            with self.subTest(failure=failure):
+                result, calls, digests = self.run_script(PUBLISH="true", **failure)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any("--metadata-file" in args for args in bake_calls(calls)))
+                self.assertEqual(digests, [])
 
-    def test_failed_scan_stops_before_push(self):
-        result, calls, digests = self.run_script(PUBLISH="true", FAIL_SCAN="true")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(any("--metadata-file" in c["args"] for c in calls))
-        self.assertEqual(digests, [])
-
-    def test_failed_arm_test_cannot_export_arm_digest(self):
-        result, calls, digests = self.run_script(PUBLISH="true", FAIL_ARCH="arm64")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(digests, ["sample-ubuntu-amd64"])
-        self.assertFalse(any(c["arch"] == "arm64" and "--metadata-file" in c["args"] for c in calls))
-
-    def test_invalid_target_list_fails_before_invoking_tools(self):
-        for targets in ('[]', '["bad;target"]', '"sample-ubuntu"'):
-            with self.subTest(targets=targets):
-                result, calls, _ = self.run_script(TARGETS=targets)
+    def test_invalid_input_fails_before_invoking_tools(self):
+        for override in ({"TARGETS": "[]"}, {"TARGETS": '["bad;target"]'}, {"TARGETS": '"sample-ubuntu"'}, {"ARCH": ""}):
+            with self.subTest(override=override):
+                result, calls, _ = self.run_script(**override)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(calls, [])
-
-
-class EmulationTests(unittest.TestCase):
-    def test_registration_preserves_elf_match_and_enables_guest_credentials(self):
-        workflow = yaml.safe_load(SCRIPT.parents[1].joinpath("workflows/images.yml").read_text())
-        step = next(s for s in workflow["jobs"]["build"]["steps"] if s.get("name") == "Enable arm64 emulation")
-        code = step["run"].split("<<'PYTHON'\n", 1)[1].split("\nPYTHON", 1)[0]
-        for flags in ("POF", "POCF"):
-            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as tmp:
-                entry = Path(tmp) / "qemu-aarch64"
-                register = Path(tmp) / "register"
-                original = ("enabled\ninterpreter /usr/libexec/qemu-binfmt/aarch64-binfmt-P\n"
-                            f"flags: {flags}\noffset 0\nmagic 7f454c460201\nmask fffffffffffe\n")
-                entry.write_text(original)
-                mapping = {
-                    "/proc/sys/fs/binfmt_misc/qemu-aarch64": entry,
-                    "/proc/sys/fs/binfmt_misc/register": register,
-                }
-                with patch("pathlib.Path", side_effect=lambda name: mapping[name]):
-                    exec(compile(code, "enable-emulation", "exec"), {})
-                if "C" in flags:
-                    self.assertEqual(entry.read_text(), original)
-                    self.assertFalse(register.exists())
-                else:
-                    self.assertEqual(entry.read_text(), "-1")
-                    self.assertEqual(
-                        register.read_text(),
-                        r":qemu-aarch64:M:0:\x7f\x45\x4c\x46\x02\x01:"
-                        r"\xff\xff\xff\xff\xff\xfe:/usr/libexec/qemu-binfmt/aarch64-binfmt-P:POFC",
-                    )
 
 
 if __name__ == "__main__":

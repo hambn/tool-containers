@@ -15,7 +15,8 @@ tools/<category>/<tool>/
 ├── tests/
 │   ├── structure.yaml         # container-structure-test, every variant
 │   ├── structure-<x>.yaml     # optional distro/tier/variant additions
-│   └── smoke.sh               # optional runtime check
+│   ├── smoke.sh               # optional runtime check
+│   └── trivy-skip-files.txt   # optional upstream binaries the scan gate skips
 └── examples/<platform>/
     ├── README.md
     └── runnable files
@@ -51,7 +52,8 @@ use `examples/`.
    group so group `all` publishes it. Render it with
    `docker buildx bake -f docker-bake.hcl -f versions.hcl --print <tool>`.
 5. Add `tests/structure.yaml` and, when runtime behavior needs it, `tests/smoke.sh` per
-   [testing](testing.md).
+   [testing](testing.md). List statically linked upstream binaries the tool installs in
+   `tests/trivy-skip-files.txt`.
 6. Add the README, only the platform examples that serve real use cases
    ([conventions](deployment/conventions.md)), and one root catalog row, all per
    `$documentation`.

@@ -1,7 +1,8 @@
 name: Test and build
 
-# Discover affected targets from Bake, then build, test, and scan each image on
-# one runner per tool. Only main publishes verified digests as multi-arch images.
+# Plan the affected Bake targets, then test and build every tool on native amd64
+# and arm64 runners: one job per tool and architecture, covering all of the tool's
+# selected variants. Only main publishes the verified digests as multi-arch images.
 on:
   pull_request:
     paths: &image-paths
@@ -59,12 +60,12 @@ jobs:
           DISPATCH_TARGETS: ${{ inputs.targets }}
         run: python3 .github/scripts/plan.py
 
-  build:
-    name: ${{ matrix.name }}
+  test-and-build:
+    name: ${{ matrix.tool.name }} (${{ matrix.arch }})
     needs: plan
     if: needs.plan.outputs.targets != '[]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: write # Needed to push digests and cache when publishing.
@@ -72,9 +73,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.plan.outputs.tools) }}
+        tool: ${{ fromJSON(needs.plan.outputs.tools) }}
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            cst-sha256: fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            cst-sha256: 801826ed107222120eb6df8c143b7de752cfebbe3aebfeea576e7098486917c2
     env:
-      TARGETS: ${{ toJSON(matrix.targets) }}
+      TARGETS: ${{ toJSON(matrix.tool.targets) }}
+      ARCH: ${{ matrix.arch }}
+      SCAN: ${{ matrix.arch == 'amd64' }}
       PR_BUILD: ${{ github.event_name == 'pull_request' }}
       PUBLISH: ${{ needs.plan.outputs.publish }}
       TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -83,29 +94,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Enable arm64 emulation
-        timeout-minutes: 5
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends qemu-user-static binfmt-support
-          sudo update-binfmts --enable qemu-aarch64
-          # Preserve the guest executable's credentials for setuid programs such
-          # as sudo. Ubuntu's default registration can omit the C flag.
-          sudo python3 - <<'PYTHON'
-          from pathlib import Path
-          entry = Path("/proc/sys/fs/binfmt_misc/qemu-aarch64")
-          fields = dict(line.replace("flags:", "flags").split(maxsplit=1)
-                        for line in entry.read_text().splitlines() if " " in line)
-          if "C" not in fields["flags"]:
-              magic = "".join(r"\x" + fields["magic"][i:i+2] for i in range(0, len(fields["magic"]), 2))
-              mask = "".join(r"\x" + fields["mask"][i:i+2] for i in range(0, len(fields["mask"]), 2))
-              rule = f":qemu-aarch64:M:{fields['offset']}:{magic}:{mask}:{fields['interpreter']}:{fields['flags']}C"
-              entry.write_text("-1")
-              Path("/proc/sys/fs/binfmt_misc/register").write_text(rule)
-          PYTHON
-          grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
-          grep -q '^flags: .*C' /proc/sys/fs/binfmt_misc/qemu-aarch64
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Log in to GHCR
         if: env.TRUSTED == 'true'
@@ -120,12 +108,15 @@ jobs:
 
       - name: Install container-structure-test
         timeout-minutes: 2
+        env:
+          CST_SHA256: ${{ matrix.cst-sha256 }}
         run: |
           set -euo pipefail
-          curl -fsSLo /tmp/cst https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-amd64
-          echo 'fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca  /tmp/cst' | sha256sum -c -
+          curl -fsSLo /tmp/cst "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-$ARCH"
+          echo "$CST_SHA256  /tmp/cst" | sha256sum -c -
           sudo install -m 0755 /tmp/cst /usr/local/bin/container-structure-test
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        if: env.SCAN == 'true'
         with:
           version: v0.70.0
           cache: true
@@ -159,20 +150,19 @@ jobs:
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: /tmp/image-results/sarif
-          category: trivy-${{ matrix.artifact }}
 
       - name: Upload digests
         if: needs.plan.outputs.publish == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: digest-${{ matrix.artifact }}
+          name: digest-${{ matrix.tool.artifact }}-${{ matrix.arch }}
           path: /tmp/image-results/digests/*
           if-no-files-found: error
           retention-days: 1
 
   publish:
     name: Publish ${{ matrix.target }}
-    needs: [plan, build]
+    needs: [plan, test-and-build]
     if: needs.plan.outputs.publish == 'true' && needs.plan.outputs.targets != '[]'
     runs-on: ubuntu-24.04
     timeout-minutes: 30

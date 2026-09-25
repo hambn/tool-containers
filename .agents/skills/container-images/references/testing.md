@@ -33,3 +33,13 @@ running container (a service answering, a shell login, Docker access). CI export
 Follow the repository shell style (`#!/usr/bin/env bash`, `set -euo pipefail`, shfmt,
 shellcheck-clean). Never run it locally in this repository's agent sessions unless the
 user authorizes running containers.
+
+## Scan exclusions
+
+CI scans every amd64 variant with Trivy and fails on fixable HIGH or CRITICAL findings,
+except those accepted in `.trivyignore.yaml`. Statically linked upstream binaries only
+get fixes from a new upstream release, which Renovate bumps, so the gate skips them.
+Each tool lists the binaries it installs in `tests/trivy-skip-files.txt`: one Trivy
+`--skip-files` glob per line, with `#` comments allowed. An image built on another tool
+through a Bake `target:` context inherits that tool's list, so agent images reuse the
+devbox list. The uploaded SARIF report still includes skipped files.

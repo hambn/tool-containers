@@ -1,0 +1,16 @@
+# Statically linked upstream binaries the Trivy gate skips: only a new upstream
+# release fixes them, and Renovate bumps their pins. Images built on devbox inherit
+# this list. One glob per line; the SARIF report still includes these files.
+**/usr/local/bin/gh
+**/usr/local/bin/glab
+**/usr/local/bin/helm
+**/usr/local/bin/kubectl
+**/usr/local/bin/kustomize
+**/usr/local/bin/yq
+**/usr/local/bin/uv
+**/usr/local/bin/uvx
+**/usr/local/bin/node
+**/usr/local/lib/node_modules/npm/node_modules/**
+**/usr/local/bin/tailscale
+**/usr/local/sbin/tailscaled
+**/usr/local/go/**
