@@ -115,11 +115,16 @@ jobs:
               digest=""
               os_refresh=""
               if [[ $base == "$GHCR"/* ]]; then
-                  if ! digest=$(docker buildx imagetools inspect "$base" --format '{{json .Manifest}}' 2>/dev/null | jq -er .digest); then
-                      # The parent's own workflow publishes it and then triggers this one.
+                  # The parent's own workflow publishes it and then triggers this one.
+                  if ! manifest=$(docker buildx imagetools inspect "$base" --format '{{json .Manifest}}' 2>/dev/null); then
                       echo "::warning::$variant skipped: parent $base is not published yet"
                       continue
                   fi
+                  if ! jq -e '[.manifests[]?.platform | "\(.os)/\(.architecture)"] | index("linux/amd64") and index("linux/arm64")' <<<"$manifest" >/dev/null; then
+                      echo "::warning::$variant skipped: parent $base is not published for both amd64 and arm64 yet"
+                      continue
+                  fi
+                  digest=$(jq -r .digest <<<"$manifest")
                   base_ref="${base%:*}@$digest"
               fi
               if [[ $EVENT == schedule || $EVENT == workflow_run ]]; then
