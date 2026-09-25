@@ -90,7 +90,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends qemu-user-static binfmt-support
           sudo update-binfmts --enable qemu-aarch64
+          # Preserve the guest executable's credentials for setuid programs such
+          # as sudo. Ubuntu's default registration can omit the C flag.
+          sudo python3 - <<'PYTHON'
+          from pathlib import Path
+          entry = Path("/proc/sys/fs/binfmt_misc/qemu-aarch64")
+          fields = dict(line.replace("flags:", "flags").split(maxsplit=1)
+                        for line in entry.read_text().splitlines() if " " in line)
+          if "C" not in fields["flags"]:
+              magic = "".join(r"\x" + fields["magic"][i:i+2] for i in range(0, len(fields["magic"]), 2))
+              mask = "".join(r"\x" + fields["mask"][i:i+2] for i in range(0, len(fields["mask"]), 2))
+              rule = f":qemu-aarch64:M:{fields['offset']}:{magic}:{mask}:{fields['interpreter']}:{fields['flags']}C"
+              entry.write_text("-1")
+              Path("/proc/sys/fs/binfmt_misc/register").write_text(rule)
+          PYTHON
           grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
+          grep -q '^flags: .*C' /proc/sys/fs/binfmt_misc/qemu-aarch64
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Log in to GHCR
         if: env.TRUSTED == 'true'

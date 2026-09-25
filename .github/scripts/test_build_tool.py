@@ -7,6 +7,9 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
+
+import yaml
 
 SCRIPT = Path(__file__).with_name("build-tool.sh").resolve()
 FAKE_TOOL = r'''#!/usr/bin/env python3
@@ -122,6 +125,36 @@ class BuildToolTests(unittest.TestCase):
                 result, calls, _ = self.run_script(TARGETS=targets)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(calls, [])
+
+
+class EmulationTests(unittest.TestCase):
+    def test_registration_preserves_elf_match_and_enables_guest_credentials(self):
+        workflow = yaml.safe_load(SCRIPT.parents[1].joinpath("workflows/images.yml").read_text())
+        step = next(s for s in workflow["jobs"]["build"]["steps"] if s.get("name") == "Enable arm64 emulation")
+        code = step["run"].split("<<'PYTHON'\n", 1)[1].split("\nPYTHON", 1)[0]
+        for flags in ("POF", "POCF"):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as tmp:
+                entry = Path(tmp) / "qemu-aarch64"
+                register = Path(tmp) / "register"
+                original = ("enabled\ninterpreter /usr/libexec/qemu-binfmt/aarch64-binfmt-P\n"
+                            f"flags: {flags}\noffset 0\nmagic 7f454c460201\nmask fffffffffffe\n")
+                entry.write_text(original)
+                mapping = {
+                    "/proc/sys/fs/binfmt_misc/qemu-aarch64": entry,
+                    "/proc/sys/fs/binfmt_misc/register": register,
+                }
+                with patch("pathlib.Path", side_effect=lambda name: mapping[name]):
+                    exec(compile(code, "enable-emulation", "exec"), {})
+                if "C" in flags:
+                    self.assertEqual(entry.read_text(), original)
+                    self.assertFalse(register.exists())
+                else:
+                    self.assertEqual(entry.read_text(), "-1")
+                    self.assertEqual(
+                        register.read_text(),
+                        r":qemu-aarch64:M:0:\x7f\x45\x4c\x46\x02\x01:"
+                        r"\xff\xff\xff\xff\xff\xfe:/usr/libexec/qemu-binfmt/aarch64-binfmt-P:POFC",
+                    )
 
 
 if __name__ == "__main__":

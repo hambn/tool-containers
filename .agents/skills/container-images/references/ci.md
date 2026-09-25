@@ -41,6 +41,9 @@ There are no per-tool workflows and no Dependabot configuration.
      amd64 and arm64 digest files.
    - Bake resolves `target:` contexts within the shared builder. Cold builds still
      build dependencies; arm64 emulation can be slower than a native ARM runner.
+   - ARM binfmt registration must include `F` for container execution and `C` to
+     preserve guest executable credentials. Without `C`, setuid programs such as
+     `sudo` fail under emulation even when the same image passes on native ARM.
    - QEMU, test tooling, and Trivy install before building. Each build/load has a
      45-minute limit; structure and smoke tests each have a five-minute limit. The
      whole tool job has a 180-minute limit to cover all selected variants/platforms.
