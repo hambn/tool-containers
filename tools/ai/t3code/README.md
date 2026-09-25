@@ -15,8 +15,8 @@
 |---|---|---|---|
 | `ubuntu-browser` | [`agentbloat:ubuntu-browser`](../agentbloat/) | T3 Code plus every agentbloat CLI; Ubuntu, headless Chromium | `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>` |
 | `ubuntu` | [`agentbloat:ubuntu`](../agentbloat/) | T3 Code plus every agentbloat CLI; Ubuntu, no browser | `ubuntu`, `<version>-ubuntu` |
-| `alpine-browser` | [`agentbloat:alpine-browser`](../agentbloat/) | T3 Code plus every agentbloat CLI; Alpine, Chromium | `alpine-browser`, `<version>-alpine-browser` |
-| `alpine` | [`agentbloat:alpine`](../agentbloat/) | T3 Code plus every agentbloat CLI; Alpine, no browser | `alpine`, `<version>-alpine` |
+
+No Alpine variants: upstream publishes only glibc builds of the `t3` binary, which gcompat cannot run.
 
 Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`.
 Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned T3 Code npm release; version tags are created once and never repointed. The old `t3code-stable-v<version>` and `t3code-nightly-v<version>` tags are frozen and deprecated.
@@ -59,7 +59,6 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
     - [`run.sh`](./examples/podman/run.sh)
 - [`tests/`](./tests/)
   - [`smoke.sh`](./tests/smoke.sh)
-  - [`structure-alpine.yaml`](./tests/structure-alpine.yaml)
   - [`structure.yaml`](./tests/structure.yaml)
 - [`.github/workflows/images.yml`](../../../.github/workflows/images.yml) — builds, tests, and publishes every variant
 

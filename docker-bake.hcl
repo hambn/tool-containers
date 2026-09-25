@@ -456,7 +456,7 @@ target "omnigent" {
 
 target "t3code" {
   name     = "t3code-${variant}"
-  matrix   = { variant = ["ubuntu", "alpine", "ubuntu-browser", "alpine-browser"] }
+  matrix   = { variant = ["ubuntu", "ubuntu-browser"] }
   inherits = ["_agent"]
   context  = "tools/ai/t3code"
   args     = { DISTRO = variant_distro(variant), T3CODE_VERSION = T3CODE_VERSION }
