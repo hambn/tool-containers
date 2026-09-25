@@ -1,18 +1,12 @@
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm pi-agent
-name: pi-agent-airgapped
+# Offline: docker load -i pi-agent.tar first, then
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm pi-agent
+name: pi-agent
 
 services:
   pi-agent:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/pi-agent:ubuntu-browser
+    image: ghcr.io/hambn/pi-agent:ubuntu-browser
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [pi-agent]
-
-networks:
-  pi-agent:
-    name: pi-agent-airgapped

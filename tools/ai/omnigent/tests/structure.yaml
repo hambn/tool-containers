@@ -1,0 +1,21 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: sysadmin
+  workdir: /workspace
+  entrypoint: ["omnigent"]
+
+commandTests:
+  - name: runs as sysadmin (uid 1000)
+    command: id
+    args: [-u]
+    expectedOutput: ["(?m)^1000\\n?$"]
+  - name: node and npm are inherited
+    command: bash
+    args: [-c, node --version && npm --version]
+  - name: omnigent --version
+    command: omnigent
+    args: [--version]
+  - name: omnigent launchers resolve for non-root users
+    command: bash
+    args: [-c, command -v omni && command -v omnigent]

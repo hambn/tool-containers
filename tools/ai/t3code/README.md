@@ -1,6 +1,6 @@
 # t3code
 
-[T3 Code](https://github.com/pingdotgg/t3code) — a minimal web GUI for coding agents (Codex, Claude, Cursor, OpenCode) — in a container. It's a GUI *over* agents, not an agent itself.
+[T3 Code](https://github.com/pingdotgg/t3code), a web GUI over coding agents, on the [`agentbloat`](../agentbloat/) image so Codex, Claude Code, Cursor, OpenCode, and the other bundled CLIs are ready to drive. The entrypoint is `t3 serve --host=0.0.0.0 --port=3773` and port `3773` is exposed.
 
 ## Contents
 
@@ -11,57 +11,58 @@
 
 ## Images
 
-Pull from `ghcr.io/hambn/t3code` or `docker.io/hambn/t3code` (Quay pending). T3 Code serves a web GUI + WebSocket server on port `3773` and inherits the current agent CLIs from `agentbloat`.
+| Variant | Base | Contents | Tags |
+|---|---|---|---|
+| `ubuntu-browser` | [`agentbloat:ubuntu-browser`](../agentbloat/) | T3 Code plus every agentbloat CLI; Ubuntu, headless Chromium | `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>` |
+| `ubuntu` | [`agentbloat:ubuntu`](../agentbloat/) | T3 Code plus every agentbloat CLI; Ubuntu, no browser | `ubuntu`, `<version>-ubuntu` |
 
-- **`ubuntu-browser`** (default)
-  - Contains: T3 Code + all agentbloat CLIs + Ubuntu toolset + Chromium
-  - Base: `ghcr.io/hambn/agentbloat:ubuntu-browser`
-  - Install: npm
-  - Tags: `latest`, `ubuntu-browser`
-- **`ubuntu`**
-  - Contains: T3 Code + all agentbloat CLIs + Ubuntu toolset
-  - Base: `ghcr.io/hambn/agentbloat:ubuntu`
-  - Install: npm
-  - Tags: `ubuntu`
-- **`alpine-browser`**
-  - Contains: T3 Code + all agentbloat CLIs + Alpine toolset + Chromium
-  - Base: `ghcr.io/hambn/agentbloat:alpine-browser`
-  - Install: npm
-  - Tags: `alpine-browser`
-- **`alpine`**
-  - Contains: T3 Code + all agentbloat CLIs + Alpine toolset
-  - Base: `ghcr.io/hambn/agentbloat:alpine`
-  - Install: npm
-  - Tags: `alpine`
+No Alpine variants: upstream publishes only glibc builds of the `t3` binary, which gcompat cannot run.
 
-The moving variant tags and `latest` are repointed for every selected rebuild. A base-only refresh or repository edit creates no additional version tag. When the inherited agent CLIs or T3 release changes, the primary image also receives `t3code-stable-v<version>` (or `t3code-nightly-v<version>` for a nightly release). The four profiles keep the matching browser and distribution behavior from `agentbloat`. The images run `t3 serve --host=0.0.0.0 --port=3773` so the published port works behind a reverse proxy or via `ip:3773`.
+Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`.
+Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned T3 Code npm release; version tags are created once and never repointed. The old `t3code-stable-v<version>` and `t3code-nightly-v<version>` tags are frozen and deprecated.
 
-See the repository's [registry and tag policy](../../../.agents/skills/container-images/references/registries-and-tags.md).
+The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Authenticate agents from the T3 Code UI; the server itself has no built-in network authentication, so keep it on loopback or behind an authenticating proxy.
 
 ## Use cases
 
-- **Local GUI over your repo** — [`examples/docker/run.sh`](./examples/docker/run.sh), then open `http://localhost:3773`.
-- **Compose service** — [`examples/docker-compose/docker-compose.yml`](./examples/docker-compose/docker-compose.yml) for a persistent local instance.
-- **Airgapped host** — [`examples/docker/airgapped.run.sh`](./examples/docker/airgapped.run.sh) loads a saved tar, no registry.
-- **Shared cluster instance** — [`examples/kubernetes/deployment.yaml`](./examples/kubernetes/deployment.yaml) Deployment + Service, port-forward to reach it.
+- **Local GUI over a checkout** — [`examples/docker/`](./examples/docker/), then open `http://127.0.0.1:3773`.
+- **Persistent local instance** — [`examples/docker-compose/`](./examples/docker-compose/) or rootless [`examples/podman/`](./examples/podman/).
+- **Shared cluster instance** — Deployment and Service in [`examples/kubernetes/`](./examples/kubernetes/) or the Helm chart in [`examples/helm/`](./examples/helm/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
 
 ## File map
 
-- **images/** — one Dockerfile per variant
-  - [`ubuntu-browser/Dockerfile`](./images/ubuntu-browser/Dockerfile) — T3 Code on Ubuntu with Chromium, default
-  - [`ubuntu/Dockerfile`](./images/ubuntu/Dockerfile) — T3 Code on Ubuntu without a browser
-  - [`alpine-browser/Dockerfile`](./images/alpine-browser/Dockerfile) — T3 Code on Alpine with Chromium
-  - [`alpine/Dockerfile`](./images/alpine/Dockerfile) — T3 Code on Alpine without a browser
-- **examples/** — one subdir per platform
-  - [`docker/`](./examples/docker/) — [`run.sh`](./examples/docker/run.sh), [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
-  - [`docker-compose/`](./examples/docker-compose/) — [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml), [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
-  - [`podman/`](./examples/podman/) — [`run.sh`](./examples/podman/run.sh)
-  - [`docker-swarm/`](./examples/docker-swarm/) — [`stack.yml`](./examples/docker-swarm/stack.yml)
-  - [`kubernetes/`](./examples/kubernetes/) — [`deployment.yaml`](./examples/kubernetes/deployment.yaml)
-  - [`helm/`](./examples/helm/) — [`chart/`](./examples/helm/chart/)
-- CI: [`.github/workflows/ai-t3code.yml`](../../../.github/workflows/ai-t3code.yml) — detects agent/base/T3 updates and pushes both registries
+- [`Dockerfile`](./Dockerfile)
+- [`README.md`](./README.md)
+- [`examples/`](./examples/)
+  - [`docker-compose/`](./examples/docker-compose/)
+    - [`README.md`](./examples/docker-compose/README.md)
+    - [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
+    - [`compose.sh`](./examples/docker-compose/compose.sh)
+    - [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml)
+  - [`docker/`](./examples/docker/)
+    - [`README.md`](./examples/docker/README.md)
+    - [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
+    - [`run.sh`](./examples/docker/run.sh)
+  - [`helm/`](./examples/helm/)
+    - [`chart/`](./examples/helm/chart/)
+      - [`templates/`](./examples/helm/chart/templates/)
+        - [`deployment.yaml`](./examples/helm/chart/templates/deployment.yaml)
+      - [`Chart.yaml`](./examples/helm/chart/Chart.yaml)
+      - [`values.yaml`](./examples/helm/chart/values.yaml)
+    - [`README.md`](./examples/helm/README.md)
+  - [`kubernetes/`](./examples/kubernetes/)
+    - [`README.md`](./examples/kubernetes/README.md)
+    - [`deployment.yaml`](./examples/kubernetes/deployment.yaml)
+  - [`podman/`](./examples/podman/)
+    - [`README.md`](./examples/podman/README.md)
+    - [`run.sh`](./examples/podman/run.sh)
+- [`tests/`](./tests/)
+  - [`smoke.sh`](./tests/smoke.sh)
+  - [`structure.yaml`](./tests/structure.yaml)
+- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml) — builds, tests, and publishes every variant
 
 ## Sources
 
-- T3 Code: https://github.com/pingdotgg/t3code
-- npm package: https://www.npmjs.com/package/t3
+- [T3 Code repository](https://github.com/pingdotgg/t3code)
+- [npm package `t3`](https://www.npmjs.com/package/t3)

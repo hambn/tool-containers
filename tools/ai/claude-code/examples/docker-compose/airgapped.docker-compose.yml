@@ -1,24 +1,14 @@
-# Offline: build from the repo's Dockerfile instead of pulling a registry image.
-# Run with the credential file created in README.md:
-#   WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" -f airgapped.docker-compose.yml run --build --rm claude
+# Offline: docker load -i claude-code.tar first, then
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm claude
 name: claude-code
 
 services:
   claude:
-    build:
-      context: ../../images/ubuntu-browser
-    image: claude-code:airgapped
+    image: ghcr.io/hambn/claude-code:ubuntu-browser
     pull_policy: never
-    container_name: claude-code
-    hostname: claude-code
-    networks: [claude-code]
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-
-networks:
-  claude-code:
-    name: claude-code

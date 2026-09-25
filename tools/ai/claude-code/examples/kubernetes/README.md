@@ -1,80 +1,46 @@
 # claude-code · Kubernetes
 
-Claude Code is Anthropic's coding agent CLI, packaged to run in a container. This page runs it on Kubernetes with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`job.yaml`](./job.yaml) runs Claude Code once as a `batch/v1` Job (`claude -p "review the workspace"`) and exits.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
-- `ANTHROPIC_API_KEY` set in your environment (never baked into the image)
+- A Kubernetes cluster and `kubectl` configured for it.
+- An Anthropic API key.
 
-## Files in this directory
-
-### `job.yaml`
-
-```yaml
-# One-shot Claude Code run. Create the secret first:
-#   kubectl create secret generic claude-code --from-literal=ANTHROPIC_API_KEY=sk-...
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: claude-code
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: claude
-          image: ghcr.io/hambn/claude-code:latest
-          imagePullPolicy: Always
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 1Gi
-          args: ["-p", "review the workspace"]
-          env:
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: claude-code
-                  key: ANTHROPIC_API_KEY
-          volumeMounts:
-            - name: workspace
-              mountPath: /workspace
-      volumes:
-        - name: workspace
-          emptyDir: {}
-```
-
-## More examples
-
-### Create the API key secret first
+## Commands
 
 ```bash
-kubectl create secret generic claude-code-auth --from-literal=ANTHROPIC_API_KEY="sk-..."
+kubectl create secret generic claude-code --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+kubectl apply -f job.yaml
+kubectl logs -f job/claude-code
 ```
 
-### Apply, watch, and clean up
+Edit `args` in [`job.yaml`](./job.yaml) to change the prompt or flags.
+
+## Variables
+
+| Name | Where | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Secret `claude-code` | Read through `secretKeyRef`; never stored in the manifest. |
+
+## Workspace
+
+`/workspace` is an `emptyDir`: it starts empty and is discarded with the pod. Replace it with a PVC or an init container that clones your repository for real work.
+
+## Files
+
+- [`job.yaml`](./job.yaml) — non-root Job with dropped capabilities, `backoffLimit: 0`, and resource limits.
+
+## Cleanup
 
 ```bash
-kubectl apply -f deployment.yaml
-kubectl get pods -w
-# ... later ...
-kubectl delete -f deployment.yaml
+kubectl delete -f job.yaml
+kubectl delete secret claude-code
 ```
+
+## Limitations
+
+- The Job runs non-interactively; use the Docker or Podman examples for interactive sessions.
+- `ubuntu-browser` is a moving tag; pin `<version>-ubuntu-browser` or a digest for repeatable runs.

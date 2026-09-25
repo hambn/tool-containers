@@ -3,14 +3,8 @@ name: agentbloat
 
 services:
   agentbloat:
-    image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}
-    command: ["zsh", "-l"]
+    image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:ubuntu-browser}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [agentbloat]
-
-networks:
-  agentbloat:
-    name: agentbloat

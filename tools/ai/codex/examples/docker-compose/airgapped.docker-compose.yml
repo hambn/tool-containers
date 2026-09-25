@@ -1,11 +1,10 @@
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm codex
-name: codex-airgapped
+# Offline: docker load -i codex.tar first, then
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm codex
+name: codex
 
 services:
   codex:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/codex:ubuntu-browser
+    image: ghcr.io/hambn/codex:ubuntu-browser
     pull_policy: never
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
@@ -13,8 +12,3 @@ services:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-    networks: [codex]
-
-networks:
-  codex:
-    name: codex-airgapped

@@ -1,145 +1,48 @@
 # t3code · Helm
 
-T3 Code is a web GUI for coding agents, served from a container on port 3773. This page runs it on Helm with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+The [`chart/`](./chart/) installs the T3 Code web GUI as a Deployment plus Service.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Helm 3.8 or newer and a Kubernetes cluster.
 
-## Files in this directory
-
-### `chart/Chart.yaml`
-
-```yaml
-apiVersion: v2
-name: t3code
-description: T3 Code web GUI for coding agents as a Deployment + Service
-type: application
-version: 0.1.1
-appVersion: latest
-```
-
-### `chart/templates/deployment.yaml`
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-t3code
-  labels: { app: {{ .Release.Name }}-t3code }
-spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: {{ .Release.Name }}-t3code }
-  template:
-    metadata:
-      labels: { app: {{ .Release.Name }}-t3code }
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: t3
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          ports:
-            - containerPort: 3773
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3773
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3773
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          volumeMounts:
-            - name: workspace
-              mountPath: /workspace
-      volumes:
-        - name: workspace
-          emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-t3code
-spec:
-  selector: { app: {{ .Release.Name }}-t3code }
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: 3773
-```
-
-### `chart/values.yaml`
-
-```yaml
-image:
-  repository: ghcr.io/hambn/t3code
-  tag: ubuntu-browser
-  pullPolicy: IfNotPresent
-
-service:
-  port: 3773
-
-resources:
-  requests:
-    cpu: 100m
-    memory: 256Mi
-  limits:
-    cpu: "2"
-    memory: 2Gi
-```
-
-## More examples
-
-### Install with a custom release name
+## Commands
 
 ```bash
 helm install t3code ./chart
+kubectl port-forward svc/t3code-t3code 3773:3773
 ```
 
-### Upgrade and roll back
+Open `http://localhost:3773` and authenticate the agents from the T3 Code UI.
+
+## Variables
+
+| Value | Default | Purpose |
+|---|---|---|
+| `image.repository` | `ghcr.io/hambn/t3code` | Image repository. |
+| `image.tag` | `ubuntu-browser` | Image tag; pin `<version>-<variant>` for repeatable runs. |
+| `image.pullPolicy` | `Always` | Pull policy. |
+| `service.port` | `3773` | Service port. |
+| `resources` | 100m/256Mi requests, 2 CPU/2Gi limits | Container resources. |
+
+## Workspace
+
+`/workspace` is an `emptyDir` discarded with the pod.
+
+## Files
+
+- [`chart/Chart.yaml`](./chart/Chart.yaml) — chart metadata.
+- [`chart/values.yaml`](./chart/values.yaml) — defaults listed above.
+- [`chart/templates/deployment.yaml`](./chart/templates/deployment.yaml) — Deployment and Service.
+
+## Cleanup
 
 ```bash
-helm upgrade t3code ./chart --reuse-values
-helm history t3code
-helm rollback t3code 1
+helm uninstall t3code
 ```
 
-### Override values on the command line
+## Limitations
 
-```bash
-helm upgrade t3code ./chart --set image.tag=<tag> --set resources.limits.memory=4Gi
-```
-
-### Or with a values file
-
-```yaml
-# my-values.yaml
-image:
-  tag: <tag>
-resources:
-  limits:
-    cpu: "2"
-    memory: 4Gi
-```
-
-```bash
-helm upgrade t3code ./chart -f my-values.yaml
-```
+- The Service is cluster-internal; add an authenticating Ingress before exposing it.

@@ -1,52 +1,28 @@
 # Tool-specific image contracts
 
-Read this reference only when a change touches one of these inheritance or compatibility
-boundaries. Verify every stated version or path in the live Dockerfile/workflow before
-changing it.
+Read this only when a change touches one of these boundaries. Verify each stated path or
+pin in the live files before changing it.
 
-## Shared variant graph
+## agentbloat
 
-Every current project publishes `ubuntu-browser` as primary, plus `ubuntu`,
-`alpine-browser`, and `alpine`:
+agentbloat bundles several agent CLIs on the devbox payload. It is tagged like a base
+image (`<variant>-<YYYYMMDD>-<sha7>`) because it has no single upstream version, and it
+exposes its `payload` stage (bake targets `agentbloat-payload-<variant>`) as the `base`
+context for omnigent and t3code.
 
-- `agentimg` is the foundation.
-- `agentbloat`, `claude-code`, `codex`, `open-code-review`, and `pi-agent` derive from the
-  matching `agentimg` variant.
-- `omnigent` and `t3code` derive from the matching `agentbloat` variant.
+Python tools install with `uv tool` under `/opt/uv-tools` with launchers linked into
+`/usr/local/bin`. `AGENT_CLIENT_PROTOCOL_VERSION` is held at a release that still
+provides the API `acp-agent` imports; do not release the hold without proving a newer
+pair works through the image tests.
 
-Keep variant-to-variant inheritance aligned. A parent workflow completion is an update
-signal for each direct child workflow.
+## omnigent
 
-## Agentimg runtime
-
-- The four flat Dockerfiles share distro-specific setup scripts and common Zsh assets.
-- They create the UID/GID-1000 `sysadmin` runtime user, default to
-  `WORKDIR /home/sysadmin`, and provide the shared Node.js and developer-tool runtime
-  used downstream. Platform examples mount user work at `/workspace`; derived tool
-  images set that as their work directory.
-- Browser profiles may use a separate global `BROWSER_BASE`; all profiles accept global
-  `RUNTIME_BASE`. The workflow resolves those bases to digests.
-- Derived images do not reinstall Node merely to package a Node CLI. They accept a global
-  `BASE_IMAGE`, elevate only for build-time installation, and restore `USER sysadmin`
-  before the final runtime contract.
-
-## AgentBloat ACP compatibility
-
-AgentBloat installs Python tools with `uv tool` under `/opt/uv-tools` and links launchers
-through `/usr/local/bin`. Its current `acp-agent` installation constrains
-`agent-client-protocol==0.7.1` because that release imports `ModelInfo`, which newer
-protocol SDKs removed. Do not remove or change the pin without building and running the
-ACP helper against the proposed compatible versions.
-
-## Omnigent non-root launchers
-
-Omnigent installs its uv environment in `/opt/uv-tools` with launchers in
-`/usr/local/bin`, not under root's home. The inherited `sysadmin` user and arbitrary
-explicit non-root UIDs must be able to resolve and execute the launcher. Preserve that
-location or prove equivalent permissions with a non-root smoke test.
+Omnigent's uv environment lives in `/opt/uv-tools` with launchers in `/usr/local/bin`,
+not under root's home, so `sysadmin` and arbitrary non-root UIDs can run it. Preserve
+that or prove equivalent permissions in its tests.
 
 ## Limitations
 
-Mark a deliberate, temporary image limitation near the affected source with a
-`# ponytail:` comment that explains the constraint and upgrade path. Do not use the tag
-for ordinary commentary or as a substitute for fixing a known issue.
+Mark a deliberate, temporary image limitation next to the affected source with a
+`# ponytail:` comment stating the constraint and the path to removing it. Do not use the
+marker for ordinary commentary or instead of fixing a known issue.

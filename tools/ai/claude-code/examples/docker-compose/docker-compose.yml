@@ -1,19 +1,12 @@
-# WORKSPACE="$PWD" ./compose.sh --env-file "$credentials" run --rm claude
+# WORKSPACE="$PWD" ./compose.sh run --rm claude
 name: claude-code
 
 services:
   claude:
-    image: ghcr.io/hambn/claude-code:latest
-    container_name: claude-code
-    hostname: claude-code
-    networks: [claude-code]
+    image: ${CLAUDE_CODE_IMAGE:-ghcr.io/hambn/claude-code:ubuntu-browser}
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true
     tty: true
-
-networks:
-  claude-code:
-    name: claude-code

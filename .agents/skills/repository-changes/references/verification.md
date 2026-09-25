@@ -6,34 +6,41 @@ Choose checks based on the risk and affected domain, then always run:
 bash .agents/skills/repository-changes/scripts/validate-change.sh
 ```
 
-The wrapper runs the static repository validator and whitespace checks for both staged
-and unstaged changes. The static validator enforces agent-workspace integrity, workflow
-YAML and embedded shell, Dockerfile contracts, executable bits, Markdown links, Compose
-rendering when Docker Compose is available, and Helm lint/rendering when Helm is
-available. It deliberately performs no image build or pull.
+The wrapper runs the static repository validator `.github/scripts/check-repo.py` and
+whitespace checks for staged and unstaged changes. The validator covers agent-workspace
+integrity, workflow YAML, Dockerfile and bake contracts, `versions.hcl` pins, test
+layout, executable bits, Markdown links, and Compose/Helm rendering when those tools are
+available. It never builds, pulls, or runs an image.
+
+Linters that cannot be verified statically on every machine (for example hadolint,
+shellcheck, shfmt, actionlint) run in the `lint` job of `.github/workflows/pr.yml`. Run
+them locally when installed; otherwise say they are left to CI.
 
 ## Targeted checks
 
-- **Dockerfiles:** use the correct build context and build arguments. Run a BuildKit
-  syntax check or representative build when the change can affect layers or runtime.
-- **Deployment:** render or lint the affected format and inspect secrets, mounts, image
-  references, and offline behavior.
+- **Images:** render the graph with
+  `docker buildx bake -f docker-bake.hcl -f versions.hcl --print <target>` and inspect
+  contexts, args, tags, and labels. Building and running images is CI's job
+  (`images.yml` builds, tests, and scans affected targets); do it locally only when the
+  user authorizes it.
+- **Image CI:** run `.github/scripts/test_plan.py` after changing the planner, the bake
+  graph shape, or tool paths. Run `.github/scripts/test_build_tool.py` after changing
+  build/test/scan/export orchestration; it uses fake executables and no network.
+- **Deployment examples:** render or lint the affected format and inspect secrets,
+  mounts, image references, and offline behavior.
 - **GitHub Actions:** inspect events, path filters, permissions, secrets, concurrency,
   matrix selection, shell, and publication gates.
 - **Markdown and maps:** verify local links and compare claimed paths with `git ls-files`.
-- **Web UI:** run the package-manager commands and browser checks selected by `$web-ui`
-  once an application exists.
-- **Agent skills:** run each changed helper script and the skill-creator validator when
-  it is available.
+- **Web UI:** run the commands selected by `$web-ui`.
+- **Agent skills:** run each changed helper script.
 
 After explicitly staging the intended paths, rerun the wrapper so cached whitespace is
 also checked.
 
 ## Truthful reporting
 
-Report the exact command and outcome. If Docker, Helm, network access, credentials, or
-another dependency is unavailable, name the skipped check and the reason. Do not imply
-that static PR CI runtime-tested an image: the single `Pull request gate` covers metadata
-policy, dependency review, and static repository validation; labeling remains separate.
-Image build, smoke test, Trivy scan, and publication happen in image workflows after
-changes reach `main`.
+Report each exact command and outcome. If Docker, Helm, a linter, network access, or
+credentials are unavailable, name the skipped check and the reason. Do not claim a
+runtime result from static validation: the `Pull request gate` covers metadata policy,
+dependency review, and the static validator; `lint` covers linters; image build, tests,
+Trivy scan, and publication happen in `images.yml`.

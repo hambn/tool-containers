@@ -1,85 +1,49 @@
 # pi-agent · Docker Compose
 
-Pi is a coding agent from Earendil Works, packaged on the agentimg foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+The `pi-agent` service runs Pi (`pi`) with the arguments you pass. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs `docker compose` from this directory.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine with the Compose v2 plugin.
+- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e`.
 
-## Files in this directory
-
-### `compose.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-case "${WORKSPACE:-}" in
-  /*) ;;
-  "") echo "Set WORKSPACE to an absolute host path." >&2; exit 2 ;;
-  *) echo "WORKSPACE must be an absolute host path: $WORKSPACE" >&2; exit 2 ;;
-esac
-
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-cd "$script_dir"
-exec docker compose "$@"
-```
-
-### `docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh run --rm pi-agent
-name: pi-agent
-
-services:
-  pi-agent:
-    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:latest}
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-    stdin_open: true
-    tty: true
-    networks: [pi-agent]
-
-networks:
-  pi-agent:
-    name: pi-agent
-```
-
-### `airgapped.docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm pi-agent
-name: pi-agent-airgapped
-
-services:
-  pi-agent:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/pi-agent:ubuntu-browser
-    pull_policy: never
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-    stdin_open: true
-    tty: true
-    networks: [pi-agent]
-
-networks:
-  pi-agent:
-    name: pi-agent-airgapped
-```
-
-## More examples
-
-### Point the stack at a different workspace
+## Commands
 
 ```bash
-WORKSPACE=/srv/projects/my-app ./compose.sh run --rm pi-agent
+WORKSPACE="$PWD" ./compose.sh run --rm pi-agent
 ```
 
-### Use a pinned image
+Air-gapped host, after `docker load -i pi-agent.tar`:
 
 ```bash
-PI_AGENT_IMAGE=ghcr.io/hambn/pi-agent:<tag> ./compose.sh run --rm pi-agent
+WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm pi-agent
 ```
+
+## Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
+| `PI_AGENT_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
+
+## Workspace
+
+`WORKSPACE` is bind-mounted at `/workspace`; the container runs as UID 1000.
+
+## Files
+
+- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) — pulls the published image.
+- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) — uses a pre-loaded image with `pull_policy: never`.
+
+## Cleanup
+
+```bash
+WORKSPACE="$PWD" ./compose.sh down
+```
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

@@ -1,0 +1,19 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: sysadmin
+  workdir: /workspace
+  entrypoint: ["t3", "serve", "--host=0.0.0.0", "--port=3773"]
+  exposedPorts: ["3773"]
+
+commandTests:
+  - name: runs as sysadmin (uid 1000)
+    command: id
+    args: [-u]
+    expectedOutput: ["(?m)^1000\\n?$"]
+  - name: node and npm are inherited
+    command: bash
+    args: [-c, node --version && npm --version]
+  - name: t3 is on PATH
+    command: bash
+    args: [-c, command -v t3]

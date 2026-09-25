@@ -31,16 +31,24 @@ highlighting, and minification all happen before the site is served.
 2. `src/build.mjs` reads each document once. The home catalog gets its title, description,
    cards, category filters, and platform links from those documents and directories.
 3. `src/lib/markdown.mjs` parses Markdown tokens. Document links become site links;
-   other repository files link to GitHub. Reference links and nested code fences work,
-   and code examples retain their original text.
+   other repository paths link to GitHub, so no relative link is left to break under a
+   page route. Reference links and nested code fences work, and code examples retain
+   their original text.
 4. `/docs/` renders the complete root README. Tool and example pages render their own
    README with section links, navigation, and a table of contents. README links point
    to the complete document so fragments such as `README.md#catalog` resolve.
-5. `src/lib/seo.mjs` derives page metadata and structured data from the content.
+5. Example pages also show every file beside the README, including subdirectories such
+   as `chart/templates/`, under a "File contents" section: one highlighted block per
+   file headed by its relative path, with `#file-<path>` anchors listed in the table of
+   contents. README links to those files or their directories (`./run.sh`, `chart/`)
+   become in-page anchors. The build reads the example directory from disk; binary
+   files and files over 128 KiB are skipped and keep their GitHub links. The language
+   follows the filename: shell, YAML, JSON, TOML, Markdown, Dockerfile, or plain text.
+6. `src/lib/seo.mjs` derives page metadata and structured data from the content.
    The build emits canonical URLs, social tags, `sitemap.xml`, `robots.txt`, a noindex
    `404.html`, and `.nojekyll` for GitHub Pages.
 
-Add, rename, edit, or remove a tool or platform README, then rebuild. No application
+Add, rename, edit, or remove a tool or platform README or example file, then rebuild. No application
 content list needs updating. Search filters the generated HTML locally, including
 platform names and catalog descriptions. All documents and links remain usable with
 JavaScript disabled.
@@ -102,9 +110,11 @@ with light and dark palettes. No React component library is shipped.
 
 `npm test` independently compares generated routes with the tracked Markdown inventory
 from Git. It checks titles and descriptions, heading counts, internal links and fragments,
+the absence of relative links, inline rendering of every example file,
 canonical URLs, structured data, sitemap coverage, the 404 page, and the Pages marker.
 Each shared CSS and JavaScript asset has an 8 kB gzip budget. Parser tests cover reference
-links, preserved code text, nested and unfinished fences, and document discovery changes.
+links, preserved code text, nested and unfinished fences, document discovery changes, and
+inline example files with nested paths, anchor rewriting, and skipped binary files.
 
 After changing routing or deployment URLs, build and test both default and explicit
 subpath configurations. After changing the interface, inspect desktop and mobile widths,

@@ -1,96 +1,47 @@
 # agentbloat · Docker
 
-agentbloat bundles the current Codex, Claude Code, Cursor, Grok, OpenCode, Copilot, Gemini, ACP Registry, and Pi coding-agent CLIs in one image. This page runs it on Docker with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+[`run.sh`](./run.sh) opens an interactive Zsh login shell with every bundled agent CLI, mounting the current directory at `/workspace`.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine 23 or newer.
+- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e`.
 
-## Quick start
-
-```bash
-docker run -it --rm \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest zsh
-```
-
-## Files in this directory
-
-### `run.sh`
+## Commands
 
 ```bash
-#!/usr/bin/env bash
-# Run an interactive agentbloat shell on the current directory.
-set -euo pipefail
-
-IMAGE="${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:latest}"
-docker_options=()
-if [[ -n "${AGENTBLOAT_DOCKER_SOCKET:-}" ]]; then
-  [[ -S "$AGENTBLOAT_DOCKER_SOCKET" ]] || {
-    echo "not a Docker socket: $AGENTBLOAT_DOCKER_SOCKET" >&2
-    exit 1
-  }
-  docker_options+=(
-    --volume "$AGENTBLOAT_DOCKER_SOCKET:/var/run/docker.sock"
-    --group-add "$(stat -c %g "$AGENTBLOAT_DOCKER_SOCKET")"
-  )
-fi
-
-docker run -it --rm \
-  "${docker_options[@]}" \
-  -v "$PWD:/workspace" \
-  "$IMAGE" zsh "$@"
+./run.sh
+./airgapped.run.sh agentbloat.tar
 ```
 
-### `airgapped.run.sh`
+For an air-gapped host, save the image on a connected machine first:
 
 ```bash
-#!/usr/bin/env bash
-# Offline host. Load agentbloat from a local tar and never pull.
-set -euo pipefail
-
-TAR="${1:-agentbloat.tar}"
-if [ "$#" -gt 0 ]; then shift; fi
-[ -f "$TAR" ] || { echo "missing $TAR" >&2; exit 1; }
-docker load -i "$TAR"
-docker run -it --rm --pull=never \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest bash "$@"
+docker save ghcr.io/hambn/agentbloat:ubuntu-browser -o agentbloat.tar
 ```
 
-## More examples
+## Variables
 
-### Pin a specific image tag
+| Variable | Required | Purpose |
+|---|---|---|
+| `AGENTBLOAT_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/agentbloat:ubuntu-browser`. |
+| `AGENTBLOAT_DOCKER_SOCKET` | no | Host Docker socket path to mount at `/var/run/docker.sock`. |
 
-Every moving tag from the [image table](../../README.md#images) works; override with an environment variable:
+## Workspace
 
-```bash
-AGENTBLOAT_IMAGE=ghcr.io/hambn/agentbloat:<tag> ./run.sh
-```
+The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
 
-### One-off non-interactive command
+## Files
 
-```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/hambn/agentbloat:latest zsh -c 'exit'
-```
+- [`run.sh`](./run.sh) — pull and run the published image.
+- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
 
-### Give the container access to the Docker socket
+## Cleanup
 
-The helpers mount the host socket only when you ask for it:
+Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/agentbloat:ubuntu-browser`.
 
-```bash
-AGENTBLOAT_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
-```
+## Limitations
 
-### Constrain resources
-
-```bash
-docker run -it --rm \
-  --cpus=2 \
-  --memory=4g \
-  --memory-swap=4g \
-  -v "$PWD:/workspace" \
-  ghcr.io/hambn/agentbloat:latest zsh
-```
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a `<variant>-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.

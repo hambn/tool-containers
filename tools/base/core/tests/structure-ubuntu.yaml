@@ -1,0 +1,6 @@
+schemaVersion: 2.0.0
+
+commandTests:
+  - name: stock ubuntu user removed
+    command: sh
+    args: ["-c", "! grep -q '^ubuntu:' /etc/passwd"]

@@ -23,6 +23,8 @@ The site automatically showcases the repository's markdown as pages — nothing 
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
   Resolve repository README links to the full document so section fragments stay valid.
+- Example pages render their sibling example files (scripts, manifests, charts) inline
+  from the tracked files, which is why example READMEs link rather than embed them.
 - Navigation mirrors the repository shape: catalog categories → tools → tool page → its
   platform-example pages. Every discovered document gets a page. Optional display
   metadata (ordering, descriptions) lives inside `web-ui/` and must not duplicate

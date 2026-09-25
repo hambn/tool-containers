@@ -11,7 +11,8 @@ Before opening a pull request:
    contract changes.
 4. Run `bash .agents/skills/repository-changes/scripts/validate-change.sh`.
 
-Describe the change and list exact validation in the pull request body. The single
+Describe the change and list exact validation in the pull request body. The
 `Pull request gate` check validates PR metadata, dependency changes, and repository
-contracts. Resolve review threads and require that gate to pass before squash merging
-so `main` retains a concise history.
+contracts; the `Lint` check and, for image changes, the `images` workflow must pass
+too. Resolve review threads and require these checks to pass before squash merging so
+`main` retains a concise history.

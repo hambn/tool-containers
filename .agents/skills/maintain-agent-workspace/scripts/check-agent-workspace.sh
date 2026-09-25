@@ -4,15 +4,15 @@ set -euo pipefail
 
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(git -C "$script_directory" rev-parse --show-toplevel 2>/dev/null)" || {
-  echo "error: run this command inside a Git repository" >&2
-  exit 2
+    echo "error: run this command inside a Git repository" >&2
+    exit 2
 }
 
 cd "$repository_root"
 
 command -v python3 >/dev/null || {
-  echo "error: python3 is required for agent workspace validation" >&2
-  exit 1
+    echo "error: python3 is required for agent workspace validation" >&2
+    exit 1
 }
 
 python3 - <<'PY'
@@ -187,6 +187,7 @@ mandatory_routes = {
     "maintain-agent-workspace",
     "repository-map",
     "container-images",
+    "documentation",
     "web-ui",
 }
 for name in sorted(mandatory_routes - routed_names):
@@ -201,11 +202,11 @@ if errors:
 PY
 
 while IFS= read -r -d '' script; do
-  bash -n "$script"
-  [[ -x "$script" ]] || {
-    echo "error: skill script is not executable: $script" >&2
-    exit 1
-  }
+    bash -n "$script"
+    [[ -x "$script" ]] || {
+        echo "error: skill script is not executable: $script" >&2
+        exit 1
+    }
 done < <(find .agents/skills -path '*/scripts/*' -type f -name '*.sh' -print0)
 
 echo "Agent workspace checks passed."

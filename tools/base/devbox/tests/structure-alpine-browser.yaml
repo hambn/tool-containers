@@ -1,0 +1,11 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  envVars:
+    - key: BROWSER_BIN
+      value: /usr/bin/chromium-browser
+
+commandTests:
+  - name: chromium executable
+    command: sh
+    args: ["-c", "test -x /usr/bin/chromium-browser"]

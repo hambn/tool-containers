@@ -6,7 +6,7 @@ import {
   repoRoot,
   uiRoot,
 } from "./lib/config.mjs";
-import { buildSite } from "./lib/catalog.mjs";
+import { buildSite, exampleFiles } from "./lib/catalog.mjs";
 import { createTheme } from "./lib/highlight.mjs";
 import { renderDocument, tableOfContents } from "./lib/markdown.mjs";
 import {
@@ -55,10 +55,12 @@ for (const page of site.pages) {
   if (page.kind === "home") {
     body = renderHome({ site, documents });
   } else {
+    const sourceDir = path.posix.dirname(page.source);
     const article = await renderDocument(markdown, {
-      sourceDir: path.posix.dirname(page.source),
+      sourceDir,
       site,
       theme,
+      files: page.kind === "example" ? exampleFiles(sourceDir) : [],
     });
     body = renderDocs({ page, site, article, toc: tableOfContents(article) });
   }

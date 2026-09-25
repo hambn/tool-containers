@@ -1,85 +1,49 @@
 # omnigent · Docker Compose
 
-Omnigent is an AI agent meta-harness that drives many agents, packaged on the agentbloat foundations. This page runs it on Docker Compose with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+The `omnigent` service runs `omnigent` with the arguments you pass. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs `docker compose` from this directory.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
+- Docker Engine with the Compose v2 plugin.
+- Omnigent discovers provider credentials and harness logins at runtime; pass provider API-key variables with `-e` when needed.
 
-## Files in this directory
-
-### `compose.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-case "${WORKSPACE:-}" in
-  /*) ;;
-  "") echo "Set WORKSPACE to an absolute host path." >&2; exit 2 ;;
-  *) echo "WORKSPACE must be an absolute host path: $WORKSPACE" >&2; exit 2 ;;
-esac
-
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-cd "$script_dir"
-exec docker compose "$@"
-```
-
-### `docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh run --rm omnigent
-name: omnigent
-
-services:
-  omnigent:
-    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:latest}
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-    stdin_open: true
-    tty: true
-    networks: [omnigent]
-
-networks:
-  omnigent:
-    name: omnigent
-```
-
-### `airgapped.docker-compose.yml`
-
-```yaml
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --build --rm omnigent
-name: omnigent-airgapped
-
-services:
-  omnigent:
-    build:
-      context: ../../images/ubuntu-browser
-    image: local/omnigent:ubuntu-browser
-    pull_policy: never
-    volumes:
-      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
-    stdin_open: true
-    tty: true
-    networks: [omnigent]
-
-networks:
-  omnigent:
-    name: omnigent-airgapped
-```
-
-## More examples
-
-### Point the stack at a different workspace
+## Commands
 
 ```bash
-WORKSPACE=/srv/projects/my-app ./compose.sh run --rm omnigent
+WORKSPACE="$PWD" ./compose.sh run --rm omnigent
 ```
 
-### Use a pinned image
+Air-gapped host, after `docker load -i omnigent.tar`:
 
 ```bash
-OMNIGENT_IMAGE=ghcr.io/hambn/omnigent:<tag> ./compose.sh run --rm omnigent
+WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm omnigent
 ```
+
+## Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
+| `OMNIGENT_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/omnigent:ubuntu-browser`. |
+
+## Workspace
+
+`WORKSPACE` is bind-mounted at `/workspace`; the container runs as UID 1000.
+
+## Files
+
+- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) — pulls the published image.
+- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) — uses a pre-loaded image with `pull_policy: never`.
+
+## Cleanup
+
+```bash
+WORKSPACE="$PWD" ./compose.sh down
+```
+
+## Limitations
+
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.

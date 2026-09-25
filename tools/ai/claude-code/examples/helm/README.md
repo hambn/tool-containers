@@ -1,128 +1,50 @@
 # claude-code · Helm
 
-Claude Code is Anthropic's coding agent CLI, packaged to run in a container. This page runs it on Helm with copy-paste examples; every file in this directory is shown below exactly as it exists in the repository.
+The [`chart/`](./chart/) installs Claude Code as a one-shot `batch/v1` Job.
 
 See the [tool overview](../../README.md) for image variants, tags, and registries.
 
-## Requirements
+## Prerequisites
 
-- Docker or a compatible runtime
-- `ANTHROPIC_API_KEY` set in your environment (never baked into the image)
+- Helm 3.8 or newer and a Kubernetes cluster.
+- An Anthropic API key.
 
-## Files in this directory
-
-### `chart/Chart.yaml`
-
-```yaml
-apiVersion: v2
-name: claude-code
-description: Claude Code CLI as a one-shot Job
-type: application
-version: 0.1.1
-appVersion: latest
-```
-
-### `chart/templates/job.yaml`
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: {{ .Release.Name }}-claude-code
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: claude
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: {{ toJson .Values.args }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          env:
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.apiKeySecret }}
-                  key: ANTHROPIC_API_KEY
-          volumeMounts:
-            - name: workspace
-              mountPath: /workspace
-      volumes:
-        - name: workspace
-          emptyDir: {}
-```
-
-### `chart/values.yaml`
-
-```yaml
-image:
-  repository: ghcr.io/hambn/claude-code
-  tag: latest
-  pullPolicy: IfNotPresent
-
-# Claude Code args.
-args: ["-p", "review the workspace"]
-
-# Name of an existing Secret holding key ANTHROPIC_API_KEY.
-apiKeySecret: claude-code
-
-resources:
-  requests:
-    cpu: 100m
-    memory: 256Mi
-  limits:
-    cpu: "1"
-    memory: 1Gi
-```
-
-## More examples
-
-### Install with a custom release name
+## Commands
 
 ```bash
-helm install claude-code ./chart
+kubectl create secret generic claude-code --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+helm install claude-code ./chart --set-json 'args=["-p","review the workspace"]'
+kubectl logs -f job/claude-code-claude-code
 ```
 
-### Upgrade and roll back
+## Variables
+
+| Value | Default | Purpose |
+|---|---|---|
+| `image.repository` | `ghcr.io/hambn/claude-code` | Image repository. |
+| `image.tag` | `ubuntu-browser` | Image tag; pin `<version>-<variant>` for repeatable runs. |
+| `image.pullPolicy` | `Always` | Pull policy. |
+| `args` | `["-p", "review the workspace"]` | Arguments passed to `claude`. |
+| `apiKeySecret` | `claude-code` | Secret holding key `ANTHROPIC_API_KEY`. |
+| `resources` | 100m/256Mi requests, 1 CPU/1Gi limits | Container resources. |
+
+## Workspace
+
+`/workspace` is an `emptyDir` discarded with the pod.
+
+## Files
+
+- [`chart/Chart.yaml`](./chart/Chart.yaml) — chart metadata.
+- [`chart/values.yaml`](./chart/values.yaml) — defaults listed above.
+- [`chart/templates/job.yaml`](./chart/templates/job.yaml) — non-root Job with `backoffLimit: 0`.
+
+## Cleanup
 
 ```bash
-helm upgrade claude-code ./chart --reuse-values
-helm history claude-code
-helm rollback claude-code 1
+helm uninstall claude-code
+kubectl delete secret claude-code
 ```
 
-### Override values on the command line
+## Limitations
 
-```bash
-helm upgrade claude-code ./chart --set image.tag=<tag> --set resources.limits.memory=4Gi
-```
-
-### Or with a values file
-
-```yaml
-# my-values.yaml
-image:
-  tag: <tag>
-resources:
-  limits:
-    cpu: "2"
-    memory: 4Gi
-```
-
-```bash
-helm upgrade claude-code ./chart -f my-values.yaml
-```
+- A Job's pod template is immutable; `helm uninstall` before installing a new run.

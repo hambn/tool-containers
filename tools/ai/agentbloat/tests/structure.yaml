@@ -1,0 +1,25 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  user: sysadmin
+  workdir: /workspace
+  entrypoint: []
+  cmd: ["/bin/zsh", "-l"]
+
+commandTests:
+  - name: runs as sysadmin (uid 1000)
+    command: id
+    args: [-u]
+    expectedOutput: ["(?m)^1000\\n?$"]
+  - name: node and npm are inherited
+    command: bash
+    args: [-c, node --version && npm --version]
+  - name: every agent CLI is on PATH
+    command: zsh
+    args: [-c, which acp-agent agent claude codex copilot cursor-agent gemini grok opencode pi]
+  - name: claude --version
+    command: claude
+    args: [--version]
+  - name: codex --version
+    command: codex
+    args: [--version]
