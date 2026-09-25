@@ -2,36 +2,39 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["config:recommended", "helpers:pinGitHubActionDigests"],
   semanticCommits: "enabled",
-  platformAutomerge: true,
+  // Renovate merges only after every check on the branch has passed, without
+  // depending on branch protection settings.
+  platformAutomerge: false,
+  internalChecksFilter: "strict",
   // validate_pr_metadata.py requires these sections in every non-Dependabot PR body.
   prHeader: "## Summary\n\nAutomated dependency update by Renovate; details below.",
-  prFooter: "## Validation\n\n- The pull request gate and the images workflow build, test, and scan every affected image on this pull request.",
+  prFooter: "## Validation\n\n- The pull request gate and each tool workflow builds, tests, and scans its images on this pull request.",
   customManagers: [
     {
       // Container images pinned as name:tag@sha256:digest.
       customType: "regex",
-      description: "Base images in tools/versions.hcl",
-      managerFilePatterns: ["/(^|/)versions\\.hcl$/"],
+      description: "Image pins in tool Dockerfiles",
+      managerFilePatterns: ["/^tools/.+/Dockerfile$/"],
       matchStrings: [
-        '# renovate: datasource=(?<datasource>docker) depName=(?<depName>\\S+)\\nvariable "\\w+" \\{\\n\\s+default = "[^":]+:(?<currentValue>[^"@]+)@(?<currentDigest>sha256:[a-f0-9]{64})"',
+        '# renovate: datasource=(?<datasource>docker) depName=(?<depName>\\S+)\\nARG \\w+=[^:\\s]+:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})',
       ],
     },
     {
       // Plain versions; the value must not contain a digest.
       customType: "regex",
-      description: "Tool versions in tools/versions.hcl",
-      managerFilePatterns: ["/(^|/)versions\\.hcl$/"],
+      description: "Tool versions in tool Dockerfiles",
+      managerFilePatterns: ["/^tools/.+/Dockerfile$/"],
       matchStrings: [
-        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?(?: extractVersion=(?<extractVersion>\\S+))?\\nvariable "\\w+" \\{\\n\\s+default = "(?<currentValue>[^"@]+)"',
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?(?: extractVersion=(?<extractVersion>\\S+))?\\nARG \\w+=(?<currentValue>[^@\\s]+)\\n',
       ],
     },
     {
       // Git commits tracked against a branch (currentValue) with the commit as digest.
       customType: "regex",
-      description: "Git commit pins in tools/versions.hcl",
-      managerFilePatterns: ["/(^|/)versions\\.hcl$/"],
+      description: "Git commit pins in tool Dockerfiles",
+      managerFilePatterns: ["/^tools/.+/Dockerfile$/"],
       matchStrings: [
-        '# renovate: datasource=(?<datasource>git-refs) depName=(?<depName>\\S+) currentValue=(?<currentValue>\\S+)\\nvariable "\\w+" \\{\\n\\s+default = "(?<currentDigest>[a-f0-9]{40})"',
+        '# renovate: datasource=(?<datasource>git-refs) depName=(?<depName>\\S+) currentValue=(?<currentValue>\\S+)\\nARG \\w+=(?<currentDigest>[a-f0-9]{40})',
       ],
     },
   ],
@@ -54,7 +57,7 @@
     },
     {
       description: "Agent CLIs: automerge minor and patch updates once CI passes",
-      matchFileNames: ["tools/versions.hcl"],
+      matchFileNames: ["tools/**/Dockerfile"],
       matchDatasources: ["npm", "pypi", "custom.cursor-agent"],
       matchDepNames: [
         "@anthropic-ai/claude-code",
@@ -71,11 +74,13 @@
         "t3",
       ],
       matchUpdateTypes: ["minor", "patch"],
+      // Skip releases that get pulled or turn out broken within their first days.
+      minimumReleaseAge: "2 days",
       automerge: true,
     },
     {
       description: "Base images and the devbox toolchain: one weekly group",
-      matchFileNames: ["tools/versions.hcl"],
+      matchFileNames: ["tools/**/Dockerfile"],
       matchDepNames: [
         "docker.io/library/alpine",
         "docker.io/library/ubuntu",
@@ -99,6 +104,8 @@
       matchUpdateTypes: ["minor", "patch", "digest", "pin", "pinDigest"],
       groupName: "base images and devbox toolchain",
       schedule: ["before 6am on monday"],
+      minimumReleaseAge: "3 days",
+      automerge: true,
     },
     {
       description: "Majors always need a manual review in their own pull request",
@@ -130,6 +137,12 @@
       matchManagers: ["pip_requirements"],
       semanticCommitType: "chore",
       semanticCommitScope: "python",
+    },
+    {
+      description: "Tool Dockerfiles pin through the regex managers above; FROM lines use build args",
+      matchManagers: ["dockerfile"],
+      matchFileNames: ["tools/**"],
+      enabled: false,
     },
     {
       description: "Our own images in examples use moving tags on purpose",

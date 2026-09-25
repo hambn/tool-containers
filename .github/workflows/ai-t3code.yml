@@ -1,0 +1,49 @@
+name: ai/t3code
+
+on:
+  pull_request:
+    paths: &paths
+      - "tools/ai/t3code/**"
+      - "tools/trivyignore.yaml"
+      - ".github/workflows/ai-t3code.yml"
+      - ".github/workflows/tool-image.yml"
+  push:
+    branches: [main]
+    paths: *paths
+  # Rebuild on the new parent image as soon as it is published.
+  workflow_run:
+    workflows: [ai/agentbloat]
+    types: [completed]
+    branches: [main]
+  # Daily check: rebuilds variants whose parent moved or whose published image has
+  # fixable OS vulnerabilities.
+  schedule:
+    - cron: "55 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ai-t3code-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  image:
+    name: t3code
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.event != 'pull_request')
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/tool-image.yml
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    with:
+      tool: tools/ai/t3code
+      primary: ubuntu-browser
+      version-arg: T3CODE_VERSION

@@ -81,15 +81,13 @@ jobs:
       - name: actionlint
         run: actionlint -color
 
-      # Ignored by design: bases and stages arrive as bake args and named contexts
-      # (DL3006, DL3022), the config layer is a whole-rootfs copy (DL3067), payload
-      # stages end as root and the published stage sets the user (DL3002, DL3066),
-      # and OS packages float with OS_REFRESH instead of version pins (DL3008, DL3018).
+      # Ignored by design: the base image arrives as the BASE_IMAGE build arg (DL3006),
+      # build stages end as root and the final stage sets the user (DL3002), and OS
+      # packages float with OS_REFRESH instead of version pins (DL3008, DL3018).
       - name: hadolint
         run: >-
           git ls-files -z 'tools/**/Dockerfile' | xargs -0 -r hadolint
           --ignore DL3002 --ignore DL3006 --ignore DL3008 --ignore DL3018
-          --ignore DL3022 --ignore DL3066 --ignore DL3067
 
       - name: shellcheck
         run: git ls-files -z '*.sh' | xargs -0 -r shellcheck

@@ -137,13 +137,14 @@ def check_pull_request_gate() -> None:
 
 
 def check_pipeline_layout() -> None:
-    for required in ("images.yml", "maintenance.yml", "pr.yml"):
+    for required in ("tool-image.yml", "pr.yml"):
         if not (WORKFLOWS / required).is_file():
             error(f"missing workflow {WORKFLOWS / required}")
-    obsolete = [p for p in WORKFLOWS.glob("*.yml") if p.name.startswith(("ai-", "base-")) or p.name == "pull-request.yml"]
-    obsolete += [p for p in (pathlib.Path(".github/dependabot.yml"),) if p.exists()]
+    obsolete = [WORKFLOWS / "images.yml", WORKFLOWS / "_image.yml", WORKFLOWS / "maintenance.yml", WORKFLOWS / "pull-request.yml", pathlib.Path(".github/dependabot.yml"),
+                pathlib.Path("tools/docker-bake.hcl"), pathlib.Path("tools/versions.hcl")]
     for path in obsolete:
-        error(f"obsolete file remains: {path} (images.yml and .github/renovate.json5 replace it)")
+        if path.exists():
+            error(f"obsolete file remains: {path} (per-tool workflows and tool Dockerfiles replace it)")
     if not pathlib.Path(".github/renovate.json5").is_file():
         error("missing .github/renovate.json5")
     ignore = pathlib.Path("tools/trivyignore.yaml")
@@ -242,18 +243,32 @@ def check_web_ui_workflow() -> None:
 
 # --- tools and bake ----------------------------------------------------------
 
-def bake_contexts() -> set[str]:
-    if shutil.which("docker"):
-        result = subprocess.run(
-            [".github/scripts/bake.sh", "--print", "all"],
-            capture_output=True, text=True,
-        )
-        if result.returncode == 0:
-            return {t["context"] for t in json.loads(result.stdout)["target"].values() if "context" in t}
-        error(f"docker buildx bake --print failed: {result.stderr.strip().splitlines()[-1:]}")
-    else:
-        notice("docker unavailable; reading bake contexts with a regex")
-    return set(re.findall(r'^\s*context\s*=\s*"([^"]+)"', pathlib.Path("tools/docker-bake.hcl").read_text(), re.MULTILINE))
+def bake_targets(tool: pathlib.Path) -> dict:
+    if not shutil.which("docker"):
+        return {}
+    result = subprocess.run(["docker", "buildx", "bake", "--print"], cwd=tool, capture_output=True, text=True)
+    if result.returncode:
+        error(f"{tool}: docker buildx bake --print failed: {result.stderr.strip().splitlines()[-1:]}")
+        return {}
+    return json.loads(result.stdout)["target"]
+
+
+def check_tool_workflow(tool: pathlib.Path) -> None:
+    path = WORKFLOWS / f"{tool.parent.name}-{tool.name}.yml"
+    if not path.is_file():
+        error(f"{tool}: missing workflow {path}")
+        return
+    document = load(path)
+    jobs = list((document.get("jobs") or {}).values())
+    if len(jobs) != 1 or jobs[0].get("uses") != "./.github/workflows/tool-image.yml":
+        error(f"{path}: must have one job that calls ./.github/workflows/tool-image.yml")
+        return
+    if (jobs[0].get("with") or {}).get("tool") != tool.as_posix():
+        error(f"{path}: with.tool must be {tool.as_posix()}")
+    paths = (triggers(document).get("pull_request") or {}).get("paths") or []
+    for needed in (f"{tool.as_posix()}/**", path.as_posix(), ".github/workflows/tool-image.yml"):
+        if needed not in paths:
+            error(f"{path}: pull_request.paths must include {needed}")
 
 
 def tool_dirs() -> list[pathlib.Path]:
@@ -264,13 +279,12 @@ def tool_dirs() -> list[pathlib.Path]:
 def check_tools(all_files: list[pathlib.Path]) -> None:
     tools = tool_dirs()
     names = {tool.as_posix() for tool in tools}
-    contexts = bake_contexts()
-    for missing in sorted(names - contexts):
-        error(f"{missing}: no bake target uses it as context")
-    for missing in sorted(contexts - names):
-        error(f"tools/docker-bake.hcl: context {missing} is not a tools/<category>/<tool> directory")
     for tool in tools:
-        for required in ("README.md", "Dockerfile", "tests/structure.yaml"):
+        check_tool_workflow(tool)
+        for name, target in bake_targets(tool).items():
+            if not {"variant", "distro", "tier"} <= {k.rsplit(".", 1)[-1] for k in target.get("labels", {})}:
+                error(f"{tool}/docker-bake.hcl: {name} needs variant, distro, and tier labels")
+        for required in ("README.md", "Dockerfile", "docker-bake.hcl", "tests/structure.yaml"):
             if not (tool / required).is_file():
                 error(f"{tool}: missing {required}")
         if (tool / "images").exists():
@@ -294,8 +308,7 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
             text = path.read_text()
             if not text.startswith("# syntax=docker/dockerfile:1"):
                 error(f"{path}: first line must be '# syntax=docker/dockerfile:1'")
-            if "@sha256:" in text:
-                error(f"{path}: base image digests belong in tools/versions.hcl")
+            check_pins(path, text)
             if re.search(r"apk\s+upgrade|apt-get\s+(dist-)?upgrade|apt\s+(full-|dist-)?upgrade", text):
                 error(f"{path}: use OS_REFRESH instead of upgrading packages")
 
@@ -307,12 +320,19 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
         error(f"README.md catalog mismatch: missing={sorted(names - set(catalog))}, unexpected={sorted(set(catalog) - names)}")
 
 
-def check_versions() -> None:
-    lines = pathlib.Path("tools/versions.hcl").read_text().splitlines()
+# Build args that are set per variant or by CI rather than pinned to an upstream release.
+UNPINNED_ARGS = {"DISTRO", "BASE_IMAGE", "OS_REFRESH"}
+
+
+def check_pins(path: pathlib.Path, text: str) -> None:
+    """Every ARG with a default is a pin Renovate must be able to update."""
+    lines = text.splitlines()
     for index, line in enumerate(lines):
-        match = re.match(r'variable "(\w+)"', line)
-        if match and match.group(1) != "OS_REFRESH" and not (index and lines[index - 1].startswith("# renovate: ")):
-            error(f"tools/versions.hcl: {match.group(1)} needs a '# renovate:' comment on the line above")
+        match = re.match(r"ARG (\w+)=", line)
+        if match and match.group(1) not in UNPINNED_ARGS and not lines[index - 1].startswith("# renovate: "):
+            error(f"{path}: ARG {match.group(1)} needs a '# renovate:' comment on the line above")
+        elif "@sha256:" in line and not match:
+            error(f"{path}: pin image digests in an ARG default, not inline: {line.strip()}")
 
 
 # --- files -------------------------------------------------------------------
@@ -363,8 +383,6 @@ def run_suites() -> None:
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/check-agent-workspace.sh"],
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/test-check-agent-workspace.sh"],
         [sys.executable, "-B", ".github/scripts/test_validate_pr_metadata.py"],
-        [sys.executable, "-B", ".github/scripts/test_plan.py"],
-        [sys.executable, "-B", ".github/scripts/test_build_tools.py"],
     ):
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:
@@ -381,7 +399,6 @@ def main() -> int:
     check_labeler()
     check_web_ui_workflow()
     check_tools(all_files)
-    check_versions()
     check_files(all_files)
     check_renders(all_files)
     for message in errors:
