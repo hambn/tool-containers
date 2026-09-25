@@ -82,12 +82,13 @@ jobs:
         run: actionlint -color
 
       # Ignored by design: the base image arrives as the BASE_IMAGE build arg (DL3006),
-      # build stages end as root and the final stage sets the named user (DL3002, DL3066), and OS
-      # packages float with OS_REFRESH instead of version pins (DL3008, DL3018).
+      # devbox overlays its config stage as a whole filesystem (DL3067), build stages
+      # end as root and the final stage switches to the named user (DL3002, DL3066),
+      # and OS packages float with OS_REFRESH instead of version pins (DL3008, DL3018).
       - name: hadolint
         run: >-
           git ls-files -z 'tools/**/Dockerfile' | xargs -0 -r hadolint
-          --ignore DL3002 --ignore DL3006 --ignore DL3008 --ignore DL3018 --ignore DL3066
+          --ignore DL3002 --ignore DL3006 --ignore DL3008 --ignore DL3018 --ignore DL3066 --ignore DL3067
 
       - name: shellcheck
         run: git ls-files -z '*.sh' | xargs -0 -r shellcheck
