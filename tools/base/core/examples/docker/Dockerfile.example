@@ -1,0 +1,4 @@
+# docker build -f Dockerfile.example -t my-app .
+FROM ghcr.io/hambn/core:wolfi
+COPY --chown=65532:65532 app.sh /home/nonroot/app.sh
+CMD ["bash", "/home/nonroot/app.sh"]

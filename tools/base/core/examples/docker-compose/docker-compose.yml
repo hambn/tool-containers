@@ -1,0 +1,17 @@
+# docker compose run --rm shell
+name: core
+
+services:
+  shell:
+    image: ghcr.io/hambn/core:${CORE_VARIANT:-wolfi}
+    working_dir: /workspace
+    volumes:
+      - ${WORKSPACE:-.}:/workspace
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stdin_open: true
+    tty: true
