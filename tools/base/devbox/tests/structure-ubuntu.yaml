@@ -23,3 +23,4 @@ commandTests:
         grep -qx "LogTarget=console" /etc/systemd/system.conf.d/devbox-container.conf
         grep -qx "d /tmp 1777 root root 30d" /etc/tmpfiles.d/tmp.conf
         test "$(readlink /etc/systemd/system/systemd-resolved.service)" = /dev/null
+        test "$(readlink /etc/systemd/system/systemd-binfmt.service)" = /dev/null

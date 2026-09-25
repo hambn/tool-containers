@@ -41,6 +41,8 @@ if name == "docker" and "--print" in args:
     print(os.environ["BAKE_JSON"])
 if name == "container-structure-test" and os.getenv("FAIL_TEST") and f"local/{os.environ['FAIL_TEST']}-" in " ".join(args):
     sys.exit(1)
+if name == "container-structure-test" and os.getenv("FAIL_PLATFORM") == os.getenv("PLATFORM"):
+    sys.exit(1)
 if name == "trivy" and "--exit-code" in args and os.getenv("FAIL_SCAN"):
     sys.exit(1)
 if name == "trivy" and "--output" in args:
@@ -85,7 +87,7 @@ class BuildToolTests(unittest.TestCase):
                 "PATH": f"{binaries}:{os.environ['PATH']}",
                 "CALL_LOG": str(log), "RESULT_DIR": str(results), "BAKE_JSON": json.dumps(BAKE),
                 "GIT_SHA": "0" * 40, "SOURCE_DATE_EPOCH": "0",
-                "TARGETS": '["sample-ubuntu", "sample-browser"]', "ARCH": "arm64",
+                "TARGETS": '["sample-ubuntu", "sample-browser"]', "ARCHES": "arm64",
                 "SCAN": "false", "PUBLISH": "false",
                 **overrides,
             }
@@ -102,7 +104,7 @@ class BuildToolTests(unittest.TestCase):
         self.assertIn("sample-ubuntu.output=type=cacheonly", build)
         self.assertFalse(any("type=gha" in arg for args in bake_calls(calls) for arg in args))
         self.assertEqual([load[6] for load in loads], ["sample-ubuntu", "sample-browser"])
-        self.assertTrue(all(c["platform"] == "linux/arm64" for c in calls if c["tool"] != "smoke.sh"))
+        self.assertTrue(all(c["platform"] == "linux/arm64" for c in calls if c["tool"] != "smoke.sh" and "--print" not in c["args"]))
         structure = [c["args"] for c in calls if c["tool"] == "container-structure-test"]
         self.assertEqual(len(structure), 2)
         self.assertEqual(structure[0].count("tools/ai/sample/tests/structure-ubuntu.yaml"), 1)
@@ -120,8 +122,27 @@ class BuildToolTests(unittest.TestCase):
                          [["sample-ubuntu", "sample-browser"], ["other-ubuntu"]])
         self.assertEqual(len([c for c in calls if c["args"][:2] == ["buildx", "prune"]]), 2)
 
+    def test_architectures_build_concurrently_and_only_amd64_is_scanned(self):
+        result, calls, digests = self.run_script(ARCHES="amd64 arm64", SCAN="true", PUBLISH="true")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        builds = [c for c in calls if c["tool"] == "docker" and any(a.endswith(".output=type=cacheonly") for a in c["args"])]
+        self.assertEqual(sorted(c["platform"] for c in builds), ["linux/amd64", "linux/arm64"])
+        self.assertTrue(all(c["platform"] == "linux/amd64" for c in calls if c["tool"] == "trivy"))
+        self.assertEqual(len([c for c in calls if c["tool"] == "trivy" and "--exit-code" in c["args"]]), 2)
+        self.assertEqual(digests, ["sample-browser-amd64", "sample-browser-arm64",
+                                   "sample-ubuntu-amd64", "sample-ubuntu-arm64"])
+        self.assertIn("::group::Test sample-ubuntu (arm64)", result.stdout)
+
+    def test_failure_on_one_architecture_publishes_neither(self):
+        result, calls, digests = self.run_script(ARCHES="amd64 arm64", PUBLISH="true", FAIL_PLATFORM="linux/arm64")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("::error::tools/ai/sample failed on arm64", result.stdout)
+        self.assertNotIn("failed on amd64", result.stdout)
+        self.assertFalse(any("--metadata-file" in c["args"] for c in calls))
+        self.assertEqual(digests, [])
+
     def test_scan_gate_skips_files_listed_by_the_tool_and_its_bases(self):
-        result, calls, _ = self.run_script(SCAN="true")
+        result, calls, _ = self.run_script(SCAN="true", ARCHES="amd64")
         self.assertEqual(result.returncode, 0, result.stderr)
         gate = [c["args"] for c in calls if c["tool"] == "trivy" and "--exit-code" in c["args"]]
         self.assertEqual(len(gate), 2)
@@ -139,16 +160,17 @@ class BuildToolTests(unittest.TestCase):
 
     def test_failed_tool_does_not_stop_or_publish_with_the_others(self):
         targets = '["sample-ubuntu", "sample-browser", "other-ubuntu"]'
-        for failure in ({"FAIL_TEST": "sample"}, {"SCAN": "true", "FAIL_SCAN": "1"}):
+        for failure in ({"FAIL_TEST": "sample"}, {"SCAN": "true", "FAIL_SCAN": "1", "ARCHES": "amd64"}):
             with self.subTest(failure=failure):
                 result, _, digests = self.run_script(TARGETS=targets, PUBLISH="true", **failure)
+                arch = failure.get("ARCHES", "arm64")
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("::error::tools/ai/sample failed on arm64", result.stdout)
+                self.assertIn(f"::error::tools/ai/sample failed on {arch}", result.stdout)
                 expected = [] if "FAIL_SCAN" in failure else ["other-ubuntu-arm64"]
                 self.assertEqual(digests, expected)
 
     def test_invalid_input_fails_before_invoking_tools(self):
-        for override in ({"TARGETS": "[]"}, {"TARGETS": '["bad;target"]'}, {"TARGETS": '"sample-ubuntu"'}, {"ARCH": ""}):
+        for override in ({"TARGETS": "[]"}, {"TARGETS": '["bad;target"]'}, {"TARGETS": '"sample-ubuntu"'}, {"ARCHES": ""}, {"ARCHES": "amd64 x86"}):
             with self.subTest(override=override):
                 result, calls, _ = self.run_script(**override)
                 self.assertNotEqual(result.returncode, 0)

@@ -7,8 +7,8 @@ consumes through a `target:` context is affected. Changes to the image pipeline
 itself affect every target.
 
 Affected tools (tools/<category>/<tool> contexts) are packed into at most MAX_JOBS
-jobs per architecture, one tool per job while they fit. Tools that build on each
-other stay adjacent so a job builds their shared stages once.
+jobs, one tool per job while they fit; each job builds both architectures. Tools that
+build on each other stay adjacent so a job builds their shared stages once.
 """
 
 from __future__ import annotations
@@ -30,9 +30,10 @@ PIPELINE_FILES = {
     ".github/scripts/publish.sh",
     "tools/trivyignore.yaml",
 }
-# Build jobs per architecture. Both architectures plus plan and publish stay within
-# the 20 concurrent jobs of a free GitHub plan, however many tools are affected.
-MAX_JOBS = 8
+# Build jobs, each covering both architectures. They leave room for plan and the
+# pull request checks within the 20 concurrent jobs of a free GitHub plan, however
+# many tools are affected.
+MAX_JOBS = 16
 IGNORED_KEYS = {"tags", "cache-from", "cache-to", "output", "platforms"}
 IGNORED_LABELS = {
     "org.opencontainers.image.revision",

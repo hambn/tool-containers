@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Opt-in systemd profile for Ubuntu: boot to multi-user.target as PID 1 in a
 # privileged container without hardware, getty, update, or host-network units.
+# binfmt_misc is not namespaced, so systemd-binfmt would unregister the host's
+# handlers (such as QEMU emulation) when the container stops.
 set -euo pipefail
 
 systemctl set-default multi-user.target
@@ -14,8 +16,9 @@ systemctl mask -- \
     plymouth-halt.service plymouth-kexec.service plymouth-poweroff.service \
     plymouth-quit-wait.service plymouth-quit.service plymouth-read-write.service \
     plymouth-reboot.service plymouth-start.service plymouth-switch-root-initramfs.service \
-    plymouth-switch-root.service systemd-ask-password-console.path \
-    systemd-ask-password-wall.path systemd-hwdb-update.service \
+    plymouth-switch-root.service proc-sys-fs-binfmt_misc.automount \
+    proc-sys-fs-binfmt_misc.mount systemd-ask-password-console.path \
+    systemd-ask-password-wall.path systemd-binfmt.service systemd-hwdb-update.service \
     systemd-journal-catalog-update.service systemd-modules-load.service \
     systemd-random-seed.service systemd-remount-fs.service systemd-resolved.service \
     systemd-update-done.service systemd-update-utmp.service \

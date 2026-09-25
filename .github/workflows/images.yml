@@ -1,10 +1,10 @@
 name: Test and build
 
-# Plan the affected Bake targets, then test and build them on native amd64 and arm64
-# runners. The planner packs the affected tools into at most eight jobs per
-# architecture (one tool per job while they fit), so the job count stays bounded as
-# tools are added. Only main publishes the verified digests as multi-arch images, in
-# one job.
+# Plan the affected Bake targets, then test and build them in one job per tool that
+# covers amd64 natively and arm64 under QEMU, both at once. The planner packs the
+# affected tools into at most sixteen jobs (one tool per job while they fit), so the
+# job count stays bounded as tools are added. Only main publishes the verified
+# digests as multi-arch images, in one job.
 on:
   pull_request:
     paths: &image-paths
@@ -60,11 +60,11 @@ jobs:
         run: python3 .github/scripts/plan.py
 
   test-and-build:
-    name: ${{ matrix.job.name }} (${{ matrix.arch }})
+    name: ${{ matrix.job.name }}
     needs: plan
     if: needs.plan.outputs.targets != '[]'
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 180
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
     permissions:
       contents: read
       packages: write # Needed to push digests and cache when publishing.
@@ -73,18 +73,10 @@ jobs:
       fail-fast: false
       matrix:
         job: ${{ fromJSON(needs.plan.outputs.jobs) }}
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-            cst-sha256: fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            cst-sha256: 801826ed107222120eb6df8c143b7de752cfebbe3aebfeea576e7098486917c2
     env:
       TARGETS: ${{ toJSON(matrix.job.targets) }}
-      ARCH: ${{ matrix.arch }}
-      SCAN: ${{ matrix.arch == 'amd64' }}
+      ARCHES: amd64 arm64
+      SCAN: true
       PUBLISH: ${{ needs.plan.outputs.publish }}
       TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
       RESULT_DIR: /tmp/image-results
@@ -94,6 +86,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # tonistiigi/binfmt registers with the F flag (usable inside containers) and the
+      # C flag (setuid programs such as sudo keep their credentials).
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: arm64
+      - name: Check arm64 emulation
+        run: |
+          grep -q '^flags: .*C' /proc/sys/fs/binfmt_misc/qemu-aarch64
+          grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Log in to GHCR
         if: env.TRUSTED == 'true'
@@ -105,21 +107,29 @@ jobs:
 
       - name: Install container-structure-test
         timeout-minutes: 2
-        env:
-          CST_SHA256: ${{ matrix.cst-sha256 }}
         run: |
           set -euo pipefail
-          curl -fsSLo /tmp/cst "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-$ARCH"
-          echo "$CST_SHA256  /tmp/cst" | sha256sum -c -
+          curl -fsSLo /tmp/cst https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-amd64
+          echo 'fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca  /tmp/cst' | sha256sum -c -
           sudo install -m 0755 /tmp/cst /usr/local/bin/container-structure-test
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
-        if: env.SCAN == 'true'
         with:
           version: v0.70.0
           cache: true
 
       - name: Test and build
         run: .github/scripts/build-tools.sh
+
+      # Each architecture logs to a file that is printed when it finishes; keep the
+      # files when a job fails or times out before printing them.
+      - name: Upload build logs
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ matrix.job.id }}
+          path: /tmp/image-results/logs/*
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Find scan reports
         id: reports
@@ -139,7 +149,7 @@ jobs:
         if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: digests-${{ matrix.job.id }}-${{ matrix.arch }}
+          name: digests-${{ matrix.job.id }}
           path: /tmp/image-results/digests/*
           if-no-files-found: ignore
           retention-days: 1
