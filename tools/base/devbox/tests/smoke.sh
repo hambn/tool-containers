@@ -27,6 +27,13 @@ if [[ $DISTRO == ubuntu && $TIER != lite ]]; then
         --entrypoint /sbin/init "$image")
     trap 'docker rm --force "$container" >/dev/null 2>&1 || true' EXIT
 
+    # Under QEMU user emulation, early-boot units such as systemd-sysctl,
+    # systemd-sysusers, and systemd-tmpfiles hit unemulated syscalls and fail,
+    # so a foreign architecture may only reach degraded.
+    emulated=false
+    [[ ${ARCH:-$(dpkg --print-architecture 2>/dev/null || uname -m)} == "$(docker info --format '{{.Architecture}}' | sed 's/x86_64/amd64/; s/aarch64/arm64/')" ]] ||
+        emulated=true
+
     state=starting
     for _ in {1..45}; do
         state=$(docker exec "$container" systemctl is-system-running 2>/dev/null || true)
@@ -34,12 +41,12 @@ if [[ $DISTRO == ubuntu && $TIER != lite ]]; then
         sleep 1
     done
 
-    if [[ $state != running ]]; then
+    if [[ $state != running && ! ($emulated == true && $state == degraded) ]]; then
         docker exec "$container" systemctl --failed --no-legend --plain || true
         docker logs "$container" || true
         exit 1
     fi
-    test -z "$(docker exec "$container" systemctl --failed --no-legend --plain)"
+    [[ $emulated == true ]] || test -z "$(docker exec "$container" systemctl --failed --no-legend --plain)"
     docker exec "$container" systemctl is-active --quiet systemd-journald.service
     docker exec "$container" test -e /run/user/1000
 fi
