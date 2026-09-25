@@ -142,7 +142,7 @@ jobs:
           exit-code: "1"
           trivyignores: .trivyignore.yaml
           skip-setup-trivy: true
-          skip-files: "**/usr/local/bin/gh,**/usr/local/bin/glab,**/usr/local/bin/helm,**/usr/local/bin/kubectl,**/usr/local/bin/kustomize,**/usr/local/bin/yq,**/usr/local/bin/uv,**/usr/local/bin/uvx,**/usr/local/bin/node,**/usr/local/lib/node_modules/npm/node_modules/**,**/usr/bin/tailscale,**/usr/bin/tailscaled,**/usr/sbin/tailscale,**/usr/sbin/tailscaled,**/usr/local/go/**,**/usr/local/lib/node_modules/@github/copilot/**,**/usr/local/lib/node_modules/@alibaba-group/**"
+          skip-files: "**/usr/local/bin/gh,**/usr/local/bin/glab,**/usr/local/bin/helm,**/usr/local/bin/kubectl,**/usr/local/bin/kustomize,**/usr/local/bin/yq,**/usr/local/bin/uv,**/usr/local/bin/uvx,**/usr/local/bin/node,**/usr/local/lib/node_modules/npm/node_modules/**,**/usr/local/bin/tailscale,**/usr/local/sbin/tailscaled,**/usr/local/go/**,**/usr/local/lib/node_modules/@github/copilot/**,**/usr/local/lib/node_modules/@alibaba-group/**"
 
       - name: Upload Trivy SARIF
         if: ${{ !cancelled() && matrix.arch == 'amd64' && env.TRUSTED == 'true' && hashFiles('trivy.sarif') != '' }}
