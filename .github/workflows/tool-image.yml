@@ -348,8 +348,12 @@ jobs:
           trivy image --quiet --scanners secret --exit-code 1 \
               --skip-dirs /usr/local/lib/node_modules --skip-dirs /usr/local/go --skip-dirs /opt \
               "local/$IMAGE:test"
+      # Report to code scanning from main only: every build job uploading on pull
+      # requests too exhausts the repository's API rate limit. A failed report never
+      # blocks publishing; the Trivy gate above is what decides.
       - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
-        if: ${{ !cancelled() && env.TRUSTED == 'true' && hashFiles('trivy.sarif') != '' }}
+        if: ${{ !cancelled() && env.PUBLISH == 'true' && hashFiles('trivy.sarif') != '' }}
+        continue-on-error: true
         with:
           sarif_file: trivy.sarif
           category: trivy-${{ needs.plan.outputs.image }}-${{ matrix.variant }}-${{ matrix.arch }}
