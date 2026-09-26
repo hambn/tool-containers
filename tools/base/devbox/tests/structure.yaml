@@ -19,6 +19,8 @@ metadataTest:
       value: C.UTF-8
     - key: XDG_RUNTIME_DIR
       value: /run/user/1000
+    - key: NPM_CONFIG_PREFIX
+      value: /home/sysadmin/.local
     - key: PATH
       value: /home/sysadmin/.local/bin
       isRegex: true
