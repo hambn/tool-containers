@@ -8,7 +8,7 @@ ARG PI_VERSION=0.87.1
 FROM ${BASE_IMAGE}
 ARG PI_VERSION
 USER root
-RUN npm install -g --no-audit --no-fund --ignore-scripts --cache /tmp/npm-cache "@earendil-works/pi-coding-agent@${PI_VERSION}" && \
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --ignore-scripts --cache /tmp/npm-cache "@earendil-works/pi-coding-agent@${PI_VERSION}" && \
     rm -rf /tmp/npm-cache
 LABEL io.github.hambn.containers.tool.pi.version="${PI_VERSION}"
 USER sysadmin

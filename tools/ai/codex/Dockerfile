@@ -8,7 +8,7 @@ ARG CODEX_VERSION=0.157.0
 FROM ${BASE_IMAGE}
 ARG CODEX_VERSION
 USER root
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@openai/codex@${CODEX_VERSION}" && \
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@openai/codex@${CODEX_VERSION}" && \
     rm -rf /tmp/npm-cache
 LABEL io.github.hambn.containers.tool.codex.version="${CODEX_VERSION}"
 USER sysadmin

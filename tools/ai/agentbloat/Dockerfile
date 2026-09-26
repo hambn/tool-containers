@@ -49,19 +49,19 @@ FROM ${BASE_IMAGE}
 USER root
 # One layer per CLI: a bump rebuilds that layer and the ones after it, not all seven.
 ARG CODEX_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@openai/codex@${CODEX_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@openai/codex@${CODEX_VERSION}" && rm -rf /tmp/npm-cache
 ARG CLAUDE_CODE_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && rm -rf /tmp/npm-cache
 ARG GROK_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@xai-official/grok@${GROK_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@xai-official/grok@${GROK_VERSION}" && rm -rf /tmp/npm-cache
 ARG OPENCODE_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "opencode-ai@${OPENCODE_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "opencode-ai@${OPENCODE_VERSION}" && rm -rf /tmp/npm-cache
 ARG COPILOT_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@github/copilot@${COPILOT_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@github/copilot@${COPILOT_VERSION}" && rm -rf /tmp/npm-cache
 ARG GEMINI_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@google/gemini-cli@${GEMINI_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@google/gemini-cli@${GEMINI_VERSION}" && rm -rf /tmp/npm-cache
 ARG PI_VERSION
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@earendil-works/pi-coding-agent@${PI_VERSION}" && rm -rf /tmp/npm-cache
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@earendil-works/pi-coding-agent@${PI_VERSION}" && rm -rf /tmp/npm-cache
 ARG ACP_AGENT_VERSION
 ARG AGENT_CLIENT_PROTOCOL_VERSION
 RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --no-cache --python python3 \

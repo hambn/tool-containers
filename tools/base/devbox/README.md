@@ -55,6 +55,13 @@ Pull from `ghcr.io/hambn/devbox:<tag>` or `docker.io/hambn/devbox:<tag>`. Tags a
 All tiers run as `sysadmin` (UID/GID 1000, passwordless `sudo`) in `/home/sysadmin` with
 a Zsh login shell (`/bin/zsh -l`).
 
+On full and browser variants, `npm install -g` uses the writable
+`/home/sysadmin/.local` prefix. Its binaries take precedence over the image's pinned
+tools in `/usr/local/bin`, so an agent's update command can install a newer version
+without `sudo`. User-installed updates live in the container's home directory and
+disappear when a disposable container is removed unless that directory is mounted.
+A new container without a mounted home uses the pinned image versions.
+
 ## Included software
 
 Each tier contains everything in the tier before it.
