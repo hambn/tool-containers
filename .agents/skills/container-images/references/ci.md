@@ -41,8 +41,10 @@ rejects it.
    whose published image carries an older `org.opencontainers.image.base.digest` (or is
    not published yet), and rescan the rest, rebuilding any with fixable HIGH/CRITICAL OS-package vulnerabilities, passing
    `OS_REFRESH=<today>` as a build arg so the OS layers reinstall; no refresh pull
-   request is opened. A variant is skipped with a warning while its parent is not yet
-   published for both amd64 and arm64.
+   request is opened. When a parent is not yet published for both amd64 and arm64,
+   each build job builds the missing chain from source (exported as OCI layouts and
+   passed as the named context `parent`); outdated-only runs wait for the parent's
+   workflow instead.
 2. **Build.** One job per variant and architecture on native runners (`ubuntu-24.04`
    for amd64, `ubuntu-24.04-arm` for arm64); `fail-fast` is off. Each job bakes the
    variant with the pinned parent, repository labels, and the registry cache

@@ -118,6 +118,30 @@ jobs:
               return 1
           }
 
+          published_for_both() {
+              docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' 2>/dev/null |
+                  jq -e '[.manifests[]?.platform | "\(.os)/\(.architecture)"] | index("linux/amd64") and index("linux/arm64")' >/dev/null
+          }
+
+          # Parents of ours that are not published for both architectures yet (a new
+          # tier, or the first run of the chain) are built from source in each build
+          # job. Prints them oldest first as [{dir, target}].
+          unpublished_parents() {
+              local ref=$1 chain='[]' repo tag dir parent_bake target
+              while [[ $ref == "$GHCR"/* ]] && ! published_for_both "$ref"; do
+                  repo=${ref#"$GHCR"/}
+                  tag=${repo#*:}
+                  repo=${repo%%:*}
+                  dir=$(find tools -mindepth 2 -maxdepth 2 -type d -name "$repo")
+                  parent_bake=$(cd "$dir" && docker buildx bake --print)
+                  target=$(jq -er --arg v "$tag" '.target | to_entries[] |
+                      select(.value.labels["io.github.hambn.containers.variant"] == $v) | .key' <<<"$parent_bake")
+                  chain=$(jq -c --arg dir "$dir" --arg target "$target" '[{dir: $dir, target: $target}] + .' <<<"$chain")
+                  ref=$(jq -r --arg t "$target" '.target[$t].args.BASE_IMAGE // ""' <<<"$parent_bake")
+              done
+              echo "$chain"
+          }
+
           variants='[]'
           for target in $(jq -r '.target | keys[]' <<<"$bake"); do
               variant=$(jq -r --arg t "$target" '.target[$t].labels["io.github.hambn.containers.variant"]' <<<"$bake")
@@ -125,17 +149,15 @@ jobs:
               base_ref=""
               digest=""
               os_refresh=""
-              if [[ $base == "$GHCR"/* ]]; then
-                  # The parent's own workflow publishes it and then triggers this one.
-                  if ! manifest=$(docker buildx imagetools inspect "$base" --format '{{json .Manifest}}' 2>/dev/null); then
-                      echo "::warning::$variant skipped: parent $base is not published yet"
+              parents=$(unpublished_parents "$base")
+              if [ "$parents" != '[]' ]; then
+                  if [ "$OUTDATED_ONLY" = true ]; then
+                      echo "$variant: waiting for $base; its workflow dispatches this one"
                       continue
                   fi
-                  if ! jq -e '[.manifests[]?.platform | "\(.os)/\(.architecture)"] | index("linux/amd64") and index("linux/arm64")' <<<"$manifest" >/dev/null; then
-                      echo "::warning::$variant skipped: parent $base is not published for both amd64 and arm64 yet"
-                      continue
-                  fi
-                  digest=$(jq -r .digest <<<"$manifest")
+                  echo "::notice::$variant: $base is not published for amd64 and arm64; building it from source"
+              elif [[ $base == "$GHCR"/* ]]; then
+                  digest=$(docker buildx imagetools inspect "$base" --format '{{json .Manifest}}' | jq -r .digest)
                   base_ref="${base%:*}@$digest"
               fi
               if [ "$OUTDATED_ONLY" = true ]; then
@@ -156,8 +178,9 @@ jobs:
               variants=$(jq -c --arg target "$target" --arg variant "$variant" --arg base "$base_ref" \
                   --arg distro "$(jq -r --arg t "$target" '.target[$t].labels["io.github.hambn.containers.distro"]' <<<"$bake")" \
                   --arg tier "$(jq -r --arg t "$target" '.target[$t].labels["io.github.hambn.containers.tier"]' <<<"$bake")" \
-                  --arg os_refresh "$os_refresh" \
-                  '. + [{target: $target, variant: $variant, base: $base, distro: $distro, tier: $tier, os_refresh: $os_refresh}]' <<<"$variants")
+                  --arg os_refresh "$os_refresh" --argjson parents "$parents" \
+                  '. + [{target: $target, variant: $variant, base: $base, distro: $distro, tier: $tier,
+                         os_refresh: $os_refresh, parents: $parents}]' <<<"$variants")
           done
 
           builds=$(jq -c '[.[] as $v | ({arch: "amd64", runner: "ubuntu-24.04"}, {arch: "arm64", runner: "ubuntu-24.04-arm"}) | $v + .]' <<<"$variants")
@@ -171,7 +194,7 @@ jobs:
           {
               echo "### $image $version"
               echo
-              jq -r 'if length == 0 then "Nothing to build." else .[] | "- `\(.variant)` on `\(.base // "pinned base")`" end' <<<"$variants"
+              jq -r 'if length == 0 then "Nothing to build." else .[] | "- `\(.variant)` on `\(if .parents != [] then "parents built from source" else .base // "pinned base" end)`" end' <<<"$variants"
           } >>"$GITHUB_STEP_SUMMARY"
 
   build:
@@ -199,6 +222,7 @@ jobs:
       TIER: ${{ matrix.tier }}
       VARIANT: ${{ matrix.variant }}
       OS_REFRESH: ${{ matrix.os_refresh }}
+      PARENTS: ${{ toJSON(matrix.parents) }}
       # Fork pull requests get a read-only token and cannot log in to GHCR.
       TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     defaults:
@@ -216,6 +240,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Each unpublished parent is exported as an OCI layout and fed to the next
+      # build as the named context "parent".
+      - name: Build unpublished parents
+        if: ${{ toJSON(matrix.parents) != '[]' }}
+        run: |
+          set -euo pipefail
+          context=""
+          i=0
+          for row in $(jq -c '.[]' <<<"$PARENTS"); do
+              dir=$(jq -r .dir <<<"$row")
+              target=$(jq -r .target <<<"$row")
+              out=$RUNNER_TEMP/parent-$i
+              args=(--set="$target.output=type=oci,dest=$out,tar=false,rewrite-timestamp=true")
+              if [ -n "$context" ]; then
+                  args+=(--set="$target.args.BASE_IMAGE=parent" --set="$target.contexts.parent=$context")
+              fi
+              echo "::group::$dir $target"
+              (cd "$GITHUB_WORKSPACE/$dir" && docker buildx bake "$target" --provenance=false --allow=fs="$RUNNER_TEMP" "${args[@]}")
+              echo "::endgroup::"
+              context="oci-layout://$out@$(jq -r '.manifests[0].digest' "$out/index.json")"
+              i=$((i + 1))
+          done
+          echo "PARENT_CONTEXT=$context" >>"$GITHUB_ENV"
+
       # Everything the image build takes from outside the Dockerfile: the parent
       # digest, repository-wide labels, and the per-variant registry cache.
       - name: Prepare build options
@@ -229,6 +277,10 @@ jobs:
               [ -z "$BASE" ] || echo "$TARGET.args.BASE_IMAGE=$BASE"
               [ -z "$BASE" ] || echo "$TARGET.labels.org.opencontainers.image.base.digest=${BASE#*@}"
               [ -z "$OS_REFRESH" ] || echo "$TARGET.args.OS_REFRESH=$OS_REFRESH"
+              if [ -n "${PARENT_CONTEXT:-}" ]; then
+                  echo "$TARGET.args.BASE_IMAGE=parent"
+                  echo "$TARGET.contexts.parent=$PARENT_CONTEXT"
+              fi
               echo "$TARGET.labels.org.opencontainers.image.version=$VERSION"
               echo "$TARGET.labels.org.opencontainers.image.revision=$GITHUB_SHA"
               echo "$TARGET.labels.org.opencontainers.image.created=$(date -u -d "@$epoch" +%Y-%m-%dT%H:%M:%SZ)"
@@ -245,7 +297,7 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t sets <<<"$BAKE_SET"
-          docker buildx bake "$TARGET" --provenance=false "${sets[@]/#/--set=}" \
+          docker buildx bake "$TARGET" --provenance=false --allow=fs="$RUNNER_TEMP" "${sets[@]/#/--set=}" \
               --set="$TARGET.tags=local/$IMAGE:test" \
               --set="$TARGET.output=type=docker,rewrite-timestamp=true"
 
@@ -306,7 +358,7 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t sets <<<"$BAKE_SET"
-          docker buildx bake "$TARGET" --provenance=mode=max --sbom=true "${sets[@]/#/--set=}" \
+          docker buildx bake "$TARGET" --provenance=mode=max --sbom=true --allow=fs="$RUNNER_TEMP" "${sets[@]/#/--set=}" \
               --metadata-file "$RUNNER_TEMP/metadata.json" \
               --set="$TARGET.cache-to=$CACHE_TO" \
               --set="$TARGET.tags=" \
