@@ -20,10 +20,13 @@ ARG CODEX_VERSION=0.157.0
 Supported `datasource` values include `docker`, `npm`, `pypi`, `github-releases`,
 `github-tags`, `gitlab-releases`, `git-refs`, `golang-version`, `node-version`, and
 custom datasources defined in `.github/renovate.json5`. Use `extractVersion` to strip tag
-prefixes such as `v`. Agent CLI minor and patch updates automerge after two days of
+prefixes such as `v`. Other agent CLI minor and patch updates automerge after two days of
 release age, and the weekly base/toolchain group after three days, only once every
 branch check passes (`platformAutomerge` is off). Majors are merged by hand. A Renovate
 PR is an ordinary change: the tool's workflow builds, tests, and scans it before merge.
+T3 Code is an exception: its rule considers stable and nightly npm releases, excludes
+the preview channel, and automerges after image CI without a release-age wait. Renovate
+checks the newest available version on each run, so it may skip intermediate nightlies.
 
 ## Adding a pin
 

@@ -71,11 +71,20 @@
         "cursor-agent",
         "acp-agent",
         "omnigent",
-        "t3",
       ],
       matchUpdateTypes: ["minor", "patch"],
       // Skip releases that get pulled or turn out broken within their first days.
       minimumReleaseAge: "2 days",
+      automerge: true,
+    },
+    {
+      description: "T3 Code: follow stable and nightly npm releases after image CI passes",
+      matchFileNames: ["tools/ai/t3code/Dockerfile"],
+      matchDatasources: ["npm"],
+      matchDepNames: ["t3"],
+      ignoreUnstable: false,
+      respectLatest: false,
+      allowedVersions: "/^\\d+\\.\\d+\\.\\d+(?:-nightly\\.\\d{8}\\.\\d+)?$/",
       automerge: true,
     },
     {
@@ -112,6 +121,13 @@
       matchUpdateTypes: ["major"],
       automerge: false,
       addLabels: ["major"],
+    },
+    {
+      description: "T3 Code nightlies automerge after CI, including a new release line",
+      matchFileNames: ["tools/ai/t3code/Dockerfile"],
+      matchDepNames: ["t3"],
+      matchNewValue: "/-nightly\\./",
+      automerge: true,
     },
     {
       description: "Held: newer releases conflict with the distro Python packages acp-agent runs beside",
