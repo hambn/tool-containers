@@ -35,23 +35,27 @@ Keep `tools/<category>/<tool>/README.md` direct and operational. Keep these core
 sections in this relative order; add a focused tool-specific section only when it
 materially helps operation:
 
-1. **Title and one-line description** identifying and linking the upstream tool.
+1. **Title and one-line description** identifying and linking the upstream tool,
+   followed by a **Source** link to the tool directory on GitHub
+   (`https://github.com/hambn/tool-containers/tree/main/tools/<category>/<tool>`) and a
+   **Docs** link to its site page (`https://tool-containers.hgh.dev/docs/<category>/<tool>/`).
 2. **Contents** linking the remaining sections.
-3. **Images** with exactly one table, columns `Variant | Base | Contents | Tags`, one row
-   per published variant; Tags lists the moving tag (and `latest` where owned) and the
-   immutable tag pattern. State the GHCR (`ghcr.io/hambn/<repo>`) and Docker Hub
+3. **Images** as a list, one item per published variant: the bold variant name and a
+   short description, with nested **Base**, **Tags** (the moving tag, `latest` where
+   owned, and the immutable tag pattern), and **Included software** items; the last
+   links this README's Included software section and the parent image's tier or
+   section. Use no tables. State the GHCR (`ghcr.io/hambn/<repo>`) and Docker Hub
    (`docker.io/hambn/<repo>`) pull paths. Previous-layout tags get at most a one-line
    deprecation note.
-4. **Use cases** with three to five concrete scenarios linking the relevant platform
+4. **Included software** as nested lists (grouped by tier or by tool, with commands and
+   sources), and what comes from the parent image. Base images without a bundle may
+   use a focused section such as Hardening instead.
+5. **Use cases** with three to five concrete scenarios linking the relevant platform
    examples.
-5. **File map** as a linked nested tree of every tracked file in the tool (including
-   `Dockerfile`, `docker-bake.hcl`, and `tests/`), plus the tool's
-   `.github/workflows/<category>-<tool>.yml` workflow.
 6. **Sources** linking upstream repository, package registry, and authoritative docs
    where available.
 
-For example, a concise "Included software" section may follow Images for a bundle whose
-contents are part of its contract. Do not duplicate `docker run` instructions in the
+Do not add a file map; the Source link opens the directory. Do not duplicate `docker run` instructions in the
 tool README; runnable commands belong under `examples/`. Do not add a generic build or
 update section when CI is the sole supported build/update path.
 

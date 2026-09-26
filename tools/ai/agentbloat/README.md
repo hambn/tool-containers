@@ -2,22 +2,34 @@
 
 Every current command-line coding agent in one interactive image, built on the [`devbox`](../../base/devbox/) development image. It starts a Zsh login shell and is also the base of [`omnigent`](../omnigent/) and [`t3code`](../t3code/).
 
+- **Source:** [`tools/ai/agentbloat/`](https://github.com/hambn/tool-containers/tree/main/tools/ai/agentbloat)
+- **Docs:** [tool-containers.hgh.dev/docs/ai/agentbloat/](https://tool-containers.hgh.dev/docs/ai/agentbloat/)
+
 ## Contents
 
 - [Images](#images)
 - [Included software](#included-software)
 - [Use cases](#use-cases)
-- [File map](#file-map)
 - [Sources](#sources)
 
 ## Images
 
-| Variant | Base | Contents | Tags |
-|---|---|---|---|
-| `ubuntu-browser` | [`devbox:ubuntu-browser`](../../base/devbox/) | All agent CLIs; Ubuntu, headless Chromium | `ubuntu-browser`, `latest`, `ubuntu-browser-<YYYYMMDD>-<sha7>` |
-| `ubuntu` | [`devbox:ubuntu-full`](../../base/devbox/) | All agent CLIs; Ubuntu, no browser | `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>` |
-| `alpine-browser` | [`devbox:alpine-browser`](../../base/devbox/) | All agent CLIs; Alpine, Chromium | `alpine-browser`, `alpine-browser-<YYYYMMDD>-<sha7>` |
-| `alpine` | [`devbox:alpine-full`](../../base/devbox/) | All agent CLIs; Alpine, no browser | `alpine`, `alpine-<YYYYMMDD>-<sha7>` |
+- **`ubuntu-browser`** — All agent CLIs; Ubuntu, headless Chromium
+  - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
+  - Tags: `ubuntu-browser`, `latest`, `ubuntu-browser-<YYYYMMDD>-<sha7>`
+  - Included software: [agent CLIs](#included-software) + [devbox browser tier](../../base/devbox/#browser)
+- **`ubuntu`** — All agent CLIs; Ubuntu, no browser
+  - Base: [`devbox:ubuntu-full`](../../base/devbox/)
+  - Tags: `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>`
+  - Included software: [agent CLIs](#included-software) + [devbox full tier](../../base/devbox/#full)
+- **`alpine-browser`** — All agent CLIs; Alpine, Chromium
+  - Base: [`devbox:alpine-browser`](../../base/devbox/)
+  - Tags: `alpine-browser`, `alpine-browser-<YYYYMMDD>-<sha7>`
+  - Included software: [agent CLIs](#included-software) + [devbox browser tier](../../base/devbox/#browser)
+- **`alpine`** — All agent CLIs; Alpine, no browser
+  - Base: [`devbox:alpine-full`](../../base/devbox/)
+  - Tags: `alpine`, `alpine-<YYYYMMDD>-<sha7>`
+  - Included software: [agent CLIs](#included-software) + [devbox full tier](../../base/devbox/#full)
 
 Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`.
 agentbloat is a base image: moving variant tags (and `latest`) repoint on every rebuild, and `<variant>-<YYYYMMDD>-<sha7>` tags identify one build and are never repointed. Old per-agent tags such as `claude-code-v<version>` are frozen and deprecated.
@@ -28,17 +40,33 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 
 Every variant pins and installs:
 
-| CLI | Commands | Source |
-|---|---|---|
-| OpenAI Codex | `codex` | npm `@openai/codex` |
-| Claude Code | `claude` | npm `@anthropic-ai/claude-code` |
-| Cursor Agent | `cursor-agent`, `agent` | Cursor release tarball in `/opt/cursor-agent` |
-| xAI Grok | `grok` | npm `@xai-official/grok` |
-| OpenCode | `opencode` | npm `opencode-ai` |
-| GitHub Copilot | `copilot` | npm `@github/copilot` |
-| Gemini CLI | `gemini` | npm `@google/gemini-cli` |
-| Pi | `pi` | npm `@earendil-works/pi-coding-agent` |
-| ACP Agent | `acp-agent` | PyPI `acp-agent` in `/opt/uv-tools`, with `agent-client-protocol` held at a compatible release |
+- **OpenAI Codex**
+  - Commands: `codex`
+  - Source: npm `@openai/codex`
+- **Claude Code**
+  - Commands: `claude`
+  - Source: npm `@anthropic-ai/claude-code`
+- **Cursor Agent**
+  - Commands: `cursor-agent`, `agent`
+  - Source: Cursor release tarball in `/opt/cursor-agent`
+- **xAI Grok**
+  - Commands: `grok`
+  - Source: npm `@xai-official/grok`
+- **OpenCode**
+  - Commands: `opencode`
+  - Source: npm `opencode-ai`
+- **GitHub Copilot**
+  - Commands: `copilot`
+  - Source: npm `@github/copilot`
+- **Gemini CLI**
+  - Commands: `gemini`
+  - Source: npm `@google/gemini-cli`
+- **Pi**
+  - Commands: `pi`
+  - Source: npm `@earendil-works/pi-coding-agent`
+- **ACP Agent**
+  - Commands: `acp-agent`
+  - Source: PyPI `acp-agent` in `/opt/uv-tools`, with `agent-client-protocol` held at a compatible release
 
 Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as `io.github.hambn.containers.tool.<name>.version` image labels. Cursor publishes no checksum for its tarball, so that download is pinned by version only. Everything else — Git, GitHub/GitLab CLIs, Docker tooling, Python, Go, Node.js, and the optional browser — comes from [`devbox`](../../base/devbox/).
 
@@ -48,39 +76,6 @@ Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as
 - **Rootless workstation** — [`examples/podman/`](./examples/podman/).
 - **Repeatable local environment** — [`examples/docker-compose/`](./examples/docker-compose/).
 - **Long-lived cluster workspace** — [`examples/kubernetes/`](./examples/kubernetes/) or the Helm chart in [`examples/helm/`](./examples/helm/).
-
-## File map
-
-- [`Dockerfile`](./Dockerfile)
-- [`docker-bake.hcl`](./docker-bake.hcl)
-- [`README.md`](./README.md)
-- [`examples/`](./examples/)
-  - [`docker-compose/`](./examples/docker-compose/)
-    - [`README.md`](./examples/docker-compose/README.md)
-    - [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
-    - [`compose.sh`](./examples/docker-compose/compose.sh)
-    - [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml)
-  - [`docker/`](./examples/docker/)
-    - [`README.md`](./examples/docker/README.md)
-    - [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
-    - [`run.sh`](./examples/docker/run.sh)
-  - [`helm/`](./examples/helm/)
-    - [`chart/`](./examples/helm/chart/)
-      - [`templates/`](./examples/helm/chart/templates/)
-        - [`deployment.yaml`](./examples/helm/chart/templates/deployment.yaml)
-      - [`Chart.yaml`](./examples/helm/chart/Chart.yaml)
-      - [`values.yaml`](./examples/helm/chart/values.yaml)
-    - [`README.md`](./examples/helm/README.md)
-  - [`kubernetes/`](./examples/kubernetes/)
-    - [`README.md`](./examples/kubernetes/README.md)
-    - [`deployment.yaml`](./examples/kubernetes/deployment.yaml)
-  - [`podman/`](./examples/podman/)
-    - [`README.md`](./examples/podman/README.md)
-    - [`run.sh`](./examples/podman/run.sh)
-- [`tests/`](./tests/)
-  - [`structure-alpine.yaml`](./tests/structure-alpine.yaml)
-  - [`structure.yaml`](./tests/structure.yaml)
-- [`.github/workflows/ai-agentbloat.yml`](../../../.github/workflows/ai-agentbloat.yml) — builds, tests, and publishes every variant
 
 ## Sources
 

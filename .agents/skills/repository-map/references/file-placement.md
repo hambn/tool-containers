@@ -29,7 +29,7 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
   README, and every affected example.
 - Bumping a version changes only the `ARG` default in the tool's `Dockerfile` (plus README
   text that states it).
-- Adding a platform example changes only the owning tool and its file map.
+- Adding a platform example changes only the owning tool and its Use cases links.
 - Adding a repository skill changes its own directory; update `AGENTS.md` only for a
   mandatory or deliberately always-on route, and docs or CI only when
   discovery or validation paths change.

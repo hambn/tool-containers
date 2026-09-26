@@ -2,26 +2,47 @@
 
 [Open Code Review](https://github.com/alibaba/open-code-review), Alibaba's AI code review CLI, on the [`devbox`](../../base/devbox/) development image. The entrypoint is `ocr`.
 
+- **Source:** [`tools/ai/open-code-review/`](https://github.com/hambn/tool-containers/tree/main/tools/ai/open-code-review)
+- **Docs:** [tool-containers.hgh.dev/docs/ai/open-code-review/](https://tool-containers.hgh.dev/docs/ai/open-code-review/)
+
 ## Contents
 
 - [Images](#images)
+- [Included software](#included-software)
 - [Use cases](#use-cases)
-- [File map](#file-map)
 - [Sources](#sources)
 
 ## Images
 
-| Variant | Base | Contents | Tags |
-|---|---|---|---|
-| `ubuntu-browser` | [`devbox:ubuntu-browser`](../../base/devbox/) | Open Code Review CLI; Ubuntu, headless Chromium | `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>` |
-| `ubuntu` | [`devbox:ubuntu-full`](../../base/devbox/) | Open Code Review CLI; Ubuntu, no browser | `ubuntu`, `<version>-ubuntu` |
-| `alpine-browser` | [`devbox:alpine-browser`](../../base/devbox/) | Open Code Review CLI; Alpine, Chromium | `alpine-browser`, `<version>-alpine-browser` |
-| `alpine` | [`devbox:alpine-full`](../../base/devbox/) | Open Code Review CLI; Alpine, no browser | `alpine`, `<version>-alpine` |
+- **`ubuntu-browser`** — Open Code Review CLI; Ubuntu, headless Chromium
+  - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
+  - Tags: `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>`
+  - Included software: [open-code-review](#included-software) + [devbox browser tier](../../base/devbox/#browser)
+- **`ubuntu`** — Open Code Review CLI; Ubuntu, no browser
+  - Base: [`devbox:ubuntu-full`](../../base/devbox/)
+  - Tags: `ubuntu`, `<version>-ubuntu`
+  - Included software: [open-code-review](#included-software) + [devbox full tier](../../base/devbox/#full)
+- **`alpine-browser`** — Open Code Review CLI; Alpine, Chromium
+  - Base: [`devbox:alpine-browser`](../../base/devbox/)
+  - Tags: `alpine-browser`, `<version>-alpine-browser`
+  - Included software: [open-code-review](#included-software) + [devbox browser tier](../../base/devbox/#browser)
+- **`alpine`** — Open Code Review CLI; Alpine, no browser
+  - Base: [`devbox:alpine-full`](../../base/devbox/)
+  - Tags: `alpine`, `<version>-alpine`
+  - Included software: [open-code-review](#included-software) + [devbox full tier](../../base/devbox/#full)
 
 Pull from `ghcr.io/hambn/open-code-review:<tag>` or `docker.io/hambn/open-code-review:<tag>`.
 Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned Open Code Review npm release; version tags are created once and never repointed. The old `ocr-v<version>` tags are frozen and deprecated.
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Configure an LLM provider with `ocr config` or its environment variables.
+
+## Included software
+
+- **Open Code Review**
+  - Commands: `ocr`
+  - Source: npm `@alibaba-group/open-code-review`
+  - Pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults
+- **Everything else** comes from [devbox](../../base/devbox/#included-software): the full tier, plus the browser tier on `*-browser` variants
 
 ## Use cases
 
@@ -29,29 +50,6 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 - **Rootless reviews** — [`examples/podman/`](./examples/podman/).
 - **Repeatable local reviews** — [`examples/docker-compose/`](./examples/docker-compose/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
-
-## File map
-
-- [`Dockerfile`](./Dockerfile)
-- [`docker-bake.hcl`](./docker-bake.hcl)
-- [`README.md`](./README.md)
-- [`examples/`](./examples/)
-  - [`docker-compose/`](./examples/docker-compose/)
-    - [`README.md`](./examples/docker-compose/README.md)
-    - [`airgapped.docker-compose.yml`](./examples/docker-compose/airgapped.docker-compose.yml)
-    - [`compose.sh`](./examples/docker-compose/compose.sh)
-    - [`docker-compose.yml`](./examples/docker-compose/docker-compose.yml)
-  - [`docker/`](./examples/docker/)
-    - [`README.md`](./examples/docker/README.md)
-    - [`airgapped.run.sh`](./examples/docker/airgapped.run.sh)
-    - [`run.sh`](./examples/docker/run.sh)
-  - [`podman/`](./examples/podman/)
-    - [`README.md`](./examples/podman/README.md)
-    - [`run.sh`](./examples/podman/run.sh)
-- [`tests/`](./tests/)
-  - [`structure-alpine.yaml`](./tests/structure-alpine.yaml)
-  - [`structure.yaml`](./tests/structure.yaml)
-- [`.github/workflows/ai-open-code-review.yml`](../../../.github/workflows/ai-open-code-review.yml) — builds, tests, and publishes every variant
 
 ## Sources
 

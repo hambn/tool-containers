@@ -5,21 +5,27 @@ Hardened minimal base images on [Wolfi](https://github.com/wolfi-dev),
 tzdata, curl, bash, and an unprivileged `nonroot` user. `core` is also the base of
 [devbox](../devbox/README.md).
 
+- **Source:** [`tools/base/core/`](https://github.com/hambn/tool-containers/tree/main/tools/base/core)
+- **Docs:** [tool-containers.hgh.dev/docs/base/core/](https://tool-containers.hgh.dev/docs/base/core/)
+
 ## Contents
 
 - [Images](#images)
 - [Hardening](#hardening)
 - [Use cases](#use-cases)
-- [File map](#file-map)
 - [Sources](#sources)
 
 ## Images
 
-| Variant | Base | Contents | Tags |
-|---|---|---|---|
-| `wolfi` | `chainguard/wolfi-base` | CA bundle, tzdata, curl, bash, `nonroot` user | `wolfi`, `latest`, `wolfi-<YYYYMMDD>-<sha7>` |
-| `alpine` | Alpine | CA bundle, tzdata, curl, bash, `nonroot` user | `alpine`, `alpine-<YYYYMMDD>-<sha7>` |
-| `ubuntu` | Ubuntu 24.04 | CA bundle, tzdata, curl, bash, `nonroot` user | `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>` |
+- **`wolfi`** — CA bundle, tzdata, curl, bash, `nonroot` user
+  - Base: `chainguard/wolfi-base`
+  - Tags: `wolfi`, `latest`, `wolfi-<YYYYMMDD>-<sha7>`
+- **`alpine`** — CA bundle, tzdata, curl, bash, `nonroot` user
+  - Base: Alpine
+  - Tags: `alpine`, `alpine-<YYYYMMDD>-<sha7>`
+- **`ubuntu`** — CA bundle, tzdata, curl, bash, `nonroot` user
+  - Base: Ubuntu 24.04
+  - Tags: `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>`
 
 Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Moving tags
 (`wolfi`, `alpine`, `ubuntu`, `latest`) follow `main`; the dated `<variant>-<YYYYMMDD>-<sha7>`
@@ -41,24 +47,6 @@ the [`Dockerfile`](./Dockerfile) `ARG` defaults.
   [Docker](examples/docker/).
 - Run a read-only, capability-free shell service with
   [Docker Compose](examples/docker-compose/).
-
-## File map
-
-- [`README.md`](README.md)
-- [`Dockerfile`](Dockerfile)
-- [`docker-bake.hcl`](docker-bake.hcl)
-- `tests/`
-  - [`structure.yaml`](tests/structure.yaml)
-  - [`structure-ubuntu.yaml`](tests/structure-ubuntu.yaml)
-- `examples/`
-  - `docker/`
-    - [`README.md`](examples/docker/README.md)
-    - [`run.sh`](examples/docker/run.sh)
-    - [`Dockerfile.example`](examples/docker/Dockerfile.example)
-  - `docker-compose/`
-    - [`README.md`](examples/docker-compose/README.md)
-    - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
-- [`.github/workflows/base-core.yml`](../../../.github/workflows/base-core.yml)
 
 ## Sources
 
