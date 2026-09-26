@@ -56,14 +56,14 @@ rejects it.
    releases through Renovate. On main it then pushes by digest with SBOM and
    provenance, and writes the cache; pull requests write no cache, and fork pull
    requests cannot log in to GHCR.
-3. **Publish.** Main only, one job per registry, each covering every variant that
-   passed on both architectures even if another variant failed. `publish-ghcr`
-   creates the multi-arch indexes on GHCR, applies tags (immutable tags only if
-   absent, moving tags always), signs with cosign, and prunes untagged GHCR versions
-   (`.github/scripts/ghcr-cleanup.py`). `publish-dockerhub` copies those exact
-   indexes and tags to Docker Hub, signs them, and syncs the Docker Hub README
-   (`.github/scripts/hub-readme.py`; the token needs Read, Write, Delete scope). A new
-   registry is another job that copies from GHCR the same way.
+3. **Publish.** Main only, a matrix with one job per registry (GHCR, Docker Hub),
+   each covering every variant that passed on both architectures even if another
+   variant failed. Each job creates the multi-arch indexes from the per-arch GHCR
+   digests, applies tags (immutable tags only if absent, moving tags always), and
+   signs with cosign. The GHCR job prunes untagged versions
+   (`.github/scripts/ghcr-cleanup.py`); the Docker Hub job syncs the README
+   (`.github/scripts/hub-readme.py`; the token needs Read, Write, Delete scope). Add
+   a registry by adding a matrix entry.
 
 ## pr.yml
 
