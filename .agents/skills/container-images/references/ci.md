@@ -6,7 +6,7 @@ keep.
 | File | Role |
 |---|---|
 | `.github/workflows/<category>-<tool>.yml` | one per tool (`base-core.yml`, `ai-codex.yml`, …): triggers and inputs only |
-| `.github/workflows/tool-image.yml` | reusable pipeline: plan → build per variant and architecture → publish |
+| `.github/workflows/tool-image.yml` | reusable pipeline: plan → build per variant and architecture → publish per registry |
 | `.github/workflows/pr.yml` | pull-request gate (metadata, dependency review, static validation) and `lint` job |
 | `.github/renovate.json5` | `ARG` pins in `tools/**/Dockerfile` and GitHub Actions |
 | `tools/trivyignore.yaml` | reviewed vulnerability exceptions |
@@ -56,12 +56,14 @@ rejects it.
    releases through Renovate. On main it then pushes by digest with SBOM and
    provenance, and writes the cache; pull requests write no cache, and fork pull
    requests cannot log in to GHCR.
-3. **Publish.** Main only, one job per variant, for every variant that passed on both
-   architectures even if another variant failed. It creates the multi-arch index on
-   GHCR, copies that exact index to Docker Hub, applies tags (immutable tags only if
-   absent, moving tags always), signs both with cosign, and attests build provenance.
-   It then syncs the image's Docker Hub README (`.github/scripts/hub-readme.py`) and
-   prunes untagged GHCR versions of the package (`.github/scripts/ghcr-cleanup.py`).
+3. **Publish.** Main only, one job per registry, each covering every variant that
+   passed on both architectures even if another variant failed. `publish-ghcr`
+   creates the multi-arch indexes on GHCR, applies tags (immutable tags only if
+   absent, moving tags always), signs with cosign, and prunes untagged GHCR versions
+   (`.github/scripts/ghcr-cleanup.py`). `publish-dockerhub` copies those exact
+   indexes and tags to Docker Hub, signs them, and syncs the Docker Hub README
+   (`.github/scripts/hub-readme.py`; the token needs Read, Write, Delete scope). A new
+   registry is another job that copies from GHCR the same way.
 
 ## pr.yml
 

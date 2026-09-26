@@ -36,7 +36,6 @@ jobs:
       packages: write
       security-events: write
       id-token: write
-      attestations: write
       actions: write
     uses: ./.github/workflows/tool-image.yml
     secrets:

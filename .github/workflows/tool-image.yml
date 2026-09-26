@@ -6,10 +6,9 @@ name: tool-image
 #   plan     reads the tool's docker-bake.hcl and picks the variants to build
 #   build    one job per variant and architecture, on native runners: build, test,
 #            scan, and (on main) push the image by digest
-#   publish  one job per variant (main only): join both architectures into one
-#            multi-arch image, tag it on GHCR and Docker Hub, sign, and attest
-#   upkeep   once per run after publishing: sync the Docker Hub README and prune
-#            unreferenced untagged GHCR versions
+#   publish-ghcr       main only: join both architectures of every variant into one
+#                      multi-arch image, tag and sign it, and prune untagged versions
+#   publish-dockerhub  copy the GHCR images and tags, sign them, and sync the README
 #   dependents  after publishing, dispatch the workflows of images built on this one
 #
 # The image repository is the tool directory's name. Variants whose parent image
@@ -375,44 +374,126 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  publish:
-    name: Publish ${{ matrix.variant }}
+  # One job per registry; each publishes every variant. GHCR is the source of truth:
+  # later registries copy its signed multi-arch indexes byte-for-byte.
+  publish-ghcr:
+    name: Publish to GHCR
     needs: [plan, build]
     # Publish every variant whose builds passed, even if another variant failed.
     if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.plan.outputs.variants != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    environment: dockerhub
     permissions:
       contents: read
-      packages: write # Create GHCR tags and push signatures.
-      id-token: write # Keyless cosign signing and provenance attestations.
-      attestations: write # Record provenance attestations.
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.plan.outputs.variants) }}
+      packages: write # Create tags, push signatures, delete untagged versions.
+      id-token: write # Keyless cosign signing.
+    outputs:
+      published: ${{ steps.index.outputs.published }}
     env:
       IMAGE: ${{ needs.plan.outputs.image }}
       VERSION: ${{ needs.plan.outputs.version }}
-      VARIANT: ${{ matrix.variant }}
+      VARIANTS: ${{ needs.plan.outputs.variants }}
       PRIMARY: ${{ inputs.primary }}
       VERSION_ARG: ${{ inputs.version-arg }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: digest-${{ matrix.variant }}-*
+          pattern: digest-*
           merge-multiple: true
           path: ${{ runner.temp }}/digests
-      - name: Check both architectures passed
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker # Manifest operations only.
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Moving tags (<variant>, and latest for the primary variant) always follow the
+      # new image. Immutable tags are created once and never repointed:
+      #   with version-arg:  <version>-<variant>, plus <version> for the primary variant
+      #   without:           <variant>-<commit date>-<sha7>
+      # A variant missing an architecture is skipped; the job fails after the others
+      # are published.
+      - name: Create and tag the multi-arch images
+        id: index
         run: |
           set -euo pipefail
-          for arch in amd64 arm64; do
-              if [ ! -s "$RUNNER_TEMP/digests/$VARIANT-$arch" ]; then
-                  echo "::error::$VARIANT has no $arch build; not published"
-                  exit 1
+          repo="$GHCR/$IMAGE"
+          published='[]'
+          missing=0
+          for variant in $(jq -r '.[].variant' <<<"$VARIANTS"); do
+              sources=()
+              for arch in amd64 arm64; do
+                  if [ -s "$RUNNER_TEMP/digests/$variant-$arch" ]; then
+                      sources+=("$repo@$(cat "$RUNNER_TEMP/digests/$variant-$arch")")
+                  fi
+              done
+              if [ "${#sources[@]}" -ne 2 ]; then
+                  echo "::error::$variant is missing an architecture build; not published"
+                  missing=1
+                  continue
               fi
+
+              moving=("$variant")
+              if [ "$variant" = "$PRIMARY" ]; then moving+=(latest); fi
+              if [ -n "$VERSION_ARG" ]; then
+                  immutable=("$VERSION-$variant")
+                  if [ "$variant" = "$PRIMARY" ]; then immutable+=("$VERSION"); fi
+              else
+                  immutable=("$variant-$VERSION")
+              fi
+
+              tags=("${moving[@]/#/--tag=$repo:}")
+              for tag in "${immutable[@]}"; do
+                  if docker buildx imagetools inspect "$repo:$tag" >/dev/null 2>&1; then
+                      echo "::notice::$repo:$tag already exists; left unchanged"
+                  else
+                      tags+=("--tag=$repo:$tag")
+                  fi
+              done
+              docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+              digest=$(docker buildx imagetools inspect "$repo:$variant" --format '{{json .Manifest}}' | jq -r .digest)
+              cosign sign --yes "$repo@$digest"
+              echo "$repo:$variant -> $digest"
+              published=$(jq -c --arg v "$variant" --arg d "$digest" \
+                  --args '. + [{variant: $v, digest: $d, moving: $ARGS.positional[0] | split(" "), immutable: $ARGS.positional[1] | split(" ")}]' \
+                  <<<"$published" "${moving[*]}" "${immutable[*]}")
           done
+          echo "published=$published" >>"$GITHUB_OUTPUT"
+          exit "$missing"
+
+      # Versions still referenced by a tagged index (per-arch images, signatures,
+      # attestations) are kept; see the script for the rules.
+      - name: Prune untagged versions older than 14 days
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/ghcr-cleanup.py "$IMAGE"
+
+  publish-dockerhub:
+    name: Publish to Docker Hub
+    needs: [plan, publish-ghcr]
+    if: ${{ !cancelled() && needs.publish-ghcr.outputs.published != '' && needs.publish-ghcr.outputs.published != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: dockerhub
+    permissions:
+      contents: read
+      packages: read # Read the GHCR indexes being copied.
+      id-token: write # Keyless cosign signing.
+    env:
+      IMAGE: ${{ needs.plan.outputs.image }}
+      PUBLISHED: ${{ needs.publish-ghcr.outputs.published }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           driver: docker # Manifest operations only.
@@ -427,76 +508,27 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Moving tags (<variant>, and latest for the primary variant) always follow the
-      # new image. Immutable tags are created once and never repointed:
-      #   with version-arg:  <version>-<variant>, plus <version> for the primary variant
-      #   without:           <variant>-<commit date>-<sha7>
-      - name: Create and tag the multi-arch image
-        id: index
+      - name: Copy the GHCR images and tags
         run: |
           set -euo pipefail
-          moving=("$VARIANT")
-          if [ "$VARIANT" = "$PRIMARY" ]; then moving+=(latest); fi
-          if [ -n "$VERSION_ARG" ]; then
-              immutable=("$VERSION-$VARIANT")
-              if [ "$VARIANT" = "$PRIMARY" ]; then immutable+=("$VERSION"); fi
-          else
-              immutable=("$VARIANT-$VERSION")
-          fi
-
-          exists() {
-              docker buildx imagetools inspect "$1" >/dev/null 2>&1
-          }
-
-          for repo in "$GHCR/$IMAGE" "$DOCKERHUB/$IMAGE"; do
+          repo="$DOCKERHUB/$IMAGE"
+          jq -c '.[]' <<<"$PUBLISHED" | while read -r entry; do
+              digest=$(jq -r .digest <<<"$entry")
+              mapfile -t moving < <(jq -r '.moving[]' <<<"$entry")
+              mapfile -t immutable < <(jq -r '.immutable[]' <<<"$entry")
               tags=("${moving[@]/#/--tag=$repo:}")
               for tag in "${immutable[@]}"; do
-                  if exists "$repo:$tag"; then
+                  if docker buildx imagetools inspect "$repo:$tag" >/dev/null 2>&1; then
                       echo "::notice::$repo:$tag already exists; left unchanged"
                   else
                       tags+=("--tag=$repo:$tag")
                   fi
               done
-              if [ "$repo" = "$GHCR/$IMAGE" ]; then
-                  sources=()
-                  for arch in amd64 arm64; do sources+=("$repo@$(cat "$RUNNER_TEMP/digests/$VARIANT-$arch")"); done
-              else
-                  sources=("$GHCR/$IMAGE@$digest") # Copy the exact GHCR index.
-              fi
-              docker buildx imagetools create "${tags[@]}" "${sources[@]}"
-              digest=$(docker buildx imagetools inspect "$repo:$VARIANT" --format '{{json .Manifest}}' | jq -r .digest)
-              echo "$repo:$VARIANT -> $digest"
+              docker buildx imagetools create "${tags[@]}" "$GHCR/$IMAGE@$digest"
+              cosign sign --yes "$repo@$digest"
+              echo "$repo:${moving[0]} -> $digest"
           done
-          echo "digest=$digest" >>"$GITHUB_OUTPUT"
 
-      - name: Sign
-        env:
-          DIGEST: ${{ steps.index.outputs.digest }}
-        run: cosign sign --yes "$GHCR/$IMAGE@$DIGEST" "$DOCKERHUB/$IMAGE@$DIGEST"
-
-      # `gh attestation verify oci://ghcr.io/hambn/<image>:<tag> --owner hambn`
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-name: ${{ env.GHCR }}/${{ env.IMAGE }}
-          subject-digest: ${{ steps.index.outputs.digest }}
-          push-to-registry: true
-
-  upkeep:
-    name: Registry upkeep
-    needs: [plan, publish]
-    if: ${{ !cancelled() && needs.publish.result != 'skipped' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    environment: dockerhub
-    permissions:
-      contents: read
-      packages: write # Delete untagged package versions.
-    env:
-      IMAGE: ${{ needs.plan.outputs.image }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Rewrite README links for Docker Hub
         id: readme
         env:
@@ -507,29 +539,19 @@ jobs:
           description=$(cd "$TOOL" && docker buildx bake --print |
               jq -r '.target | to_entries[0].value.labels["org.opencontainers.image.description"][0:100]')
           echo "description=$description" >>"$GITHUB_OUTPUT"
+      # Needs a Docker Hub access token with Read, Write, Delete scope.
       - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: hambn/${{ env.IMAGE }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}
           short-description: ${{ steps.readme.outputs.description }}
           readme-filepath: ${{ runner.temp }}/README.md
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # Versions still referenced by a tagged index (per-arch images, signatures,
-      # attestations) are kept; see the script for the rules.
-      - name: Prune untagged GHCR versions older than 14 days
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/ghcr-cleanup.py "$IMAGE"
 
   dependents:
     name: Dispatch dependent images
-    needs: publish
-    if: ${{ !cancelled() && inputs.dependents != '' && needs.publish.result != 'skipped' }}
+    needs: publish-ghcr
+    if: ${{ !cancelled() && inputs.dependents != '' && needs.publish-ghcr.outputs.published != '' && needs.publish-ghcr.outputs.published != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

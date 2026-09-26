@@ -16,7 +16,7 @@ together.
 
 ## Tags
 
-Tags are applied by the publish job of `.github/workflows/tool-image.yml` from the tool
+Tags are applied by the `publish-ghcr` job of `.github/workflows/tool-image.yml` from the tool
 workflow's `primary` and `version-arg` inputs. Tools with a `version-arg` (claude-code,
 codex, open-code-review, pi-agent, omnigent, t3code) get version tags; core, devbox, and
 agentbloat get dated tags.
