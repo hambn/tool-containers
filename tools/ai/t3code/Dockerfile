@@ -3,7 +3,7 @@
 # other variant only changes BASE_IMAGE (see docker-bake.hcl).
 ARG BASE_IMAGE=ghcr.io/hambn/agentbloat:ubuntu-browser
 # renovate: datasource=npm depName=t3
-ARG T3CODE_VERSION=0.0.43-nightly.20260926.2282
+ARG T3CODE_VERSION=0.0.42
 
 FROM ${BASE_IMAGE}
 ARG T3CODE_VERSION
