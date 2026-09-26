@@ -1,0 +1,5 @@
+rules:
+  # zizmor 1.30 suggests `uses: $/...` for in-repo reusable workflows, but actionlint
+  # and check-repo.py do not accept that syntax yet; keep `./...` until they do.
+  self-repository:
+    disable: true
