@@ -29,6 +29,8 @@ Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`. Tags a
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Authenticate agents from the T3 Code UI; the server itself has no built-in network authentication, so keep it on loopback or behind an authenticating proxy.
 
+The Browser item in T3 Code's served web interface is disabled. It uses a desktop client browser view; the `ubuntu-browser` image's headless Chromium is available to command-line tools but does not enable that interface item. Use the T3 Code desktop client for its Browser view.
+
 ## Included software
 
 - **T3 Code**
