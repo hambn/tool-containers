@@ -43,6 +43,13 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/ai/claude-code
-      primary: ubuntu-browser
+      tags: |
+        # Stable variant tags; latest is the lightest Ubuntu variant, which also
+        # carries the upstream version.
+        echo "$VARIANT"
+        if [ "$VARIANT" = ubuntu ]; then
+            echo latest
+            echo "claude-code-$VERSION"
+        fi
       version-arg: CLAUDE_CODE_VERSION
       outdated-only: ${{ inputs.outdated-only || false }}

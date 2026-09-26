@@ -40,11 +40,13 @@ Every image is published under the same tags to `ghcr.io/hambn/<repo>` and
 `docker.io/hambn/<repo>`, where `<repo>` is the tool name. Each tool README lists its
 variants.
 
-| Tag | Repointed | Example |
-|-----|-----------|---------|
-| `<variant>`, `latest` | On every build | `devbox:ubuntu-full` |
-| `<toolversion>-<variant>`, `<toolversion>` (agents) | No | `codex:<version>-ubuntu` |
-| `<variant>-<YYYYMMDD>-<sha7>` (core, devbox, agentbloat) | No | `core:wolfi-<YYYYMMDD>-<sha7>` |
+- **Base images** (core, devbox): one tag per variant, plus `latest` on the largest
+  variant, e.g. `devbox:ubuntu-lite`, `devbox:latest` (= `ubuntu-browser`).
+- **Interactive images** (agents and other tools): one tag per variant, plus `latest`
+  and `<tool>-<version>` on the lightest Ubuntu variant, e.g. `codex:ubuntu-browser`,
+  `codex:latest`, `codex:codex-<version>`.
+
+Every tag moves to the newest build; pin a digest for reproducibility.
 
 Each tool directory is self-contained: its `Dockerfile` pins every version as an `ARG`
 default (updated by Renovate), its `docker-bake.hcl` lists the variants, and each image

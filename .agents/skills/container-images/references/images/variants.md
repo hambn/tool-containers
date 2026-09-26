@@ -17,8 +17,8 @@ devbox `browser`. Agents have no `lite` variant.
 - Variant names describe capability, not an interchangeable base; add a new tier or
   distro only for a demonstrated use case, and add it to the bake matrix, tests, README
   Images table, and examples together.
-- Exactly one variant per repository owns `latest`; it is the `primary` input of the
-  tool's workflow and should match the Dockerfile's default `BASE_IMAGE`.
+- Exactly one variant per repository owns `latest`, set by the `tags` script of the
+  tool's workflow ([tags](../registries-and-tags.md)).
 - Renaming or removing a variant is a public API change: keep the old tags frozen, note
   the deprecation in the README, and update every example that referenced it.
 - Labels `io.github.hambn.containers.{tier,variant,distro}` describe each image; tests

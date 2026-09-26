@@ -19,33 +19,30 @@ builds `FROM` a published devbox image.
 
 - **`ubuntu-lite`** — Zsh shell, Git, editors, search tools, `sysadmin` with sudo
   - Base: `core:ubuntu` (Ubuntu 24.04)
-  - Tags: `ubuntu-lite`, `ubuntu-lite-<YYYYMMDD>-<sha7>`
+  - Tags: `ubuntu-lite`
   - Included software: [lite tier](#lite)
 - **`alpine-lite`** — Same as `ubuntu-lite` on musl
   - Base: `core:alpine`
-  - Tags: `alpine-lite`, `alpine-lite-<YYYYMMDD>-<sha7>`
+  - Tags: `alpine-lite`
   - Included software: [lite tier](#lite)
 - **`ubuntu-full`** — lite + languages, build toolchain, Docker CLI, Kubernetes and cloud CLIs, network tools, systemd
   - Base: `core:ubuntu` (Ubuntu 24.04)
-  - Tags: `ubuntu-full`, `latest`, `ubuntu-full-<YYYYMMDD>-<sha7>`
+  - Tags: `ubuntu-full`
   - Included software: [full tier](#full)
 - **`alpine-full`** — lite + the same toolset; OpenRC instead of systemd
   - Base: `core:alpine`
-  - Tags: `alpine-full`, `alpine-full-<YYYYMMDD>-<sha7>`
+  - Tags: `alpine-full`
   - Included software: [full tier](#full)
 - **`ubuntu-browser`** — full + [chromedp headless-shell](https://github.com/chromedp/docker-headless-shell)
   - Base: `core:ubuntu` (Ubuntu 24.04)
-  - Tags: `ubuntu-browser`, `ubuntu-browser-<YYYYMMDD>-<sha7>`
+  - Tags: `ubuntu-browser`, `latest`
   - Included software: [browser tier](#browser)
 - **`alpine-browser`** — full + Chromium
   - Base: `core:alpine`
-  - Tags: `alpine-browser`, `alpine-browser-<YYYYMMDD>-<sha7>`
+  - Tags: `alpine-browser`
   - Included software: [browser tier](#browser)
 
-Pull from `ghcr.io/hambn/devbox:<tag>` or `docker.io/hambn/devbox:<tag>`. Moving tags
-follow `main`; dated `<variant>-<YYYYMMDD>-<sha7>` tags are immutable. Every tool version
-is pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults and recorded on full and browser
-images as `io.github.hambn.containers.tool.<name>.version` labels.
+Pull from `ghcr.io/hambn/devbox:<tag>` or `docker.io/hambn/devbox:<tag>`. Tags are the variant names plus `latest` (`ubuntu-browser`, the largest variant); every tag follows `main` and moves on each rebuild. Pin a digest for reproducibility. Earlier dated `<variant>-<YYYYMMDD>-<sha7>` tags are no longer published. Every tool version is pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults and recorded on full and browser images as `io.github.hambn.containers.tool.<name>.version` labels.
 
 ## Tiers
 

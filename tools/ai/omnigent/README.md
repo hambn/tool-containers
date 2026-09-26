@@ -16,23 +16,22 @@
 
 - **`ubuntu-browser`** — Omnigent plus every agentbloat CLI; Ubuntu, headless Chromium
   - Base: [`agentbloat:ubuntu-browser`](../agentbloat/)
-  - Tags: `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>`
+  - Tags: `ubuntu-browser`
   - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
 - **`ubuntu`** — Omnigent plus every agentbloat CLI; Ubuntu, no browser
   - Base: [`agentbloat:ubuntu`](../agentbloat/)
-  - Tags: `ubuntu`, `<version>-ubuntu`
+  - Tags: `ubuntu`, `latest`, `omnigent-<version>`
   - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
 - **`alpine-browser`** — Omnigent plus every agentbloat CLI; Alpine, Chromium
   - Base: [`agentbloat:alpine-browser`](../agentbloat/)
-  - Tags: `alpine-browser`, `<version>-alpine-browser`
+  - Tags: `alpine-browser`
   - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
 - **`alpine`** — Omnigent plus every agentbloat CLI; Alpine, no browser
   - Base: [`agentbloat:alpine`](../agentbloat/)
-  - Tags: `alpine`, `<version>-alpine`
+  - Tags: `alpine`
   - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
 
-Pull from `ghcr.io/hambn/omnigent:<tag>` or `docker.io/hambn/omnigent:<tag>`.
-Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned Omnigent PyPI release; version tags are created once and never repointed. The old `omnigent-v<version>` tags are frozen and deprecated.
+Pull from `ghcr.io/hambn/omnigent:<tag>` or `docker.io/hambn/omnigent:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `omnigent-<version>` for the pinned Omnigent PyPI release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `omnigent-v<version>` tags are frozen and deprecated.
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Omnigent lives in a uv tool environment under `/opt/uv-tools/omnigent` with `omni` and `omnigent` launchers in `/usr/local/bin`, usable by any UID. On Alpine its `google-re2` dependency is compiled in a separate build stage, so only the `re2` runtime library ships in the image.
 

@@ -16,17 +16,16 @@
 
 - **`ubuntu-browser`** — T3 Code plus every agentbloat CLI; Ubuntu, headless Chromium
   - Base: [`agentbloat:ubuntu-browser`](../agentbloat/)
-  - Tags: `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>`
+  - Tags: `ubuntu-browser`
   - Included software: [t3code](#included-software) + [agentbloat](../agentbloat/#included-software)
 - **`ubuntu`** — T3 Code plus every agentbloat CLI; Ubuntu, no browser
   - Base: [`agentbloat:ubuntu`](../agentbloat/)
-  - Tags: `ubuntu`, `<version>-ubuntu`
+  - Tags: `ubuntu`, `latest`, `t3code-<version>`
   - Included software: [t3code](#included-software) + [agentbloat](../agentbloat/#included-software)
 
 No Alpine variants: upstream publishes only glibc builds of the `t3` binary, which gcompat cannot run.
 
-Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`.
-Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned T3 Code npm release; version tags are created once and never repointed. The old `t3code-stable-v<version>` and `t3code-nightly-v<version>` tags are frozen and deprecated.
+Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `t3code-<version>` for the pinned T3 Code npm release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `t3code-stable-v<version>` and `t3code-nightly-v<version>` tags are frozen and deprecated.
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Authenticate agents from the T3 Code UI; the server itself has no built-in network authentication, so keep it on loopback or behind an authenticating proxy.
 

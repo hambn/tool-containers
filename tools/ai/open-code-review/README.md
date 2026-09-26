@@ -16,23 +16,22 @@
 
 - **`ubuntu-browser`** — Open Code Review CLI; Ubuntu, headless Chromium
   - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
-  - Tags: `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>`
+  - Tags: `ubuntu-browser`
   - Included software: [open-code-review](#included-software) + [devbox browser tier](../../base/devbox/#browser)
 - **`ubuntu`** — Open Code Review CLI; Ubuntu, no browser
   - Base: [`devbox:ubuntu-full`](../../base/devbox/)
-  - Tags: `ubuntu`, `<version>-ubuntu`
+  - Tags: `ubuntu`, `latest`, `open-code-review-<version>`
   - Included software: [open-code-review](#included-software) + [devbox full tier](../../base/devbox/#full)
 - **`alpine-browser`** — Open Code Review CLI; Alpine, Chromium
   - Base: [`devbox:alpine-browser`](../../base/devbox/)
-  - Tags: `alpine-browser`, `<version>-alpine-browser`
+  - Tags: `alpine-browser`
   - Included software: [open-code-review](#included-software) + [devbox browser tier](../../base/devbox/#browser)
 - **`alpine`** — Open Code Review CLI; Alpine, no browser
   - Base: [`devbox:alpine-full`](../../base/devbox/)
-  - Tags: `alpine`, `<version>-alpine`
+  - Tags: `alpine`
   - Included software: [open-code-review](#included-software) + [devbox full tier](../../base/devbox/#full)
 
-Pull from `ghcr.io/hambn/open-code-review:<tag>` or `docker.io/hambn/open-code-review:<tag>`.
-Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned Open Code Review npm release; version tags are created once and never repointed. The old `ocr-v<version>` tags are frozen and deprecated.
+Pull from `ghcr.io/hambn/open-code-review:<tag>` or `docker.io/hambn/open-code-review:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `open-code-review-<version>` for the pinned Open Code Review npm release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `ocr-v<version>` tags are frozen and deprecated.
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Configure an LLM provider with `ocr config` or its environment variables.
 

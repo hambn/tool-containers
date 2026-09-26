@@ -5,8 +5,8 @@ pin in the live files before changing it.
 
 ## agentbloat
 
-agentbloat bundles several agent CLIs on devbox. It is tagged like a base image
-(`<variant>-<YYYYMMDD>-<sha7>`) because it has no single upstream version, and its
+agentbloat bundles several agent CLIs on devbox. It gets no version tag because it
+has no single upstream version, and its
 published images are the `BASE_IMAGE` of omnigent and t3code, whose workflows run after
 `ai/agentbloat` completes on main.
 

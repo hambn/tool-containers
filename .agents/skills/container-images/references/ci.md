@@ -19,10 +19,10 @@ Every tool workflow has the same shape; copy a sibling and change only the name,
 upstream workflow, cron minute, concurrency group, and `with:` inputs:
 
 - `tool`: the tool directory; its name is the image repository.
-- `primary`: the variant that also gets `latest` (core `wolfi`, devbox `ubuntu-full`,
-  agents `ubuntu-browser`).
+- `tags`: Bash printing one variant's tags from `VARIANT` and `VERSION`; each tool owns
+  its rules ([tags](registries-and-tags.md)).
 - `version-arg`: the Dockerfile `ARG` holding the upstream version, for tools that have
-  one; it names the immutable tags ([tags](registries-and-tags.md)).
+  one; it becomes `VERSION` and the image version label.
 
 Triggers: `pull_request` and `push` to main on the tool directory,
 `tools/trivyignore.yaml`, its own workflow, and `tool-image.yml`; a daily `schedule`; and
@@ -59,7 +59,7 @@ rejects it.
 3. **Publish.** Main only, a matrix with one job per registry (GHCR, Docker Hub),
    each covering every variant that passed on both architectures even if another
    variant failed. Each job creates the multi-arch indexes from the per-arch GHCR
-   digests, applies tags (immutable tags only if absent, moving tags always), and
+   digests, applies the tool's tags, and
    signs with cosign. The GHCR job prunes untagged versions
    (`.github/scripts/ghcr-cleanup.py`); the Docker Hub job syncs the README
    (`.github/scripts/hub-readme.py`; the token needs Read, Write, Delete scope). Add

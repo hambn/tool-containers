@@ -16,31 +16,28 @@ together.
 
 ## Tags
 
-Tags are applied by the publish job of `.github/workflows/tool-image.yml` from the tool
-workflow's `primary` and `version-arg` inputs. Tools with a `version-arg` (claude-code,
-codex, open-code-review, pi-agent, omnigent, t3code) get version tags; core, devbox, and
-agentbloat get dated tags.
+Tags are chosen per tool: each tool workflow passes a `tags` script (Bash that prints
+one variant's tags, one per line, from `VARIANT` and `VERSION`) to
+`.github/workflows/tool-image.yml`, whose publish job applies them to every registry.
+Tools may differ; the current rules are:
 
-| Kind | Without `version-arg` (core, devbox, agentbloat) | With `version-arg` |
-|---|---|---|
-| Immutable | `<variant>-<YYYYMMDD>-<sha7>` | `<version>-<variant>`, plus bare `<version>` on the primary variant |
-| Moving | `<variant>`, plus `latest` on the primary variant | `<variant>`, plus `latest` on the primary variant |
+- **Base images (core, devbox):** the variant names, plus `latest` on the largest
+  variant (core `ubuntu`, devbox `ubuntu-browser`).
+- **Interactive images (agents, sandboxes, and other tools):** the variant names, plus
+  `latest` on the lightest Ubuntu variant (`ubuntu`). Tools with a `version-arg` also
+  tag that variant `<tool>-<version>` (for example `t3code-0.0.43`); agentbloat has no
+  single upstream version and gets no version tag.
 
-Primary variants: core `wolfi`, devbox `ubuntu-full`, agents `ubuntu-browser`.
-
-`YYYYMMDD` and `sha7` come from the built commit, not the build time.
-
-- **Immutable tags are created only if absent.** Publishing checks the registry first and
-  never repoints an existing immutable tag. A rebuild of the same tool version
-  (new base digest, `OS_REFRESH`) therefore updates only moving tags for agents.
-- **Moving tags always repoint** to the newest successful build.
-- Examples and docs reference moving tags; users pin an immutable tag or digest for
-  reproducibility.
+Every tag moves to the newest successful build, including version tags when the same
+version is rebuilt on a new base or `OS_REFRESH`. Users pin a digest for
+reproducibility. Examples and docs reference variant tags or `latest`.
 
 ### Deprecated tags
 
-Tags from the previous layout (`agentimg:*`, `claude-code-v*`, `ocr-v*`, other
-`<tool>-v<version>` release tags, and `<variant>-<sha>` commit tags) are frozen: never
+Tags from previous layouts (`agentimg:*`, `claude-code-v*`, `ocr-v*`, other
+`<tool>-v<version>` release tags, `<variant>-<sha>` commit tags,
+`<variant>-<YYYYMMDD>-<sha7>` dated tags, and `<version>-<variant>` / bare `<version>`
+tags) are frozen: never
 push, delete, or repoint them. Mention them only in a short deprecation note.
 
 ## Labels

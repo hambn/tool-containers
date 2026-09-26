@@ -16,23 +16,22 @@
 
 - **`ubuntu-browser`** — Claude Code; Ubuntu, headless Chromium
   - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
-  - Tags: `ubuntu-browser`, `latest`, `<version>-ubuntu-browser`, `<version>`
+  - Tags: `ubuntu-browser`
   - Included software: [claude-code](#included-software) + [devbox browser tier](../../base/devbox/#browser)
 - **`ubuntu`** — Claude Code; Ubuntu, no browser
   - Base: [`devbox:ubuntu-full`](../../base/devbox/)
-  - Tags: `ubuntu`, `<version>-ubuntu`
+  - Tags: `ubuntu`, `latest`, `claude-code-<version>`
   - Included software: [claude-code](#included-software) + [devbox full tier](../../base/devbox/#full)
 - **`alpine-browser`** — Claude Code; Alpine, Chromium
   - Base: [`devbox:alpine-browser`](../../base/devbox/)
-  - Tags: `alpine-browser`, `<version>-alpine-browser`
+  - Tags: `alpine-browser`
   - Included software: [claude-code](#included-software) + [devbox browser tier](../../base/devbox/#browser)
 - **`alpine`** — Claude Code; Alpine, no browser
   - Base: [`devbox:alpine-full`](../../base/devbox/)
-  - Tags: `alpine`, `<version>-alpine`
+  - Tags: `alpine`
   - Included software: [claude-code](#included-software) + [devbox full tier](../../base/devbox/#full)
 
-Pull from `ghcr.io/hambn/claude-code:<tag>` or `docker.io/hambn/claude-code:<tag>`.
-Moving variant tags (and `latest`) repoint on every rebuild. `<version>` is the pinned Claude Code npm release; version tags are created once and never repointed. The old `claude-code-v<version>` tags are frozen and deprecated.
+Pull from `ghcr.io/hambn/claude-code:<tag>` or `docker.io/hambn/claude-code:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `claude-code-<version>` for the pinned Claude Code npm release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `claude-code-v<version>` tags are frozen and deprecated.
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in.
 

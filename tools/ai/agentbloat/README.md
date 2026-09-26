@@ -16,23 +16,22 @@ Every current command-line coding agent in one interactive image, built on the [
 
 - **`ubuntu-browser`** — All agent CLIs; Ubuntu, headless Chromium
   - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
-  - Tags: `ubuntu-browser`, `latest`, `ubuntu-browser-<YYYYMMDD>-<sha7>`
+  - Tags: `ubuntu-browser`
   - Included software: [agent CLIs](#included-software) + [devbox browser tier](../../base/devbox/#browser)
 - **`ubuntu`** — All agent CLIs; Ubuntu, no browser
   - Base: [`devbox:ubuntu-full`](../../base/devbox/)
-  - Tags: `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>`
+  - Tags: `ubuntu`, `latest`
   - Included software: [agent CLIs](#included-software) + [devbox full tier](../../base/devbox/#full)
 - **`alpine-browser`** — All agent CLIs; Alpine, Chromium
   - Base: [`devbox:alpine-browser`](../../base/devbox/)
-  - Tags: `alpine-browser`, `alpine-browser-<YYYYMMDD>-<sha7>`
+  - Tags: `alpine-browser`
   - Included software: [agent CLIs](#included-software) + [devbox browser tier](../../base/devbox/#browser)
 - **`alpine`** — All agent CLIs; Alpine, no browser
   - Base: [`devbox:alpine-full`](../../base/devbox/)
-  - Tags: `alpine`, `alpine-<YYYYMMDD>-<sha7>`
+  - Tags: `alpine`
   - Included software: [agent CLIs](#included-software) + [devbox full tier](../../base/devbox/#full)
 
-Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`.
-agentbloat is a base image: moving variant tags (and `latest`) repoint on every rebuild, and `<variant>-<YYYYMMDD>-<sha7>` tags identify one build and are never repointed. Old per-agent tags such as `claude-code-v<version>` are frozen and deprecated.
+Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant); every tag moves on each rebuild. Pin a digest for reproducibility. Earlier dated `<variant>-<YYYYMMDD>-<sha7>` tags are no longer published. Old per-agent tags such as `claude-code-v<version>` are frozen and deprecated.
 
 The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in.
 

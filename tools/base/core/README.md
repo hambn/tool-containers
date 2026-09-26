@@ -19,18 +19,15 @@ tzdata, curl, bash, and an unprivileged `nonroot` user. `core` is also the base 
 
 - **`wolfi`** — CA bundle, tzdata, curl, bash, `nonroot` user
   - Base: `chainguard/wolfi-base`
-  - Tags: `wolfi`, `latest`, `wolfi-<YYYYMMDD>-<sha7>`
+  - Tags: `wolfi`
 - **`alpine`** — CA bundle, tzdata, curl, bash, `nonroot` user
   - Base: Alpine
-  - Tags: `alpine`, `alpine-<YYYYMMDD>-<sha7>`
+  - Tags: `alpine`
 - **`ubuntu`** — CA bundle, tzdata, curl, bash, `nonroot` user
   - Base: Ubuntu 24.04
-  - Tags: `ubuntu`, `ubuntu-<YYYYMMDD>-<sha7>`
+  - Tags: `ubuntu`, `latest`
 
-Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Moving tags
-(`wolfi`, `alpine`, `ubuntu`, `latest`) follow `main`; the dated `<variant>-<YYYYMMDD>-<sha7>`
-tags are immutable. Base-image digests and the OS package refresh date are pinned in
-the [`Dockerfile`](./Dockerfile) `ARG` defaults.
+Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the largest variant); every tag follows `main` and moves on each rebuild. Pin a digest for reproducibility. Earlier dated `<variant>-<YYYYMMDD>-<sha7>` tags are no longer published. Base-image digests and the OS package refresh date are pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults.
 
 ## Hardening
 

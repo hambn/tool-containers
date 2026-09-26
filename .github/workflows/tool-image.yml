@@ -23,14 +23,17 @@ on:
         description: Tool directory, e.g. tools/ai/claude-code.
         required: true
         type: string
-      primary:
-        description: Variant that also gets the latest tag.
+      tags:
+        description: >-
+          Bash that prints one variant's tags, one per line. It gets VARIANT and
+          VERSION (the version-arg value, or <commit date>-<sha7> without one).
+          Each tool's workflow owns its tagging rules.
         required: true
         type: string
       version-arg:
         description: >-
-          Dockerfile ARG holding the upstream version (e.g. CLAUDE_CODE_VERSION).
-          It names the immutable tags; without it they use the commit date and SHA.
+          Dockerfile ARG holding the upstream version (e.g. CLAUDE_CODE_VERSION),
+          passed to the tags script as VERSION and set as the image version label.
         required: false
         default: ""
         type: string
@@ -402,8 +405,7 @@ jobs:
       IMAGE: ${{ needs.plan.outputs.image }}
       VERSION: ${{ needs.plan.outputs.version }}
       VARIANTS: ${{ needs.plan.outputs.variants }}
-      PRIMARY: ${{ inputs.primary }}
-      VERSION_ARG: ${{ inputs.version-arg }}
+      TAGS_SCRIPT: ${{ inputs.tags }}
       REPO: ${{ matrix.repo }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -430,12 +432,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Moving tags (<variant>, and latest for the primary variant) always follow the
-      # new image. Immutable tags are created once and never repointed:
-      #   with version-arg:  <version>-<variant>, plus <version> for the primary variant
-      #   without:           <variant>-<commit date>-<sha7>
-      # A variant missing an architecture is skipped; the job fails after the others
-      # are published.
+      # Tags come from the calling workflow's tags script and always follow the new
+      # image. A variant missing an architecture is skipped; the job fails after the
+      # others are published.
       - name: Create, tag, and sign the multi-arch images
         run: |
           set -euo pipefail
@@ -454,27 +453,17 @@ jobs:
                   continue
               fi
 
-              moving=("$variant")
-              if [ "$variant" = "$PRIMARY" ]; then moving+=(latest); fi
-              if [ -n "$VERSION_ARG" ]; then
-                  immutable=("$VERSION-$variant")
-                  if [ "$variant" = "$PRIMARY" ]; then immutable+=("$VERSION"); fi
-              else
-                  immutable=("$variant-$VERSION")
+              mapfile -t names < <(VARIANT="$variant" bash -euo pipefail -c "$TAGS_SCRIPT")
+              if [ "${#names[@]}" -eq 0 ]; then
+                  echo "::error::the tags script printed no tags for $variant"
+                  missing=1
+                  continue
               fi
-
-              tags=("${moving[@]/#/--tag=$repo:}")
-              for tag in "${immutable[@]}"; do
-                  if docker buildx imagetools inspect "$repo:$tag" >/dev/null 2>&1; then
-                      echo "::notice::$repo:$tag already exists; left unchanged"
-                  else
-                      tags+=("--tag=$repo:$tag")
-                  fi
-              done
+              tags=("${names[@]/#/--tag=$repo:}")
               docker buildx imagetools create "${tags[@]}" "${sources[@]}"
-              digest=$(docker buildx imagetools inspect "$repo:$variant" --format '{{json .Manifest}}' | jq -r .digest)
+              digest=$(docker buildx imagetools inspect "$repo:${names[0]}" --format '{{json .Manifest}}' | jq -r .digest)
               cosign sign --yes "$repo@$digest"
-              echo "$repo:$variant -> $digest"
+              echo "$repo:${names[*]} -> $digest"
           done
           exit "$missing"
 

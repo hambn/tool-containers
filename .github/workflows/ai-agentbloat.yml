@@ -43,6 +43,11 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/ai/agentbloat
-      primary: ubuntu-browser
+      tags: |
+        # Stable variant tags; latest is the lightest Ubuntu variant.
+        echo "$VARIANT"
+        if [ "$VARIANT" = ubuntu ]; then
+            echo latest
+        fi
       outdated-only: ${{ inputs.outdated-only || false }}
       dependents: ai-omnigent.yml ai-t3code.yml

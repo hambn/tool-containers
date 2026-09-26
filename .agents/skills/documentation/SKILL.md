@@ -41,8 +41,8 @@ materially helps operation:
    **Docs** link to its site page (`https://tool-containers.hgh.dev/docs/<category>/<tool>/`).
 2. **Contents** linking the remaining sections.
 3. **Images** as a list, one item per published variant: the bold variant name and a
-   short description, with nested **Base**, **Tags** (the moving tag, `latest` where
-   owned, and the immutable tag pattern), and **Included software** items; the last
+   short description, with nested **Base**, **Tags** (the variant tag, plus `latest` and
+   any version tag where owned), and **Included software** items; the last
    links this README's Included software section and the parent image's tier or
    section. Use no tables. State the GHCR (`ghcr.io/hambn/<repo>`) and Docker Hub
    (`docker.io/hambn/<repo>`) pull paths. Previous-layout tags get at most a one-line
