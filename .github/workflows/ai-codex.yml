@@ -43,6 +43,13 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/ai/codex
-      primary: ubuntu-browser
+      tags: |
+        # Stable variant tags; latest is the lightest Ubuntu variant, which also
+        # carries the upstream version.
+        echo "$VARIANT"
+        if [ "$VARIANT" = ubuntu ]; then
+            echo latest
+            echo "codex-$VERSION"
+        fi
       version-arg: CODEX_VERSION
       outdated-only: ${{ inputs.outdated-only || false }}

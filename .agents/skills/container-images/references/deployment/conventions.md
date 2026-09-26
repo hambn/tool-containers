@@ -32,7 +32,7 @@ Docker Swarm is not a supported example platform.
 - Keep credentials external (environment, mounted files, native secret stores) and fail
   loudly when a required value is missing.
 - Connected examples use a moving tag from `ghcr.io/hambn/<repo>` (for example
-  `ghcr.io/hambn/codex:ubuntu-browser`) and explain that an immutable tag or digest pins
+  `ghcr.io/hambn/codex:ubuntu-browser`) and explain that a digest pins
   it ([tags](../registries-and-tags.md)). Air-gapped examples load a saved image and
   never pull.
 - Grant the least privilege and resources compatible with the tool; do not copy

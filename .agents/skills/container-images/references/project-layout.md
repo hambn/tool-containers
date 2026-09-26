@@ -61,8 +61,7 @@ use `examples/`.
    ([conventions](deployment/conventions.md)), and one root catalog row, all per
    `$documentation`.
 7. Run `.github/scripts/check-repo.py`; it checks the required files and the workflow.
-8. Replace every copied name, image path, command, label, and source link; compare the
-   file map with `git ls-files`.
+8. Replace every copied name, image path, command, label, and source link, including the README Source and Docs links.
 
 Put shared runtime capability in a published tier (core or devbox) rather than copying
 files between tools. Do not create a category or tier for one speculative use.

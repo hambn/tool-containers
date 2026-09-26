@@ -34,7 +34,7 @@ current task needs.
    `docker-bake.hcl`), its closest neighbor, its workflow
    `.github/workflows/<category>-<tool>.yml`, and the root catalog row.
 2. Identify every coupled surface before editing: Dockerfile and `ARG` pins, bake
-   variants, tests, workflow, README and file map, examples, catalog row.
+   variants, tests, workflow, README, examples, catalog row.
 3. Render the variants instead of guessing them: `docker buildx bake --print` from the
    tool directory.
 4. Validate with `$repository-changes`. Static validation never proves runtime
