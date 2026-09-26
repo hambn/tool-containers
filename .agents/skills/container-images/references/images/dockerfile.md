@@ -1,19 +1,22 @@
 # Dockerfile authoring
 
-One `Dockerfile` per tool at `tools/<category>/<tool>/Dockerfile`, built only through its
-`tools/docker-bake.hcl` target. The first line is `# syntax=docker/dockerfile:1`.
+One `Dockerfile` per tool at `tools/<category>/<tool>/Dockerfile`. Its variants are
+listed in the tool's `docker-bake.hcl`, and a plain `docker build tools/<category>/<tool>`
+builds the default variant. The first line is `# syntax=docker/dockerfile:1`, followed by
+a comment saying which variant the defaults build.
 
 ## Bases and inputs
 
-- Reference base images only through global `ARG ALPINE_IMAGE`, `UBUNTU_IMAGE`,
-  `WOLFI_IMAGE`, or `HEADLESS_SHELL_IMAGE`. Bake always passes them from `tools/versions.hcl`,
-  so they need no defaults. Never hard-code an image reference or digest.
-- Parent tiers arrive as named contexts (`FROM core`, `FROM base`,
-  `COPY --from=devbox-config`), never as registry references.
-- Every version is an `ARG <NAME>_VERSION` without a default, passed from `tools/versions.hcl`
-  ([versions and pins](../versions.md)). Declare it in the stage that uses it.
-- Build args every target receives: `DISTRO`, `OS_REFRESH`, `SOURCE_DATE_EPOCH`, and the
-  base-image args.
+- Every pin is a global `ARG` with a default, preceded by its `# renovate:` comment
+  ([versions and pins](../versions.md)): external base images as `ALPINE_IMAGE`,
+  `UBUNTU_IMAGE`, `WOLFI_IMAGE`, or `HEADLESS_SHELL_IMAGE` (`name:tag@sha256:…`), and
+  versions as `<NAME>_VERSION`. Redeclare each in the stage that uses it. Never
+  hard-code an image reference or version elsewhere.
+- The parent tier is the published image in `ARG BASE_IMAGE` (for example
+  `ghcr.io/hambn/devbox:ubuntu-browser`), defaulting to the default variant's parent.
+  The bake file sets it per variant, and CI pins it to a digest.
+- Other args: `DISTRO` (where stages differ per distro) and `OS_REFRESH` (where OS
+  packages are installed). Neither needs a Renovate comment.
 
 ## Per-distro stages
 
@@ -57,31 +60,34 @@ Verify every download against the upstream checksum or signature; fail on mismat
 Write into `/out/<final path>` and merge with `COPY --link --from=<stage> /out/ /`.
 Map `TARGETARCH` to upstream asset names explicitly; both amd64 and arm64 must work.
 
-## Payload and config layering
+## Layering
 
-- A tier's heavy layers live in a `payload` stage (`<tier>-payload` in devbox) that sets
-  every `ENV` descendants need.
-- The published stage copies the config layer last: `COPY --link --from=config / /` in
-  devbox, `COPY --link --from=devbox-config / /` in agents. Config changes then rebuild
-  only that layer.
-- Agent Dockerfiles follow this shape; the published stage is named `image`:
+- Devbox keeps each tier's heavy layers in a `<tier>-payload` stage that sets every
+  `ENV` descendants need, and its published `lite`, `full`, and `browser` stages copy the
+  `rootfs/` config layer last with `COPY --link --from=config / /`, so a config change
+  rebuilds only that layer.
+- Agent Dockerfiles build on the published parent and add only their tool:
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM base AS payload
-ARG DISTRO
+# docker build tools/ai/<tool> builds the ubuntu-browser variant; the other variants
+# only change BASE_IMAGE (see docker-bake.hcl). CI pins the base tag to its digest.
+ARG BASE_IMAGE=ghcr.io/hambn/devbox:ubuntu-browser
+# renovate: datasource=npm depName=<package>
+ARG <TOOL>_VERSION=<version>
+
+FROM ${BASE_IMAGE}
 ARG <TOOL>_VERSION
 USER root
 RUN <install the pinned tool>
-FROM payload AS image
-COPY --link --from=devbox-config / /
+LABEL io.github.hambn.containers.tool.<tool>.version="${<TOOL>_VERSION}"
 USER sysadmin
 WORKDIR /workspace
 ENTRYPOINT ["<cli>"]
 ```
 
-agentbloat publishes `image` with a login-zsh `CMD` and no entrypoint, and exposes
-`payload` to omnigent and t3code. Do not leave a stray `CMD []`.
+agentbloat ends with a login-zsh `CMD` and no entrypoint, and omnigent and t3code build
+on it. Do not leave a stray `CMD []`.
 
 ## Runtime and security
 
@@ -94,6 +100,6 @@ agentbloat publishes `image` with a login-zsh `CMD` and no entrypoint, and expos
 - Mark a deliberate temporary limitation with a `# ponytail:` comment
   ([tool-specific contracts](../tool-specific-contracts.md)).
 
-Validate statically with `.github/scripts/bake.sh --print <target>` and the
+Validate statically with `docker buildx bake --print` in the tool directory and the
 `$repository-changes` validator; runtime behavior is proven by the tests CI runs
 ([testing](../testing.md)).

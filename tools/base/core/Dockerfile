@@ -1,8 +1,17 @@
 # syntax=docker/dockerfile:1
-ARG ALPINE_IMAGE
-ARG UBUNTU_IMAGE
-ARG WOLFI_IMAGE
-ARG DISTRO
+# Build one distribution: docker build --build-arg DISTRO=alpine tools/base/core
+ARG DISTRO=wolfi
+
+# renovate: datasource=docker depName=docker.io/library/alpine
+ARG ALPINE_IMAGE=docker.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+# renovate: datasource=docker depName=docker.io/library/ubuntu
+ARG UBUNTU_IMAGE=docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
+# renovate: datasource=docker depName=docker.io/chainguard/wolfi-base
+ARG WOLFI_IMAGE=docker.io/chainguard/wolfi-base:latest@sha256:fac38d12efdb4bf43ac9e599a31db10a27ad5dd71e5f1618790962eda8d66180
+
+# Changing this date rebuilds the OS package layers; maintenance.yml bumps it when
+# published images have fixable OS vulnerabilities.
+ARG OS_REFRESH=2026-09-25
 
 FROM ${ALPINE_IMAGE} AS alpine-payload
 ARG OS_REFRESH

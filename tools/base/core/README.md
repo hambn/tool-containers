@@ -24,7 +24,7 @@ tzdata, curl, bash, and an unprivileged `nonroot` user. `core` is also the base 
 Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Moving tags
 (`wolfi`, `alpine`, `ubuntu`, `latest`) follow `main`; the dated `<variant>-<YYYYMMDD>-<sha7>`
 tags are immutable. Base-image digests and the OS package refresh date are pinned in
-[`versions.hcl`](../../versions.hcl).
+the [`Dockerfile`](./Dockerfile) `ARG` defaults.
 
 ## Hardening
 
@@ -46,6 +46,7 @@ tags are immutable. Base-image digests and the OS package refresh date are pinne
 
 - [`README.md`](README.md)
 - [`Dockerfile`](Dockerfile)
+- [`docker-bake.hcl`](docker-bake.hcl)
 - `tests/`
   - [`structure.yaml`](tests/structure.yaml)
   - [`structure-ubuntu.yaml`](tests/structure-ubuntu.yaml)
@@ -57,7 +58,7 @@ tags are immutable. Base-image digests and the OS package refresh date are pinne
   - `docker-compose/`
     - [`README.md`](examples/docker-compose/README.md)
     - [`docker-compose.yml`](examples/docker-compose/docker-compose.yml)
-- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml)
+- [`.github/workflows/base-core.yml`](../../../.github/workflows/base-core.yml)
 
 ## Sources
 

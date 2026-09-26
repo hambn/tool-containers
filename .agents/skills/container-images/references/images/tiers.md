@@ -1,13 +1,15 @@
 # Image tiers
 
-Every published image belongs to one tier. Each tier builds on the one below through
-bake `contexts`, so a child always gets the parent built from the same commit.
+Every published image belongs to one tier. Each tier builds `FROM` the published image
+of the tier below (`ARG BASE_IMAGE`). CI pins that tag to its current digest, records it
+in `org.opencontainers.image.base.digest`, and rebuilds a child when the parent's
+workflow publishes or the parent digest moves ([CI](../ci.md)).
 
 | Tier | Project | Parent | Published variants | Contract |
 |---|---|---|---|---|
 | core | `tools/base/core` | distro base image | `alpine`, `ubuntu`, `wolfi` | hardened application base |
 | devbox | `tools/base/devbox` | core of the same distro | `<distro>-{lite,full,browser}` for alpine, ubuntu | interactive development and CI |
-| agent | `tools/ai/<tool>` | devbox or agentbloat payload | `ubuntu`, `alpine`, `ubuntu-browser`, `alpine-browser` | one agent CLI or service |
+| agent | `tools/ai/<tool>` | devbox or agentbloat of the same variant | `ubuntu`, `alpine`, `ubuntu-browser`, `alpine-browser` | one agent CLI or service |
 
 ## core
 
@@ -19,8 +21,8 @@ user. The published stage `core` ends `USER 65532:65532`, `WORKDIR /home/nonroot
 
 ## devbox
 
-Starts from the named context `core` (whose user is nonroot, so stages begin with
-`USER root`).
+Starts from the published `core` of the same distro (whose user is nonroot, so stages
+begin with `USER root`).
 
 - **lite:** zsh with pinned plugins and oh-my-zsh pieces, git, openssh-client, sudo,
   neovim, tmux, jq, ripgrep, fd, fzf, less; user `sysadmin` (1000:1000, `/bin/zsh`,
@@ -38,11 +40,10 @@ stage is the payload plus `COPY --link --from=config / /`, `USER sysadmin`,
 
 ## agents
 
-Agent Dockerfiles start from the named context `base`: the devbox payload of the
-matching distro and tier (`ubuntu` → `devbox-payload-ubuntu-full`, `alpine-browser` →
-`devbox-payload-alpine-browser`), or for omnigent and t3code the agentbloat payload of
-the same variant. They add only their tool, then the published stage `image` appends
-`devbox-config` last, so a config change rebuilds only that thin layer everywhere.
+Agent Dockerfiles start `FROM ${BASE_IMAGE}`: the published devbox of the matching
+distro and tier (`ubuntu` → `devbox:ubuntu-full`, `alpine-browser` →
+`devbox:alpine-browser`), or for omnigent and t3code the agentbloat image of the same
+variant. They add only their tool on top and inherit devbox's configuration layer.
 
 Agents inherit Node, Python, and shell tooling from devbox; never reinstall a runtime
 merely to package a CLI. The runtime user is `sysadmin` and the work directory

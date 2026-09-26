@@ -34,12 +34,12 @@ Follow the repository shell style (`#!/usr/bin/env bash`, `set -euo pipefail`, s
 shellcheck-clean). Never run it locally in this repository's agent sessions unless the
 user authorizes running containers.
 
-## Scan exclusions
+## Scan gate
 
-CI scans every amd64 variant with Trivy and fails on fixable HIGH or CRITICAL findings,
-except those accepted in `tools/trivyignore.yaml`. Statically linked upstream binaries only
-get fixes from a new upstream release, which Renovate bumps, so the gate skips them.
-Each tool lists the binaries it installs in `tests/trivy-skip-files.txt`: one Trivy
-`--skip-files` glob per line, with `#` comments allowed. An image built on another tool
-through a Bake `target:` context inherits that tool's list, so agent images reuse the
-devbox list. The uploaded SARIF report still includes skipped files.
+CI scans every variant on both architectures with Trivy. The full report (every severity
+and package type) goes to code scanning as SARIF. The gate fails only on what a rebuild
+of this repository can fix: HIGH or CRITICAL OS-package vulnerabilities with a released
+fix (bump `OS_REFRESH`), except those accepted in `tools/trivyignore.yaml`, and secrets
+outside the vendored directories `/usr/local/lib/node_modules`, `/usr/local/go`, and
+`/opt`. Vulnerabilities inside upstream binaries only get fixes from a new upstream
+release, which Renovate bumps, so they are reported but never block a publish.

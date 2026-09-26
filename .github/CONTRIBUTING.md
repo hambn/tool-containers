@@ -13,6 +13,6 @@ Before opening a pull request:
 
 Describe the change and list exact validation in the pull request body. The
 `Pull request gate` check validates PR metadata, dependency changes, and repository
-contracts; the `Lint` check and, for image changes, the `images` workflow must pass
+contracts; the `Lint` check and, for image changes, the affected `<category>-<tool>` image workflows must pass
 too. Resolve review threads and require these checks to pass before squash merging so
 `main` retains a concise history.

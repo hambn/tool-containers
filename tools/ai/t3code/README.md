@@ -33,6 +33,7 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 ## File map
 
 - [`Dockerfile`](./Dockerfile)
+- [`docker-bake.hcl`](./docker-bake.hcl)
 - [`README.md`](./README.md)
 - [`examples/`](./examples/)
   - [`docker-compose/`](./examples/docker-compose/)
@@ -60,7 +61,7 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 - [`tests/`](./tests/)
   - [`smoke.sh`](./tests/smoke.sh)
   - [`structure.yaml`](./tests/structure.yaml)
-- [`.github/workflows/images.yml`](../../../.github/workflows/images.yml) — builds, tests, and publishes every variant
+- [`.github/workflows/ai-t3code.yml`](../../../.github/workflows/ai-t3code.yml) — builds, tests, and publishes every variant
 
 ## Sources
 

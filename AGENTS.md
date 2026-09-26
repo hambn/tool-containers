@@ -6,8 +6,8 @@ Use the repository skills under `.agents/skills/` through progressive disclosure
   repository file.
 - Use `$repository-map` when locating code, deciding where a new file belongs, or
   changing the repository layout.
-- Use `$container-images` for anything under `tools/` (including the Bake files
-  `tools/docker-bake.hcl` and `tools/versions.hcl`), `.github/renovate.json5`, the image
+- Use `$container-images` for anything under `tools/` (including
+  each tool's `docker-bake.hcl` and `Dockerfile` pins), `.github/renovate.json5`, the image
   catalog, platform examples, registries and tags, or image CI workflows.
 - Use `$documentation` when writing, editing, or reviewing any README or document in
   this repository — catalog, tool, or platform example docs — and their cross-links.

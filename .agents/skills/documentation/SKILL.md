@@ -45,8 +45,8 @@ materially helps operation:
 4. **Use cases** with three to five concrete scenarios linking the relevant platform
    examples.
 5. **File map** as a linked nested tree of every tracked file in the tool (including
-   `Dockerfile` and `tests/`), plus the shared `.github/workflows/images.yml` workflow.
-   There are no per-tool workflows.
+   `Dockerfile`, `docker-bake.hcl`, and `tests/`), plus the tool's
+   `.github/workflows/<category>-<tool>.yml` workflow.
 6. **Sources** linking upstream repository, package registry, and authoritative docs
    where available.
 

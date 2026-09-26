@@ -1,6 +1,6 @@
 ---
 name: container-images
-description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile, tools/docker-bake.hcl target, tools/versions.hcl pins, tests, README, platform examples, root catalog entry, registries, tags, and image CI (images.yml, maintenance.yml, .github/renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
+description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile and its ARG pins, per-tool docker-bake.hcl, tests, README, platform examples, root catalog entry, registries, tags, and image CI (per-tool workflows, tool-image.yml, .github/renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
 ---
 
 # Container images
@@ -30,14 +30,15 @@ current task needs.
 
 ## Workflow
 
-1. Inspect the target `tools/<category>/<tool>/`, its closest neighbor, its targets in
-   `tools/docker-bake.hcl`, its pins in `tools/versions.hcl`, and the root catalog row.
-2. Identify every coupled surface before editing: Dockerfile, bake target and group
-   membership, version pins, tests, README and file map, examples, catalog row.
-3. Render the build graph instead of guessing it:
-   `.github/scripts/bake.sh --print <target>`.
+1. Inspect the target `tools/<category>/<tool>/` (its `Dockerfile` pins and
+   `docker-bake.hcl`), its closest neighbor, its workflow
+   `.github/workflows/<category>-<tool>.yml`, and the root catalog row.
+2. Identify every coupled surface before editing: Dockerfile and `ARG` pins, bake
+   variants, tests, workflow, README and file map, examples, catalog row.
+3. Render the variants instead of guessing them: `docker buildx bake --print` from the
+   tool directory.
 4. Validate with `$repository-changes`. Static validation never proves runtime
-   behavior; `images.yml` builds, tests, and scans affected images (see [CI](references/ci.md)).
+   behavior; the tool's workflow builds, tests, and scans every variant (see [CI](references/ci.md)).
 5. Invoke `$maintain-agent-workspace`; update a reference here only when a reusable
    image convention changed.
 

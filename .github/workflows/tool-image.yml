@@ -1,0 +1,546 @@
+name: tool-image
+
+# Shared pipeline for one tool under tools/<category>/<tool>/. Every per-tool
+# workflow calls it with the same shape:
+#
+#   plan     reads the tool's docker-bake.hcl and picks the variants to build
+#   build    one job per variant and architecture, on native runners: build, test,
+#            scan, and (on main) push the image by digest
+#   publish  one job per variant (main only): join both architectures into one
+#            multi-arch image, tag it on GHCR and Docker Hub, sign, and attest
+#   upkeep   once per run after publishing: sync the Docker Hub README and prune
+#            unreferenced untagged GHCR versions
+#   dependents  after publishing, dispatch the workflows of images built on this one
+#
+# The image repository is the tool directory's name. Variants whose parent image
+# (the BASE_IMAGE build arg) lives in ghcr.io/hambn are built on its current digest.
+# Scheduled runs and outdated-only dispatches rebuild only the variants that are
+# unpublished, whose parent moved, or whose published image has fixable
+# HIGH/CRITICAL OS vulnerabilities (with a fresh OS_REFRESH to renew OS packages).
+on:
+  workflow_call:
+    inputs:
+      tool:
+        description: Tool directory, e.g. tools/ai/claude-code.
+        required: true
+        type: string
+      primary:
+        description: Variant that also gets the latest tag.
+        required: true
+        type: string
+      version-arg:
+        description: >-
+          Dockerfile ARG holding the upstream version (e.g. CLAUDE_CODE_VERSION).
+          It names the immutable tags; without it they use the commit date and SHA.
+        required: false
+        default: ""
+        type: string
+      outdated-only:
+        description: Only rebuild outdated variants, as scheduled runs do.
+        required: false
+        default: false
+        type: boolean
+      dependents:
+        description: Space-separated workflow files to dispatch after publishing.
+        required: false
+        default: ""
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+permissions: {}
+
+env:
+  GHCR: ghcr.io/hambn
+  DOCKERHUB: docker.io/hambn
+  CACHE: ghcr.io/hambn/buildcache
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      image: ${{ steps.plan.outputs.image }}
+      version: ${{ steps.plan.outputs.version }}
+      variants: ${{ steps.plan.outputs.variants }}
+      builds: ${{ steps.plan.outputs.builds }}
+      publish: ${{ steps.plan.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker # Only reads bake files and registry manifests.
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        if: github.event_name == 'schedule' || inputs.outdated-only
+        with:
+          version: v0.70.0
+          cache: true
+
+      - name: Pick variants
+        id: plan
+        env:
+          TOOL: ${{ inputs.tool }}
+          VERSION_ARG: ${{ inputs.version-arg }}
+          OUTDATED_ONLY: ${{ github.event_name == 'schedule' || inputs.outdated-only }}
+          PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          image=$(basename "$TOOL")
+          bake=$(cd "$TOOL" && docker buildx bake --print)
+
+          if [ -n "$VERSION_ARG" ]; then
+              version=$(sed -n "s/^ARG $VERSION_ARG=//p" "$TOOL/Dockerfile")
+              [ -n "$version" ] || { echo "::error::$TOOL/Dockerfile has no ARG $VERSION_ARG=<version>"; exit 1; }
+          else
+              version=$(git log -1 --format=%cd --date=format:%Y%m%d)-$(git rev-parse --short=7 HEAD)
+          fi
+
+          # Parent images of ours are pinned to their current digest. Pull requests,
+          # pushes, and manual runs build every variant. Outdated-only runs build a
+          # variant only if it is unpublished, was built on an older parent, or has
+          # fixable OS vulnerabilities; the last case also overrides OS_REFRESH so the
+          # OS package layers are rebuilt.
+          fixable_os_vulns() {
+              local status=0
+              trivy image --quiet --image-src remote --platform linux/amd64 \
+                  --pkg-types os --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+                  --ignorefile tools/trivyignore.yaml --exit-code 2 "$1" >&2 || status=$?
+              [ "$status" -ne 2 ] || return 0
+              [ "$status" -eq 0 ] || exit "$status"
+              return 1
+          }
+
+          published_for_both() {
+              docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' 2>/dev/null |
+                  jq -e '[.manifests[]?.platform | "\(.os)/\(.architecture)"] | index("linux/amd64") and index("linux/arm64")' >/dev/null
+          }
+
+          # Parents of ours that are not published for both architectures yet (a new
+          # tier, or the first run of the chain) are built from source in each build
+          # job. Prints them oldest first as [{dir, target}].
+          unpublished_parents() {
+              local ref=$1 chain='[]' repo tag dir parent_bake target
+              while [[ $ref == "$GHCR"/* ]] && ! published_for_both "$ref"; do
+                  repo=${ref#"$GHCR"/}
+                  tag=${repo#*:}
+                  repo=${repo%%:*}
+                  dir=$(find tools -mindepth 2 -maxdepth 2 -type d -name "$repo")
+                  parent_bake=$(cd "$dir" && docker buildx bake --print)
+                  target=$(jq -er --arg v "$tag" '.target | to_entries[] |
+                      select(.value.labels["io.github.hambn.containers.variant"] == $v) | .key' <<<"$parent_bake")
+                  chain=$(jq -c --arg dir "$dir" --arg target "$target" '[{dir: $dir, target: $target}] + .' <<<"$chain")
+                  ref=$(jq -r --arg t "$target" '.target[$t].args.BASE_IMAGE // ""' <<<"$parent_bake")
+              done
+              echo "$chain"
+          }
+
+          variants='[]'
+          for target in $(jq -r '.target | keys[]' <<<"$bake"); do
+              variant=$(jq -r --arg t "$target" '.target[$t].labels["io.github.hambn.containers.variant"]' <<<"$bake")
+              base=$(jq -r --arg t "$target" '.target[$t].args.BASE_IMAGE // ""' <<<"$bake")
+              base_ref=""
+              digest=""
+              os_refresh=""
+              parents=$(unpublished_parents "$base")
+              if [ "$parents" != '[]' ]; then
+                  if [ "$OUTDATED_ONLY" = true ]; then
+                      echo "$variant: waiting for $base; its workflow dispatches this one"
+                      continue
+                  fi
+                  echo "::notice::$variant: $base is not published for amd64 and arm64; building it from source"
+              elif [[ $base == "$GHCR"/* ]]; then
+                  digest=$(docker buildx imagetools inspect "$base" --format '{{json .Manifest}}' | jq -r .digest)
+                  base_ref="${base%:*}@$digest"
+              fi
+              if [ "$OUTDATED_ONLY" = true ]; then
+                  published=$GHCR/$image:$variant
+                  if ! built_on=$(docker buildx imagetools inspect "$published" --format '{{json .Image}}' 2>/dev/null |
+                      jq -r '[.. | .config?.Labels?["org.opencontainers.image.base.digest"]? // empty][0] // ""'); then
+                      echo "$variant: not published yet"
+                  elif [ -n "$digest" ] && [ "$built_on" != "$digest" ]; then
+                      echo "$variant: parent $base moved (${built_on:-unknown} -> $digest)"
+                  elif fixable_os_vulns "$published"; then
+                      echo "::warning::$variant: $published has fixable HIGH/CRITICAL OS vulnerabilities"
+                      os_refresh=$(date -u +%F)
+                  else
+                      echo "$variant is current"
+                      continue
+                  fi
+              fi
+              variants=$(jq -c --arg target "$target" --arg variant "$variant" --arg base "$base_ref" \
+                  --arg distro "$(jq -r --arg t "$target" '.target[$t].labels["io.github.hambn.containers.distro"]' <<<"$bake")" \
+                  --arg tier "$(jq -r --arg t "$target" '.target[$t].labels["io.github.hambn.containers.tier"]' <<<"$bake")" \
+                  --arg os_refresh "$os_refresh" --argjson parents "$parents" \
+                  '. + [{target: $target, variant: $variant, base: $base, distro: $distro, tier: $tier,
+                         os_refresh: $os_refresh, parents: $parents}]' <<<"$variants")
+          done
+
+          builds=$(jq -c '[.[] as $v | ({arch: "amd64", runner: "ubuntu-24.04"}, {arch: "arm64", runner: "ubuntu-24.04-arm"}) | $v + .]' <<<"$variants")
+          {
+              echo "image=$image"
+              echo "version=$version"
+              echo "variants=$variants"
+              echo "builds=$builds"
+              echo "publish=$PUBLISH"
+          } >>"$GITHUB_OUTPUT"
+          {
+              echo "### $image $version"
+              echo
+              jq -r 'if length == 0 then "Nothing to build." else .[] | "- `\(.variant)` on `\(if .parents != [] then "parents built from source" else .base // "pinned base" end)`" end' <<<"$variants"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: ${{ matrix.variant }} (${{ matrix.arch }})
+    needs: plan
+    if: needs.plan.outputs.variants != '[]'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write # Push digests and the build cache on main.
+      security-events: write # Upload the Trivy report to code scanning.
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.builds) }}
+    env:
+      IMAGE: ${{ needs.plan.outputs.image }}
+      VERSION: ${{ needs.plan.outputs.version }}
+      PUBLISH: ${{ needs.plan.outputs.publish }}
+      TARGET: ${{ matrix.target }}
+      BASE: ${{ matrix.base }}
+      ARCH: ${{ matrix.arch }}
+      DISTRO: ${{ matrix.distro }}
+      TIER: ${{ matrix.tier }}
+      VARIANT: ${{ matrix.variant }}
+      OS_REFRESH: ${{ matrix.os_refresh }}
+      PARENTS: ${{ toJSON(matrix.parents) }}
+      # Fork pull requests get a read-only token and cannot log in to GHCR.
+      TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.tool }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: env.TRUSTED == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Each unpublished parent is exported as an OCI layout and fed to the next
+      # build as the named context "parent".
+      - name: Build unpublished parents
+        if: ${{ toJSON(matrix.parents) != '[]' }}
+        run: |
+          set -euo pipefail
+          context=""
+          i=0
+          for row in $(jq -c '.[]' <<<"$PARENTS"); do
+              dir=$(jq -r .dir <<<"$row")
+              target=$(jq -r .target <<<"$row")
+              out=$RUNNER_TEMP/parent-$i
+              args=(--set="$target.output=type=oci,dest=$out,tar=false,rewrite-timestamp=true")
+              if [ -n "$context" ]; then
+                  args+=(--set="$target.args.BASE_IMAGE=parent" --set="$target.contexts.parent=$context")
+              fi
+              echo "::group::$dir $target"
+              (cd "$GITHUB_WORKSPACE/$dir" && docker buildx bake "$target" --provenance=false --allow=fs="$RUNNER_TEMP" "${args[@]}")
+              echo "::endgroup::"
+              context="oci-layout://$out@$(jq -r '.manifests[0].digest' "$out/index.json")"
+              i=$((i + 1))
+          done
+          echo "PARENT_CONTEXT=$context" >>"$GITHUB_ENV"
+
+      # Everything the image build takes from outside the Dockerfile: the parent
+      # digest, repository-wide labels, and the per-variant registry cache.
+      - name: Prepare build options
+        run: |
+          set -euo pipefail
+          epoch=$(git log -1 --format=%ct)
+          cache=$CACHE:$IMAGE-$VARIANT-$ARCH
+          {
+              echo "SOURCE_DATE_EPOCH=$epoch"
+              echo 'BAKE_SET<<EOF'
+              [ -z "$BASE" ] || echo "$TARGET.args.BASE_IMAGE=$BASE"
+              [ -z "$BASE" ] || echo "$TARGET.labels.org.opencontainers.image.base.digest=${BASE#*@}"
+              [ -z "$OS_REFRESH" ] || echo "$TARGET.args.OS_REFRESH=$OS_REFRESH"
+              if [ -n "${PARENT_CONTEXT:-}" ]; then
+                  echo "$TARGET.args.BASE_IMAGE=parent"
+                  echo "$TARGET.contexts.parent=$PARENT_CONTEXT"
+              fi
+              echo "$TARGET.labels.org.opencontainers.image.version=$VERSION"
+              echo "$TARGET.labels.org.opencontainers.image.revision=$GITHUB_SHA"
+              echo "$TARGET.labels.org.opencontainers.image.created=$(date -u -d "@$epoch" +%Y-%m-%dT%H:%M:%SZ)"
+              echo "$TARGET.labels.org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY"
+              echo "$TARGET.labels.org.opencontainers.image.url=https://tool-containers.hgh.dev"
+              echo "$TARGET.labels.org.opencontainers.image.licenses=MIT"
+              echo "$TARGET.labels.org.opencontainers.image.vendor=hambn"
+              echo "$TARGET.cache-from=type=registry,ref=$cache"
+              echo EOF
+              echo "CACHE_TO=type=registry,ref=$cache,mode=max,ignore-error=true"
+          } >>"$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          mapfile -t sets <<<"$BAKE_SET"
+          docker buildx bake "$TARGET" --provenance=false --allow=fs="$RUNNER_TEMP" "${sets[@]/#/--set=}" \
+              --set="$TARGET.tags=local/$IMAGE:test" \
+              --set="$TARGET.output=type=docker,rewrite-timestamp=true"
+
+      # Shared checks live in tests/structure.yaml; distro-, tier-, and
+      # variant-specific checks in tests/structure-<name>.yaml.
+      - name: Structure test
+        run: |
+          set -euo pipefail
+          curl -fsSLo "$RUNNER_TEMP/cst" "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-$ARCH"
+          case "$ARCH" in
+              amd64) sum=fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca ;;
+              arm64) sum=801826ed107222120eb6df8c143b7de752cfebbe3aebfeea576e7098486917c2 ;;
+          esac
+          echo "$sum  $RUNNER_TEMP/cst" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/cst"
+          configs=(--config tests/structure.yaml)
+          for name in $(printf '%s\n' "$DISTRO" "$TIER" "$VARIANT" | awk '!seen[$0]++'); do
+              if [ -f "tests/structure-$name.yaml" ]; then configs+=(--config "tests/structure-$name.yaml"); fi
+          done
+          "$RUNNER_TEMP/cst" test --image "local/$IMAGE:test" "${configs[@]}"
+
+      - name: Smoke test
+        timeout-minutes: 10
+        if: hashFiles(format('{0}/tests/smoke.sh', inputs.tool)) != ''
+        run: tests/smoke.sh "local/$IMAGE:test"
+
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: v0.70.0
+          cache: true
+
+      # The full report (every severity and package type) goes to code scanning.
+      # The gate only fails on what a rebuild of this repository can fix: HIGH or
+      # CRITICAL OS package vulnerabilities with a released fix (bump OS_REFRESH),
+      # and secrets outside vendored upstream packages. Vulnerabilities inside
+      # upstream binaries are fixed by upstream releases, which Renovate picks up,
+      # so they are reported but never block a publish.
+      - name: Scan
+        env:
+          TRIVY_IGNOREFILE: ${{ github.workspace }}/tools/trivyignore.yaml
+        run: |
+          set -euo pipefail
+          trivy image --quiet --scanners vuln --format sarif --output "$GITHUB_WORKSPACE/trivy.sarif" "local/$IMAGE:test"
+          trivy image --quiet --scanners vuln --pkg-types os --severity HIGH,CRITICAL --ignore-unfixed \
+              --exit-code 1 "local/$IMAGE:test"
+          trivy image --quiet --scanners secret --exit-code 1 \
+              --skip-dirs /usr/local/lib/node_modules --skip-dirs /usr/local/go --skip-dirs /opt \
+              "local/$IMAGE:test"
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        if: ${{ !cancelled() && env.TRUSTED == 'true' && hashFiles('trivy.sarif') != '' }}
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ needs.plan.outputs.image }}-${{ matrix.variant }}-${{ matrix.arch }}
+
+      # Same inputs as the tested build, so every layer comes from the local cache.
+      # The registry cache is written here, after the tests passed, and only on main.
+      - name: Push by digest
+        if: env.PUBLISH == 'true'
+        run: |
+          set -euo pipefail
+          mapfile -t sets <<<"$BAKE_SET"
+          docker buildx bake "$TARGET" --provenance=mode=max --sbom=true --allow=fs="$RUNNER_TEMP" "${sets[@]/#/--set=}" \
+              --metadata-file "$RUNNER_TEMP/metadata.json" \
+              --set="$TARGET.cache-to=$CACHE_TO" \
+              --set="$TARGET.tags=" \
+              --set="$TARGET.output=type=image,name=$GHCR/$IMAGE,push-by-digest=true,name-canonical=true,push=true,rewrite-timestamp=true"
+          digest=$(jq -er --arg t "$TARGET" '.[$t]["containerimage.digest"]' "$RUNNER_TEMP/metadata.json")
+          mkdir -p "$RUNNER_TEMP/digests"
+          echo "$digest" >"$RUNNER_TEMP/digests/$VARIANT-$ARCH"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: env.PUBLISH == 'true'
+        with:
+          name: digest-${{ matrix.variant }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ matrix.variant }}
+    needs: [plan, build]
+    # Publish every variant whose builds passed, even if another variant failed.
+    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.plan.outputs.variants != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: dockerhub
+    permissions:
+      contents: read
+      packages: write # Create GHCR tags and push signatures.
+      id-token: write # Keyless cosign signing and provenance attestations.
+      attestations: write # Record provenance attestations.
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.variants) }}
+    env:
+      IMAGE: ${{ needs.plan.outputs.image }}
+      VERSION: ${{ needs.plan.outputs.version }}
+      VARIANT: ${{ matrix.variant }}
+      PRIMARY: ${{ inputs.primary }}
+      VERSION_ARG: ${{ inputs.version-arg }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: digest-${{ matrix.variant }}-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+      - name: Check both architectures passed
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+              if [ ! -s "$RUNNER_TEMP/digests/$VARIANT-$arch" ]; then
+                  echo "::error::$VARIANT has no $arch build; not published"
+                  exit 1
+              fi
+          done
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker # Manifest operations only.
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Moving tags (<variant>, and latest for the primary variant) always follow the
+      # new image. Immutable tags are created once and never repointed:
+      #   with version-arg:  <version>-<variant>, plus <version> for the primary variant
+      #   without:           <variant>-<commit date>-<sha7>
+      - name: Create and tag the multi-arch image
+        id: index
+        run: |
+          set -euo pipefail
+          moving=("$VARIANT")
+          if [ "$VARIANT" = "$PRIMARY" ]; then moving+=(latest); fi
+          if [ -n "$VERSION_ARG" ]; then
+              immutable=("$VERSION-$VARIANT")
+              if [ "$VARIANT" = "$PRIMARY" ]; then immutable+=("$VERSION"); fi
+          else
+              immutable=("$VARIANT-$VERSION")
+          fi
+
+          exists() {
+              docker buildx imagetools inspect "$1" >/dev/null 2>&1
+          }
+
+          for repo in "$GHCR/$IMAGE" "$DOCKERHUB/$IMAGE"; do
+              tags=("${moving[@]/#/--tag=$repo:}")
+              for tag in "${immutable[@]}"; do
+                  if exists "$repo:$tag"; then
+                      echo "::notice::$repo:$tag already exists; left unchanged"
+                  else
+                      tags+=("--tag=$repo:$tag")
+                  fi
+              done
+              if [ "$repo" = "$GHCR/$IMAGE" ]; then
+                  sources=()
+                  for arch in amd64 arm64; do sources+=("$repo@$(cat "$RUNNER_TEMP/digests/$VARIANT-$arch")"); done
+              else
+                  sources=("$GHCR/$IMAGE@$digest") # Copy the exact GHCR index.
+              fi
+              docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+              digest=$(docker buildx imagetools inspect "$repo:$VARIANT" --format '{{json .Manifest}}' | jq -r .digest)
+              echo "$repo:$VARIANT -> $digest"
+          done
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
+      - name: Sign
+        env:
+          DIGEST: ${{ steps.index.outputs.digest }}
+        run: cosign sign --yes "$GHCR/$IMAGE@$DIGEST" "$DOCKERHUB/$IMAGE@$DIGEST"
+
+      # `gh attestation verify oci://ghcr.io/hambn/<image>:<tag> --owner hambn`
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR }}/${{ env.IMAGE }}
+          subject-digest: ${{ steps.index.outputs.digest }}
+          push-to-registry: true
+
+  upkeep:
+    name: Registry upkeep
+    needs: [plan, publish]
+    if: ${{ !cancelled() && needs.publish.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: dockerhub
+    permissions:
+      contents: read
+      packages: write # Delete untagged package versions.
+    env:
+      IMAGE: ${{ needs.plan.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rewrite README links for Docker Hub
+        id: readme
+        env:
+          TOOL: ${{ inputs.tool }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/hub-readme.py "$TOOL/README.md" >"$RUNNER_TEMP/README.md"
+          description=$(cd "$TOOL" && docker buildx bake --print |
+              jq -r '.target | to_entries[0].value.labels["org.opencontainers.image.description"][0:100]')
+          echo "description=$description" >>"$GITHUB_OUTPUT"
+      - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: hambn/${{ env.IMAGE }}
+          short-description: ${{ steps.readme.outputs.description }}
+          readme-filepath: ${{ runner.temp }}/README.md
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Versions still referenced by a tagged index (per-arch images, signatures,
+      # attestations) are kept; see the script for the rules.
+      - name: Prune untagged GHCR versions older than 14 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/ghcr-cleanup.py "$IMAGE"
+
+  dependents:
+    name: Dispatch dependent images
+    needs: publish
+    if: ${{ !cancelled() && inputs.dependents != '' && needs.publish.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write # Dispatch the dependent workflows.
+    steps:
+      - name: Rebuild images whose parent moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPENDENTS: ${{ inputs.dependents }}
+        run: |
+          set -euo pipefail
+          for workflow in $DEPENDENTS; do
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main -f outdated-only=true
+          done

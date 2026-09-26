@@ -6,9 +6,9 @@ container=$(docker run -d -p 127.0.0.1::3773 "$image")
 trap 'docker logs "$container" >&2 || true; docker rm -f "$container" >/dev/null' EXIT
 
 port=$(docker port "$container" 3773/tcp | head -n1 | cut -d: -f2)
-# arm64 runs under QEMU in CI, so allow a slow start.
+# Allow a slow first start; --max-time keeps a stalled response from hanging the loop.
 for _ in $(seq 180); do
-    if curl -fsS -o /dev/null "http://127.0.0.1:$port/"; then
+    if curl -fsS --max-time 5 -o /dev/null "http://127.0.0.1:$port/"; then
         echo "t3 serve answered on port $port"
         exit 0
     fi

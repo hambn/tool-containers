@@ -1,9 +1,48 @@
 # syntax=docker/dockerfile:1
 # Download stages inherit the fetch stage's bash pipefail SHELL, which hadolint does not track.
 # hadolint global ignore=DL4006
-ARG ALPINE_IMAGE
-ARG HEADLESS_SHELL_IMAGE
-ARG DISTRO
+#
+# Stages lite, full, and browser are the published tiers; the default is browser.
+#   docker build --target full --build-arg DISTRO=alpine \
+#       --build-arg BASE_IMAGE=ghcr.io/hambn/core:alpine tools/base/devbox
+ARG DISTRO=ubuntu
+# The core image this tier builds on. CI replaces the tag with the resolved digest.
+ARG BASE_IMAGE=ghcr.io/hambn/core:ubuntu
+ARG OS_REFRESH=2026-09-25
+
+# renovate: datasource=docker depName=docker.io/library/alpine
+ARG ALPINE_IMAGE=docker.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+# renovate: datasource=docker depName=docker.io/chromedp/headless-shell
+ARG HEADLESS_SHELL_IMAGE=docker.io/chromedp/headless-shell:151.0.7922.109@sha256:2d349b544a1ea6b5b5fd7c0fe99215ff662339c57407ee2e8c0a11af93516b04
+
+# renovate: datasource=github-releases depName=kubernetes/kubernetes extractVersion=^v(?<version>.+)$
+ARG KUBECTL_VERSION=1.37.1
+# renovate: datasource=github-releases depName=helm/helm extractVersion=^v(?<version>.+)$
+ARG HELM_VERSION=4.3.0
+# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/v(?<version>.+)$
+ARG KUSTOMIZE_VERSION=5.8.1
+# renovate: datasource=github-releases depName=mikefarah/yq extractVersion=^v(?<version>.+)$
+ARG YQ_VERSION=4.53.6
+# renovate: datasource=github-releases depName=cli/cli extractVersion=^v(?<version>.+)$
+ARG GH_VERSION=2.101.0
+# renovate: datasource=gitlab-releases depName=gitlab-org/cli extractVersion=^v(?<version>.+)$
+ARG GLAB_VERSION=1.119.0
+# renovate: datasource=github-releases depName=tailscale/tailscale extractVersion=^v(?<version>.+)$
+ARG TAILSCALE_VERSION=1.102.4
+# renovate: datasource=github-releases depName=astral-sh/uv
+ARG UV_VERSION=0.12.19
+# renovate: datasource=golang-version depName=go
+ARG GO_VERSION=1.27.1
+# renovate: datasource=node-version depName=node versioning=node
+ARG NODE_VERSION=24.21.0
+# renovate: datasource=npm depName=pnpm
+ARG PNPM_VERSION=12.6.0
+# renovate: datasource=npm depName=yarn
+ARG YARN_VERSION=1.22.22
+# renovate: datasource=github-tags depName=zsh-users/zsh-autosuggestions extractVersion=^v(?<version>.+)$
+ARG ZSH_AUTOSUGGESTIONS_VERSION=0.7.1
+# renovate: datasource=git-refs depName=https://github.com/ohmyzsh/ohmyzsh currentValue=master
+ARG OHMYZSH_COMMIT=74965c96098134b192f00084f966b4b02438a739
 
 # --- Static downloads (build platform, TARGETARCH-aware, checksum-verified) ---
 
@@ -132,6 +171,8 @@ FROM scratch AS config
 COPY --link --from=config-rootfs /out/ /
 
 # --- lite ----------------------------------------------------------------------
+
+FROM ${BASE_IMAGE} AS core
 
 FROM core AS ubuntu-lite-base
 USER root
