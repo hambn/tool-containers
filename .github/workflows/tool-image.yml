@@ -320,6 +320,7 @@ jobs:
           "$RUNNER_TEMP/cst" test --image "local/$IMAGE:test" "${configs[@]}"
 
       - name: Smoke test
+        timeout-minutes: 10
         if: hashFiles(format('{0}/tests/smoke.sh', inputs.tool)) != ''
         run: tests/smoke.sh "local/$IMAGE:test"
 
