@@ -112,5 +112,5 @@ RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --n
         "acp-agent==${ACP_AGENT_VERSION}"
 COPY --link --from=cursor-agent /out/ /
 USER sysadmin
-WORKDIR /workspace
+WORKDIR /home/sysadmin
 CMD ["/bin/zsh", "-l"]

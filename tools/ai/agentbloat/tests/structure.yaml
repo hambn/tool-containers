@@ -2,7 +2,7 @@ schemaVersion: 2.0.0
 
 metadataTest:
   user: sysadmin
-  workdir: /workspace
+  workdir: /home/sysadmin
   entrypoint: []
   cmd: ["/bin/zsh", "-l"]
 
