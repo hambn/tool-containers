@@ -1,157 +1,108 @@
+/**
+ * Static site build: tracked markdown in, a self-contained `dist/` out.
+ *
+ *   content.mjs   discover documents, parse and validate frontmatter
+ *   site.mjs      pages, routes, and navigation order
+ *   markdown.mjs  render a document (links, headings, code, inline files)
+ *   seo.mjs       titles, descriptions, JSON-LD, sitemap, robots, llms.txt
+ *   search.mjs    the client search index
+ *   layout.mjs + pages/*  HTML templates
+ */
 import fs from "node:fs";
 import path from "node:path";
-import {
-  resolveConfig,
-  lastModified,
-  repoRoot,
-  uiRoot,
-} from "./lib/config.mjs";
-import { buildSite, exampleFiles } from "./lib/catalog.mjs";
+import { gzipSync } from "node:zlib";
+import { resolveConfig, lastModified, uiRoot } from "./lib/config.mjs";
+import { ContentError, readInlineFiles } from "./lib/content.mjs";
+import { buildSite } from "./lib/site.mjs";
 import { createTheme } from "./lib/highlight.mjs";
-import { renderDocument, tableOfContents } from "./lib/markdown.mjs";
-import {
-  createAssets,
-  readStyles,
-  minifyCss,
-  minifyJs,
-} from "./lib/assets.mjs";
-import { pageMeta, structuredData } from "./lib/seo.mjs";
-import { renderShell } from "./lib/layout.mjs";
+import { renderMarkdown } from "./lib/markdown.mjs";
+import { createAssets, readStyles, minifyCss, minifyJs } from "./lib/assets.mjs";
+import { pageMeta, structuredData, sitemap, robots, llmsTxt } from "./lib/seo.mjs";
+import { searchIndex } from "./lib/search.mjs";
+import { renderPage } from "./lib/layout.mjs";
+import { firstSentence } from "./lib/html.mjs";
 import { renderHome } from "./pages/home.mjs";
-import { renderDocs } from "./pages/docs.mjs";
+import { renderDoc } from "./pages/doc.mjs";
+import { renderSearch } from "./pages/search.mjs";
 import { renderNotFound } from "./pages/not-found.mjs";
 
 const distRoot = path.join(uiRoot, "dist");
+const STYLES = ["base.css", "layout.css", "components.css", "prose.css"];
 
 const config = resolveConfig();
-const site = buildSite(config);
+let site;
+try {
+  site = buildSite(config);
+} catch (error) {
+  if (!(error instanceof ContentError)) throw error;
+  console.error(`build failed: ${error.message}`);
+  process.exit(1);
+}
 const theme = await createTheme();
-const assets = createAssets({ distRoot, config });
 
+/* Pass 1: render every document. Highlighting interns token colours as it
+ * runs, so the stylesheet can only be finalised after the last code block. */
+const readme = await renderMarkdown(site.catalog.readme.body, { sourceDir: ".", site, theme });
+const entries = [];
+for (const page of site.pages) {
+  let doc = null;
+  if (page.kind === "home" || page.kind === "docs") doc = readme;
+  else if (page.kind === "tool" || page.kind === "platform") {
+    const item = page.platform ?? page.tool;
+    const sourceDir = path.posix.dirname(item.source);
+    const files = page.platform ? readInlineFiles(sourceDir, page.platform.files) : [];
+    doc = await renderMarkdown(item.body, { sourceDir, site, theme, files });
+  }
+  const meta = pageMeta(page, site, doc);
+  entries.push({ page, doc, meta, modified: page.source ? lastModified(page.source) : "" });
+}
+
+/* Pass 2: shared assets, then the pages that reference them by digest. */
 fs.rmSync(distRoot, { recursive: true, force: true });
-
-/** Every source document, read once and shared by rendering, meta and search. */
-const documents = new Map();
-for (const page of site.pages) {
-  if (!documents.has(page.source)) {
-    documents.set(
-      page.source,
-      fs.readFileSync(path.join(repoRoot, page.source), "utf8"),
-    );
-  }
+const assets = createAssets({ distRoot, config });
+for (const file of fs.readdirSync(path.join(uiRoot, "public"))) {
+  assets.copy(path.join(uiRoot, "public", file), file);
 }
 
-/*
- * Pass 1 — render page bodies. Highlighting interns its token styles as it
- * runs, so the stylesheet can only be written once every fence is rendered.
- */
-const rendered = [];
-for (const page of site.pages) {
-  const markdown = documents.get(page.source);
-  const meta = pageMeta(page, markdown, site);
-  const modified = lastModified(page.source);
-  let body;
-
-  if (page.kind === "home") {
-    body = renderHome({ site, documents });
-  } else {
-    const sourceDir = path.posix.dirname(page.source);
-    const article = await renderDocument(markdown, {
-      sourceDir,
-      site,
-      theme,
-      files: page.kind === "example" ? exampleFiles(sourceDir) : [],
-    });
-    body = renderDocs({ page, site, article, toc: tableOfContents(article) });
-  }
-
-  rendered.push({
-    page,
-    body,
-    meta,
-    modified,
-    structuredData: structuredData(page, { site, meta, markdown, modified }),
-  });
-}
-
-/* Pass 2 — emit the shared assets, then the pages that reference them. */
-
-const publicDir = path.join(uiRoot, "public");
-for (const file of fs.readdirSync(publicDir)) {
-  assets.copy(path.join(publicDir, file), file);
-}
-
-const styles = assets.emit(
-  "site.css",
-  minifyCss(
-    ["base.css", "home.css", "docs.css"]
-      .map((file) => readStyles(`styles/${file}`, config))
-      .join("\n") + theme.css(),
-  ),
-);
-const script = assets.emit(
-  "site.js",
-  minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8")),
-);
-const themeScript = minifyJs(
-  fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8"),
-);
-
+const css = minifyCss(STYLES.map((file) => readStyles(`styles/${file}`, config)).join("\n") + theme.css());
+const js = minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8"));
+const index = JSON.stringify(searchIndex(entries, site));
 const shared = {
-  styles,
-  script,
-  themeScript,
-  favicon: config.href("/favicon.svg"),
-  appleTouchIcon: config.href("/apple-touch-icon.png"),
-  manifest: config.href("/site.webmanifest"),
+  styles: assets.emit("site.css", css),
+  script: assets.emit("site.js", js),
+  searchIndex: assets.emit("search.json", index),
+  themeScript: minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8")),
 };
 
-for (const { page, body, meta, structuredData: data } of rendered) {
-  const html = renderShell({
-    page,
-    body,
-    meta,
-    config,
-    assets: shared,
-    structuredData: data,
-  });
-  assets.write(path.join(page.route, "index.html"), html);
+const bodies = {
+  home: renderHome,
+  docs: renderDoc,
+  tool: renderDoc,
+  platform: renderDoc,
+  search: renderSearch,
+};
+for (const { page, doc, meta, modified } of entries) {
+  const body = bodies[page.kind]({ page, site, doc, meta });
+  const data = page.indexable ? structuredData(page, site, meta, modified) : null;
+  assets.write(
+    path.join(page.route, "index.html"),
+    renderPage({ page, site, meta, body, modified, structuredData: data, assets: shared }),
+  );
 }
 
-const notFound = { id: "404", kind: "404", route: "/404.html", source: null };
+const notFound = { kind: "404", route: "/404.html", source: null, indexable: false };
 assets.write(
   "404.html",
-  renderShell({
-    page: notFound,
-    body: renderNotFound(config),
-    meta: {
-      title: "Page not found",
-      description: "This page is not part of the tool-containers site.",
-    },
-    config,
-    assets: shared,
-  }),
+  renderPage({ page: notFound, site, meta: pageMeta(notFound, site, null), body: renderNotFound({ site }), assets: shared }),
 );
 
-/* Discovery: a sitemap dated from the repository's own history, and robots. */
-
-const urls = rendered
-  .map(({ page, modified }) => {
-    const lastmod = modified ? `<lastmod>${modified}</lastmod>` : "";
-    return `  <url><loc>${config.canonical(page.route)}</loc>${lastmod}</url>`;
-  })
-  .join("\n");
-
-assets.write(
-  "sitemap.xml",
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
-);
+assets.write("sitemap.xml", sitemap(entries, config));
+assets.write("robots.txt", robots(config));
+assets.write("llms.txt", llmsTxt(site, firstSentence(readme.lead)));
+// GitHub Pages would otherwise run Jekyll and drop underscore-prefixed paths.
 assets.write(".nojekyll", "");
-assets.write(
-  "robots.txt",
-  `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`,
-);
 
+const kb = (text) => `${(gzipSync(text).length / 1024).toFixed(1)} kB gz`;
 console.log(
-  `built ${rendered.length} pages + /404.html into ${path.relative(uiRoot, distRoot)}/`,
+  `built ${entries.length} pages + 404.html into dist/ (css ${kb(css)}, js ${kb(js)}, search index ${kb(index)})`,
 );

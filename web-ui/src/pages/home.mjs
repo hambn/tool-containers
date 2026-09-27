@@ -1,77 +1,65 @@
-import {
-  escapeHtml,
-  catalogDescriptions,
-  documentTitle,
-  leadParagraph,
-  truncate,
-} from "../lib/markdown.mjs";
-import { platformLabel } from "../lib/catalog.mjs";
+import { escapeHtml, firstSentence } from "../lib/html.mjs";
 import { icon } from "../lib/icons.mjs";
+import { platformRoute, toolRoute } from "../lib/site.mjs";
 
-function toolCard({ category, tool, platforms, description, config }) {
-  const route = `/docs/${category}/${tool}/`;
-  const search = [tool, category, description, ...platforms]
+function toolCard(tool, site) {
+  const { href } = site.config;
+  const { meta } = tool;
+  // Lower-cased haystack for the client-side filter; the card text is the
+  // visible half, keywords and image name widen what a query can hit.
+  const haystack = [meta.name, tool.category, meta.description, meta.image, ...meta.keywords, ...tool.platforms.map((p) => p.meta.name)]
     .join(" ")
     .toLowerCase();
-  return `<li class="tool-card" data-catalog-item data-search="${escapeHtml(search)}">
-<div class="tool-card-body">
-<a class="tool-link" href="${config.href(route)}"><div class="tool-title"><span class="tool-symbol" aria-hidden="true">${icon("box")}</span><h3>${escapeHtml(tool)}</h3></div>${icon("arrow", "tool-arrow")}</a>
-<p class="tool-desc">${escapeHtml(truncate(description, 160))}</p>
-</div>
-<div class="tool-platforms" aria-label="${escapeHtml(tool)} examples">
-${platforms.map((platform) => `<a href="${config.href(`${route}${platform}/`)}">${escapeHtml(platformLabel(platform))}</a>`).join("")}
-${!platforms.length ? "<span>Documentation</span>" : ""}
-</div>
+  const recipes = tool.platforms
+    .map((platform) => `<li><a href="${href(platformRoute(tool, platform))}">${escapeHtml(platform.meta.name)}</a></li>`)
+    .join("");
+  return `<li class="card tool" data-category="${escapeHtml(tool.category)}" data-platforms="${tool.platforms.map((p) => p.slug).join(" ")}" data-search="${escapeHtml(haystack)}">
+<h3><a class="card-link" href="${href(toolRoute(tool))}">${escapeHtml(meta.name)}</a></h3>
+<p>${escapeHtml(meta.description)}</p>
+${meta.image ? `<code class="image">${escapeHtml(meta.image)}</code>` : ""}
+${recipes ? `<ul class="pills" aria-label="${escapeHtml(meta.name)} recipes">${recipes}</ul>` : ""}
 </li>`;
 }
 
-function categorySection({ category, tools, descriptions, documents, config }) {
-  return `<section class="tool-section" data-catalog-group="${escapeHtml(category)}" aria-labelledby="category-${escapeHtml(category)}">
-<div class="section-head"><h2 id="category-${escapeHtml(category)}">${escapeHtml(category)}</h2><span class="badge badge-secondary">${tools.length}</span></div>
-${
-  tools.length
-    ? `<ul class="tool-grid">${tools
-        .map((entry) =>
-          toolCard({
-            ...entry,
-            description:
-              descriptions.get(`tools/${category}/${entry.tool}`) ||
-              leadParagraph(documents.get(entry.readme)),
-            config,
-          }),
-        )
-        .join("")}</ul>`
-    : '<p class="category-empty">No tools yet.</p>'
-}
-</section>`;
+/** Radio "chips": native keyboard handling and form state for free. */
+function chipGroup(name, legend, options) {
+  const chips = [["", "All"], ...options]
+    .map(([value, label]) => `<label class="chip"><input type="radio" name="${name}" value="${escapeHtml(value)}"${value ? "" : " checked"}>${escapeHtml(label)}</label>`)
+    .join("");
+  return `<fieldset><legend>${legend}</legend>${chips}</fieldset>`;
 }
 
-export function renderHome({ site, documents }) {
-  const { config, catalog, toolCount, exampleCount } = site;
-  const readme = documents.get("README.md");
-  const descriptions = catalogDescriptions(readme);
-  const intro = leadParagraph(readme);
-  const summary =
-    [
-      ...new Intl.Segmenter("en", { granularity: "sentence" }).segment(intro),
-    ][0]?.segment.trim() || intro;
+/**
+ * The landing page: the root README's catalog as a filterable card grid. The
+ * cards are plain HTML; the filter form is revealed only when the client
+ * script runs, so without JavaScript every card simply stays visible.
+ */
+export function renderHome({ site, doc }) {
+  const { config, catalog } = site;
+  const sections = catalog.categories
+    .map(
+      ({ name, tools }) => `<section class="group" data-group="${escapeHtml(name)}" aria-labelledby="cat-${escapeHtml(name)}">
+<h2 id="cat-${escapeHtml(name)}">${escapeHtml(name)} <span class="count">${tools.length}</span></h2>
+<ul class="cards">${tools.map((tool) => toolCard(tool, site)).join("")}</ul>
+</section>`,
+    )
+    .join("\n");
 
-  return `<main class="content home" id="content" tabindex="-1">
-<div class="content-inner wide">
-<section class="hero" aria-labelledby="catalog-title">
-<p class="eyebrow">${icon("box")}Container catalog</p>
-<h1 id="catalog-title">${escapeHtml(documentTitle(readme))}</h1>
-<p class="lead">${escapeHtml(summary)}</p>
-<div class="hero-bottom"><p class="catalog-count"><strong>${toolCount}</strong> tools<span aria-hidden="true">/</span><strong>${exampleCount}</strong> examples</p>
-<a class="text-link" href="${config.href("/docs/")}">Documentation${icon("arrow")}</a></div>
+  return `<main id="content" class="home" tabindex="-1">
+<section class="hero">
+<p class="eyebrow">Container image catalog</p>
+<h1>${doc.titleHtml}</h1>
+<p class="lead">${escapeHtml(firstSentence(doc.lead))}</p>
+<p class="stats"><span><strong>${site.tools.length}</strong> images</span><span><strong>${site.platformCount}</strong> deployment recipes</span><span><strong>${site.platforms.size}</strong> platforms</span></p>
+<p class="actions"><a class="btn primary" href="${config.href("/docs/")}">Read the docs</a><a class="btn" href="${config.href("/search/")}" data-open-search>${icon("search")}Search</a></p>
 </section>
-<div class="catalog-toolbar" data-catalog-controls hidden>
-<div class="catalog-search">${icon("search")}<label class="sr-only" for="catalog-search">Search tools and platforms</label><input id="catalog-search" type="search" placeholder="Search tools, platforms…" autocomplete="off" spellcheck="false"><kbd class="filter-kbd" aria-hidden="true">/</kbd></div>
-<div class="category-filters" role="group" aria-label="Filter by category"><button type="button" data-category="" aria-pressed="true">All tools</button>${catalog.map(({ category }) => `<button type="button" data-category="${escapeHtml(category)}" aria-pressed="false">${escapeHtml(category)}</button>`).join("")}</div>
-</div>
-<p class="sr-only" data-catalog-status role="status"></p>
-${catalog.map((entry) => categorySection({ ...entry, descriptions, documents, config })).join("\n")}
-<div class="empty catalog-empty" data-catalog-empty hidden><span class="empty-media">${icon("search")}</span><p class="empty-title">No matching tools</p><p class="empty-description">Try a different name or platform.</p><button class="btn btn-outline" type="button" data-catalog-reset>Clear filters</button></div>
-</div>
+<form class="filters" data-filter hidden role="search" aria-label="Filter images">
+<div class="field">${icon("search")}<label class="sr-only" for="filter-q">Filter images</label><input id="filter-q" name="q" type="search" placeholder="Filter by name, keyword, or image…" autocomplete="off" spellcheck="false"></div>
+${chipGroup("category", "Category", catalog.categories.map(({ name }) => [name, name]))}
+${chipGroup("platform", "Platform", [...site.platforms])}
+</form>
+<p class="sr-only" role="status" data-filter-status></p>
+${sections}
+<div class="empty" data-filter-empty hidden><p>No images match these filters.</p><button class="btn" type="button" data-filter-reset>Clear filters</button></div>
 </main>`;
 }

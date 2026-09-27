@@ -7,7 +7,7 @@ on:
       - "web-ui/**"
       - "README.md"
       - "tools/**/README.md"
-      - "tools/**/examples/**"
+      - "tools/**/docs/**"
   push:
     branches: [main]
     paths:
@@ -15,7 +15,7 @@ on:
       - "web-ui/**"
       - "README.md"
       - "tools/**/README.md"
-      - "tools/**/examples/**"
+      - "tools/**/docs/**"
 
 concurrency:
   group: web-ui-${{ github.workflow }}-${{ github.ref }}

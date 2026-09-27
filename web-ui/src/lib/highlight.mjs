@@ -1,5 +1,5 @@
 import { createHighlighter } from "shiki";
-import { escapeHtml } from "./markdown.mjs";
+import { escapeHtml } from "./html.mjs";
 
 const LANGUAGES = ["bash", "shellscript", "dockerfile", "yaml", "json", "toml", "markdown", "text"];
 const THEMES = { light: "github-light", dark: "github-dark-default" };

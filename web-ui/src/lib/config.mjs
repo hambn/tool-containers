@@ -2,7 +2,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_SITE_URL = "https://hambn.github.io/tool-containers";
+const DEFAULT_SITE_URL = "https://tool-containers.hgh.dev";
 const DEFAULT_REPO = { owner: "hambn", repo: "tool-containers" };
 
 export const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -64,4 +64,19 @@ export function lastModified(repoRelPath) {
   } catch {
     return "";
   }
+}
+
+/**
+ * Repository paths Git tracks (including staged renames). Discovery reads this
+ * rather than the working tree so untracked scratch files can never become
+ * public pages.
+ */
+export function trackedFiles(root = repoRoot) {
+  return execFileSync("git", ["ls-files", "-z", "--", "README.md", "tools"], {
+    cwd: root,
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .toString()
+    .split("\0")
+    .filter(Boolean);
 }

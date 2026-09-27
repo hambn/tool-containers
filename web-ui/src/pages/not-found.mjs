@@ -1,18 +1,15 @@
 import { icon } from "../lib/icons.mjs";
 
-/** The 404 page served by GitHub Pages for unknown paths. */
-export function renderNotFound(config) {
-  return `<main class="content" id="content">
-<div class="content-inner">
-<section class="not-found empty">
-<span class="empty-media">${icon("inbox")}</span>
-<h1 class="empty-title">Page not found</h1>
-<p class="empty-description">That page does not exist, or it moved when the site was last generated from the repository.</p>
-<div class="empty-content">
-<a class="btn btn-primary" href="${config.href("/")}">Back to home</a>
-<a class="btn btn-outline" href="${config.href("/docs/")}">Open the docs</a>
-</div>
-</section>
-</div>
+export function renderNotFound({ site }) {
+  const { href } = site.config;
+  return `<main id="content" class="narrow center" tabindex="-1">
+<p class="eyebrow">404</p>
+<h1>Page not found</h1>
+<p class="lead">The page may have moved when a tool or recipe was renamed. Search for it, or start from the catalog.</p>
+<form class="search-form" action="${href("/search/")}" method="get" role="search">
+<div class="field">${icon("search")}<label class="sr-only" for="search-q">Search the documentation</label><input id="search-q" name="q" type="search" placeholder="Search tools, platforms, docs…" autocomplete="off"></div>
+<button class="btn primary" type="submit">Search</button>
+</form>
+<p class="actions"><a class="btn" href="${href("/")}">Catalog</a><a class="btn" href="${href("/docs/")}">Docs</a></p>
 </main>`;
 }

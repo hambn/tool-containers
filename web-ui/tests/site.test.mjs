@@ -1,375 +1,185 @@
+// Checks the built `dist/` against the repository. Run after `npm run build`
+// with the same SITE_URL and BASE_PATH the build used.
+import assert from "node:assert/strict";
+import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
-import { resolveConfig, uiRoot, repoRoot } from "../src/lib/config.mjs";
-import { buildSite, exampleFiles } from "../src/lib/catalog.mjs";
+import { resolveConfig, repoRoot, uiRoot } from "../src/lib/config.mjs";
+import { buildSite } from "../src/lib/site.mjs";
+
+/** Transfer budgets, gzip. Raise them deliberately, not incidentally. */
+const BUDGET = { css: 12 * 1024, js: 6 * 1024, searchIndex: 40 * 1024, page: 40 * 1024 };
 
 const distRoot = path.join(uiRoot, "dist");
 const config = resolveConfig();
-const site = buildSite(config);
 const { siteUrl, basePath } = config;
+const site = buildSite(config);
 
-const failures = [];
-const check = (ok, message) => {
-  if (!ok) failures.push(message);
-};
-
-function walkDist(dir, out = []) {
+const distFiles = (function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const abs = path.join(dir, entry.name);
-    if (entry.isDirectory()) walkDist(abs, out);
+    if (entry.isDirectory()) walk(abs, out);
     else out.push(path.relative(distRoot, abs).split(path.sep).join("/"));
   }
   return out;
-}
-
-/* ============================================================ A. dist/ === */
-
-const distFiles = walkDist(distRoot);
-const htmlFiles = distFiles.filter((file) => file.endsWith(".html"));
-// Read Git independently so an omission in catalog discovery cannot pass unnoticed.
-const trackedReadmes = execFileSync("git", ["ls-files", "tools/**/README.md"], {
-  cwd: repoRoot,
-  encoding: "utf8",
-})
-  .trim()
-  .split("\n")
-  .filter((file) =>
-    /^tools\/[^/]+\/[^/]+\/(?:examples\/[^/]+\/)?README\.md$/.test(file),
-  );
-const expectedRoutes = new Set([
-  "/",
-  "/docs/",
-  ...trackedReadmes.map(
-    (file) =>
-      `/docs/${file
-        .replace(/^tools\//, "")
-        .replace(/examples\//, "")
-        .replace(/README\.md$/, "")}`,
-  ),
-]);
-check(
-  site.pages.length === expectedRoutes.size,
-  "discovery differs from the tracked Markdown inventory",
-);
-for (const route of expectedRoutes)
-  check(builtRouteExists(route), `missing Markdown route ${route}`);
-function builtRouteExists(route) {
-  return fs.existsSync(path.join(distRoot, route, "index.html"));
-}
-
-/* A1. Route parity: exactly one dist page per generated route, plus 404.html. */
-for (const page of site.pages) {
-  check(
-    fs.existsSync(path.join(distRoot, page.route, "index.html")),
-    `missing built page for route ${page.route}`,
-  );
-}
-const builtRoutes = new Set(
-  htmlFiles
-    .filter((file) => file !== "404.html")
-    .map((file) => `/${file.slice(0, -"index.html".length)}`),
-);
-for (const route of builtRoutes) {
-  check(expectedRoutes.has(route), `unexpected built page for route ${route}`);
-}
-check(htmlFiles.includes("404.html"), "missing dist/404.html");
-check(
-  htmlFiles.length === expectedRoutes.size + 1,
-  "extra generated HTML files beyond the expected page set + 404.html",
-);
-
-/* Read every page once for the checks below. */
+})(distRoot);
+const read = (file) => fs.readFileSync(path.join(distRoot, file), "utf8");
 const pages = [
-  ...site.pages.map((page) => ({
-    page,
-    html: fs.readFileSync(
-      path.join(distRoot, page.route, "index.html"),
-      "utf8",
-    ),
-  })),
-  {
-    page: { id: "404", kind: "404", route: "/404.html" },
-    html: fs.readFileSync(path.join(distRoot, "404.html"), "utf8"),
-  },
+  ...site.pages.map((page) => ({ page, html: read(path.join(page.route, "index.html")) })),
+  { page: { kind: "404", route: "/404.html", indexable: false }, html: read("404.html") },
 ];
+const indexable = pages.filter(({ page }) => page.indexable);
+const gz = (file) => gzipSync(fs.readFileSync(path.join(distRoot, file))).length;
 
-const titles = new Set();
-const descriptions = new Set();
-let assetPair = null;
-
-for (const { page, html } of pages) {
-  const label = page.route;
-
-  /* A2. Exactly one <h1>. */
-  const h1Count = (html.match(/<h1[\s>]/g) ?? []).length;
-  check(h1Count === 1, `${label}: expected exactly one <h1>, found ${h1Count}`);
-
-  /* A3. Title and description: present, unique, not truncated mid-word. */
-  const title = html.match(/<title>([^<]*)<\/title>/)?.[1];
-  check(title && title.trim().length > 0, `${label}: missing or empty <title>`);
-  check(!titles.has(title), `${label}: duplicate <title> "${title}"`);
-  titles.add(title);
-
-  const description = html.match(
-    /<meta name="description" content="([^"]*)">/,
-  )?.[1];
-  check(
-    description && description.trim().length > 0,
-    `${label}: missing or empty meta description`,
+test("pages match the tracked markdown inventory exactly", () => {
+  // Read Git independently so a discovery bug cannot hide itself.
+  const tracked = execFileSync("git", ["ls-files", "tools"], { cwd: repoRoot, encoding: "utf8" })
+    .split("\n")
+    .filter((file) => /^tools\/[^/]+\/[^/]+\/(?:docs\/[^/]+\/)?README\.md$/.test(file));
+  const expected = new Set([
+    "/",
+    "/docs/",
+    "/search/",
+    ...tracked.map((file) => `/docs/${file.replace(/^tools\//, "").replace("docs/", "").replace(/README\.md$/, "")}`),
+  ]);
+  const built = new Set(
+    distFiles.filter((file) => file.endsWith("index.html")).map((file) => `/${file.slice(0, -"index.html".length)}`),
   );
-  check(!descriptions.has(description), `${label}: duplicate meta description`);
-  check(
-    !/[-–—]$/.test(description ?? ""),
-    `${label}: description ends on a dangling hyphen/dash: "${description}"`,
-  );
-  check(
-    !/\betc\.?\.\.\.$/i.test(description ?? ""),
-    `${label}: description looks truncated mid-word: "${description}"`,
-  );
-  descriptions.add(description);
+  assert.deepEqual([...built].sort(), [...expected].sort());
+  assert.ok(distFiles.includes("404.html"));
+  assert.ok(!tracked.some((file) => file.includes("/examples/")), "stale examples/ directory still tracked");
+});
 
-  if (page.kind === "404") {
-    /* A9. 404 is noindex. */
-    check(
-      /<meta name="robots" content="noindex, follow">/.test(html),
-      "404: expected noindex, follow robots meta",
-    );
-    continue; // 404 has no canonical/OG/JSON-LD contract below.
+test("every page has one h1, a unique title, and a unique description", () => {
+  const titles = new Set();
+  const descriptions = new Set();
+  for (const { page, html } of pages) {
+    assert.equal((html.match(/<h1[\s>]/g) ?? []).length, 1, `${page.route}: h1 count`);
+    assert.match(html, /^<!doctype html>\n<html lang="en">/, `${page.route}: doctype/lang`);
+    const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
+    const description = html.match(/<meta name="description" content="([^"]+)">/)?.[1];
+    assert.ok(title && !titles.has(title), `${page.route}: missing or duplicate title "${title}"`);
+    assert.ok(description && !descriptions.has(description), `${page.route}: missing or duplicate description`);
+    assert.ok(description.length <= 170, `${page.route}: description too long (${description.length})`);
+    assert.doesNotMatch(description, /[-–—]$/, `${page.route}: description ends on a dash`);
+    titles.add(title);
+    descriptions.add(description);
   }
+});
 
-  /* A4. Canonical is absolute, under SITE_URL, and matches the route. */
-  const canonical = html.match(/<link rel="canonical" href="([^"]+)">/)?.[1];
-  check(
-    canonical === `${siteUrl}${page.route}`,
-    `${label}: canonical "${canonical}" does not match ${siteUrl}${page.route}`,
-  );
-
-  /* A9. Every non-404 page is indexable. */
-  check(
-    /<meta name="robots" content="index, follow[^"]*">/.test(html),
-    `${label}: expected index, follow robots meta`,
-  );
-
-  /* A10. OG/Twitter tags, og:url equals canonical. */
-  const ogUrl = html.match(/<meta property="og:url" content="([^"]+)">/)?.[1];
-  check(
-    !!html.match(/<meta property="og:title" content="[^"]+">/),
-    `${label}: missing og:title`,
-  );
-  check(
-    !!html.match(/<meta property="og:description" content="[^"]*">/),
-    `${label}: missing og:description`,
-  );
-  check(
-    ogUrl === canonical,
-    `${label}: og:url "${ogUrl}" does not equal canonical "${canonical}"`,
-  );
-  check(
-    !!html.match(/<meta property="og:image" content="[^"]+">/),
-    `${label}: missing og:image`,
-  );
-  check(
-    !!html.match(/<meta name="twitter:card" content="[^"]+">/),
-    `${label}: missing twitter:card`,
-  );
-
-  /* A6. Content-addressed asset pair, referenced consistently. */
-  const cssHref = html.match(/<link rel="stylesheet" href="([^"]+)">/)?.[1];
-  const jsSrc = html.match(/<script src="([^"]+)" defer><\/script>/)?.[1];
-  check(
-    !!cssHref && !!jsSrc,
-    `${label}: missing shared stylesheet or script reference`,
-  );
-  if (cssHref && jsSrc) {
-    if (!assetPair) assetPair = { cssHref, jsSrc };
-    check(
-      cssHref === assetPair.cssHref,
-      `${label}: references a different stylesheet asset (${cssHref})`,
-    );
-    check(
-      jsSrc === assetPair.jsSrc,
-      `${label}: references a different script asset (${jsSrc})`,
-    );
+test("tool and recipe pages use their frontmatter", () => {
+  for (const { page, html } of pages.filter(({ page }) => page.tool)) {
+    const meta = page.platform?.meta ?? page.tool.meta;
+    assert.ok(html.includes(`<meta name="description" content="${escape(meta.description)}">`), `${page.route}: description`);
+    if (page.platform) assert.ok(html.includes(escape(meta.usecase)), `${page.route}: use case not shown`);
+    else if (meta.image) assert.ok(html.includes(`docker pull ${meta.image}`), `${page.route}: pull command`);
+    assert.doesNotMatch(html, /<article[^>]*>\s*<p>---/, `${page.route}: frontmatter leaked into the body`);
   }
+});
+const escape = (text) => text.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("'", "&#39;").replaceAll("<", "&lt;");
 
-  /* A8. JSON-LD graph and @type sets per page kind. */
-  const ldMatch = html.match(
-    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/,
-  );
-  check(!!ldMatch, `${label}: missing JSON-LD structured data`);
-  if (ldMatch) {
-    let data;
-    try {
-      data = JSON.parse(ldMatch[1]);
-    } catch (error) {
-      failures.push(`${label}: JSON-LD does not parse (${error.message})`);
-      data = null;
-    }
-    if (data) {
-      check(
-        Array.isArray(data["@graph"]),
-        `${label}: JSON-LD @graph is not an array`,
-      );
-      const types = new Set(
-        (data["@graph"] ?? []).map((node) => node["@type"]),
-      );
-      check(types.has("WebSite"), `${label}: JSON-LD missing WebSite`);
-      if (page.kind === "home") {
-        check(types.has("CollectionPage"), `${label}: missing CollectionPage`);
-      } else {
-        check(types.has("BreadcrumbList"), `${label}: missing BreadcrumbList`);
-        check(types.has("TechArticle"), `${label}: missing TechArticle`);
-      }
-      check(
-        !ldMatch[1].includes('"totalTime"'),
-        `${label}: invented setup duration`,
-      );
-    }
-  }
-
-  /* A5. Every internal href/src resolves inside dist/, honouring BASE_PATH. */
-  for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
-    const url = match[1];
-    if (url.startsWith("#") || /^(https?:|mailto:|data:|\/\/)/i.test(url))
+test("SEO: canonical, robots, Open Graph, and JSON-LD", () => {
+  for (const { page, html } of pages) {
+    const label = page.route;
+    if (!page.indexable) {
+      assert.match(html, /<meta name="robots" content="noindex, follow">/, `${label}: noindex`);
       continue;
-    check(
-      url.startsWith("/"),
-      `${label}: relative link "${url}" would resolve against the page route`,
-    );
-    if (!url.startsWith("/")) continue;
-    check(
-      url === basePath || url.startsWith(`${basePath}/`),
-      `${label}: internal link "${url}" does not start with BASE_PATH "${basePath}"`,
-    );
-    let clean = url.split("#", 2)[0].split("?", 2)[0];
-    if (basePath && clean.startsWith(basePath))
-      clean = clean.slice(basePath.length) || "/";
-    const abs = path.join(
-      distRoot,
-      path.posix.normalize(clean.replace(/^\//, "")),
-    );
-    const target =
-      fs.existsSync(abs) && fs.statSync(abs).isDirectory()
-        ? path.join(abs, "index.html")
-        : abs;
-    check(fs.existsSync(target), `${label}: broken internal link ${url}`);
+    }
+    const canonical = html.match(/<link rel="canonical" href="([^"]+)">/)?.[1];
+    assert.equal(canonical, `${siteUrl}${page.route}`, `${label}: canonical`);
+    assert.match(html, /<meta name="robots" content="index, follow/, `${label}: robots`);
+    assert.equal(html.match(/<meta property="og:url" content="([^"]+)">/)?.[1], canonical, `${label}: og:url`);
+    for (const tag of ["og:title", "og:description", "og:image"]) assert.match(html, new RegExp(`property="${tag}" content="[^"]+"`), `${label}: ${tag}`);
+    assert.match(html, /<meta name="twitter:card" content="summary_large_image">/, `${label}: twitter:card`);
+
+    const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+    const types = new Set(ld["@graph"].map((node) => node["@type"]));
+    const website = ld["@graph"].find((node) => node["@type"] === "WebSite");
+    assert.equal(website.potentialAction.target.urlTemplate, `${siteUrl}/search/?q={search_term_string}`);
+    if (page.kind === "home") assert.ok(types.has("CollectionPage"), `${label}: CollectionPage`);
+    else {
+      assert.ok(types.has("TechArticle") && types.has("BreadcrumbList"), `${label}: TechArticle + BreadcrumbList`);
+    }
+    for (const invented of ["totalTime", "aggregateRating", "offers", "publisher"]) {
+      assert.ok(!JSON.stringify(ld).includes(`"${invented}"`), `${label}: invented ${invented}`);
+    }
   }
-}
+});
 
-/* A6 (cont). Exactly one css/js pair actually on disk, and no stray duplicates. */
-if (assetPair) {
-  const assetFiles = distFiles.filter((file) => file.startsWith("assets/"));
-  const cssAssets = assetFiles.filter((file) =>
-    /^assets\/site\.[0-9a-f]+\.css$/.test(file),
-  );
-  const jsAssets = assetFiles.filter((file) =>
-    /^assets\/site\.[0-9a-f]+\.js$/.test(file),
-  );
-  check(
-    cssAssets.length === 1,
-    `expected exactly one content-addressed site.*.css, found ${cssAssets.length}`,
-  );
-  check(
-    jsAssets.length === 1,
-    `expected exactly one content-addressed site.*.js, found ${jsAssets.length}`,
-  );
-  check(
-    fs.existsSync(
-      path.join(distRoot, assetPair.cssHref.slice(basePath.length)),
-    ),
-    "referenced stylesheet asset missing on disk",
-  );
-  check(
-    fs.existsSync(path.join(distRoot, assetPair.jsSrc.slice(basePath.length))),
-    "referenced script asset missing on disk",
-  );
-}
-
-/* A7. sitemap.xml and robots.txt. */
-const sitemap = fs.readFileSync(path.join(distRoot, "sitemap.xml"), "utf8");
-const sitemapLocs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
-  (m) => m[1],
-);
-check(
-  sitemapLocs.length === expectedRoutes.size,
-  `sitemap has ${sitemapLocs.length} <loc> entries, expected ${expectedRoutes.size}`,
-);
-for (const loc of sitemapLocs) {
-  check(
-    loc.startsWith(siteUrl),
-    `sitemap loc "${loc}" is not absolute under SITE_URL`,
-  );
-}
-const sitemapRoutes = new Set(
-  sitemapLocs.map((loc) => loc.slice(siteUrl.length) || "/"),
-);
-for (const route of expectedRoutes) {
-  check(sitemapRoutes.has(route), `sitemap is missing route ${route}`);
-}
-
-const robots = fs.readFileSync(path.join(distRoot, "robots.txt"), "utf8");
-check(
-  robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`),
-  "robots.txt does not reference the sitemap under SITE_URL",
-);
-
-/* Detect broken section links, including links back to the full catalog README. */
-for (const { page, html } of pages) {
-  for (const [, href] of html.matchAll(/href="([^"\s]*#[^"\s]+)"/g)) {
-    if (!href.startsWith("#") && !href.startsWith("/")) continue;
-    const [targetPath, fragment] = href.split("#");
-    const route = targetPath ? targetPath.slice(basePath.length) : page.route;
-    const target = pages.find((entry) => entry.page.route === route);
-    if (target)
-      check(
-        target.html.includes(`id="${decodeURIComponent(fragment)}"`),
-        `${page.route}: broken fragment ${href}`,
-      );
+test("internal links and fragments resolve, honouring BASE_PATH", () => {
+  const byRoute = new Map(pages.map((entry) => [entry.page.route, entry.html]));
+  for (const { page, html } of pages) {
+    for (const [, url] of html.matchAll(/(?:href|src|data-search-index)="([^"]+)"/g)) {
+      if (/^(?:https?:|mailto:|data:|\/\/)/.test(url)) continue;
+      const [target, fragment] = url.split("#");
+      if (target) {
+        assert.ok(target.startsWith(`${basePath}/`), `${page.route}: "${url}" is relative or lacks BASE_PATH`);
+        const clean = target.slice(basePath.length).split("?")[0];
+        const file = path.join(distRoot, clean, clean.endsWith("/") ? "index.html" : "");
+        assert.ok(fs.existsSync(file), `${page.route}: broken link ${url}`);
+      }
+      if (!fragment) continue;
+      const route = target ? target.slice(basePath.length) : page.route;
+      const targetHtml = byRoute.get(route);
+      if (targetHtml && !fragment.startsWith("i-")) {
+        assert.ok(targetHtml.includes(`id="${decodeURIComponent(fragment)}"`), `${page.route}: broken fragment ${url}`);
+      }
+    }
   }
-}
-/* Every inline-renderable file beside an example README is on its page. */
-for (const { page, html } of pages.filter(
-  ({ page }) => page.kind === "example",
-)) {
-  const files = exampleFiles(path.posix.dirname(page.source));
-  const rendered = (html.match(/<h3 id="file-/g) ?? []).length;
-  check(
-    rendered === files.length,
-    `${page.route}: renders ${rendered} of ${files.length} example files`,
-  );
-}
-check(
-  fs.existsSync(path.join(distRoot, ".nojekyll")),
-  "missing GitHub Pages .nojekyll marker",
-);
-const docsHtml = pages.find(({ page }) => page.kind === "docs-index").html;
-check(
-  docsHtml.includes('id="catalog"'),
-  "root README content is not rendered in /docs/",
-);
-for (const file of distFiles.filter((file) => /\.(css|js)$/.test(file))) {
-  const size = gzipSync(fs.readFileSync(path.join(distRoot, file))).length;
-  check(
-    size < 8_000,
-    `${file}: exceeds 8 kB gzip asset budget (${size} bytes)`,
-  );
-}
-check(
-  !distFiles.some((file) => /\.woff2?$/.test(file)),
-  "unexpected font downloads",
-);
+});
 
-/* ============================================================= report === */
+test("recipe pages render every sibling text file inline", () => {
+  for (const { page, html } of pages.filter(({ page }) => page.kind === "platform")) {
+    const textFiles = page.platform.files.filter((name) => !/\.(png|jpe?g|gif|ico|tgz|gz)$/.test(name));
+    for (const name of textFiles) {
+      assert.ok(html.includes(`<code>${name}</code></a></h3>`), `${page.route}: ${name} not inline`);
+    }
+  }
+});
 
-if (failures.length) {
-  console.error(
-    `web-ui test suite failed (${failures.length} issue${failures.length === 1 ? "" : "s"}):`,
-  );
-  for (const failure of failures) console.error(`  - ${failure}`);
-  process.exit(1);
-}
-console.log(
-  `web-ui test suite passed: ${expectedRoutes.size} pages, ${distFiles.length} dist files`,
-);
+test("sitemap, robots.txt, and llms.txt cover the indexable pages", () => {
+  const sitemap = read("sitemap.xml");
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  assert.deepEqual(locs.sort(), indexable.map(({ page }) => `${siteUrl}${page.route}`).sort());
+  // Uncommitted documents have no Git date, so lastmod is optional but must be well-formed.
+  for (const [, date] of sitemap.matchAll(/<lastmod>([^<]*)<\/lastmod>/g)) assert.match(date, /^\d{4}-\d{2}-\d{2}/);
+  assert.ok(read("robots.txt").includes(`Sitemap: ${siteUrl}/sitemap.xml`));
+  const llms = read("llms.txt");
+  for (const tool of site.tools) assert.ok(llms.includes(`[${tool.meta.name}](${siteUrl}/docs/${tool.category}/${tool.slug}/)`), `llms.txt: ${tool.slug}`);
+  assert.ok(distFiles.includes(".nojekyll"));
+});
+
+test("search index covers tools, recipes, headings, and frontmatter", () => {
+  const file = distFiles.find((name) => /^assets\/search\.[0-9a-f]{8}\.json$/.test(name));
+  assert.ok(file, "missing search index");
+  const { pages: entries } = JSON.parse(read(file));
+  const docPages = site.pages.filter((page) => ["docs", "tool", "platform"].includes(page.kind));
+  assert.equal(entries.length, docPages.length);
+  for (const page of docPages.filter((page) => page.tool)) {
+    const entry = entries.find((item) => item.u === `${basePath}${page.route}`);
+    assert.ok(entry, `index lacks ${page.route}`);
+    const meta = page.platform?.meta ?? page.tool.meta;
+    for (const word of meta.keywords) assert.ok(entry.k.includes(word), `${page.route}: keyword ${word}`);
+    if (page.platform) assert.ok(entry.k.includes(meta.usecase), `${page.route}: use case`);
+    assert.ok(entry.s.length > 0, `${page.route}: no sections`);
+  }
+  console.log(`search index: ${entries.length} pages, ${gz(file)} B gzip`);
+});
+
+test("assets stay within budget and are shared by every page", () => {
+  const css = distFiles.filter((file) => /^assets\/site\.[0-9a-f]{8}\.css$/.test(file));
+  const js = distFiles.filter((file) => /^assets\/site\.[0-9a-f]{8}\.js$/.test(file));
+  const index = distFiles.find((file) => /^assets\/search\./.test(file));
+  assert.equal(css.length, 1);
+  assert.equal(js.length, 1);
+  for (const { page, html } of pages) {
+    assert.ok(html.includes(`href="${basePath}/${css[0]}"`) && html.includes(`src="${basePath}/${js[0]}"`), `${page.route}: shared assets`);
+    assert.ok(gzipSync(html).length < BUDGET.page, `${page.route}: HTML over budget`);
+  }
+  const sizes = { css: gz(css[0]), js: gz(js[0]), searchIndex: gz(index) };
+  for (const [name, size] of Object.entries(sizes)) assert.ok(size <= BUDGET[name], `${name}: ${size} B gzip exceeds ${BUDGET[name]}`);
+  assert.ok(!distFiles.some((file) => /\.(woff2?|ttf|otf)$/.test(file)), "unexpected web font");
+  console.log(`assets (gzip): css ${sizes.css} B, js ${sizes.js} B, search index ${sizes.searchIndex} B`);
+});

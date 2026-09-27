@@ -15,20 +15,26 @@ The site automatically showcases the repository's markdown as pages — nothing 
 
 - Content source of truth is the tracked documents themselves: root `README.md`, every
   `tools/<category>/<tool>/README.md`, and every
-  `tools/<category>/<tool>/examples/<platform>/README.md`. Document standards live
-  in `$documentation`.
+  `tools/<category>/<tool>/docs/<platform>/README.md`, discovered with `git ls-files`
+  (untracked files never publish). Document standards live in `$documentation`.
 - Generate pages at build time from those files. Never copy catalog rows, commands, or
   README text into UI code or data files by hand. Adding, editing, or removing anything
   under `tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
   Resolve repository README links to the full document so section fragments stay valid.
-- Example pages render their sibling example files (scripts, manifests, charts) inline
-  from the tracked files, which is why example READMEs link rather than embed them.
+- Platform pages render their sibling recipe files (scripts, manifests, charts) inline
+  from the tracked files, which is why platform READMEs link rather than embed them.
 - Navigation mirrors the repository shape: catalog categories → tools → tool page → its
-  platform-example pages. Every discovered document gets a page. Optional display
-  metadata (ordering, descriptions) lives inside `web-ui/` and must not duplicate
-  document content.
+  platform pages. Every discovered document gets a page.
+- Page metadata comes from YAML frontmatter (parsed with `yaml`): tool READMEs require
+  `name`, `description` and allow `upstream`, `image`, `keywords`; platform READMEs
+  require `name`, `description`, `usecase` and allow `keywords`. The root README has
+  none. A missing or mistyped key fails the build with a message naming the file; never
+  default around it or keep metadata tables in UI code.
+- Search is fully static: a content-addressed JSON index (titles, frontmatter,
+  headings, prose excerpts, never code) loaded lazily by a dialog (`/`, Ctrl/Cmd+K) and
+  by the noindex `/search/?q=` page, which is also the WebSite SearchAction target.
 
 ## Technical contract
 
@@ -74,6 +80,14 @@ Keep the public SEO URL independent from the path used by browser navigation:
 Do not bake a deployment host or path into catalog discovery, page routes, or document
 content. Build with the intended environment before serving `dist/`; changing these
 variables at runtime cannot alter already generated HTML.
+
+## Code layout
+
+`src/build.mjs` orchestrates; `src/lib/` holds `content` (discovery, frontmatter),
+`site` (pages, routes, order), `markdown`, `highlight`, `seo`, `search`, `layout`,
+`assets`; `src/pages/` holds templates; `src/client/` the deferred script and pre-paint
+theme; `tests/content.test.mjs` (fixtures, no build) and `tests/site.test.mjs`
+(generated `dist/`).
 
 ## Verification
 
