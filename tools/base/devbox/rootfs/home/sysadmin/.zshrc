@@ -14,13 +14,8 @@ export ZSH="$ZSH_CONFIG"
 export ZSH_CUSTOM="$ZSH_CONFIG"
 export CASE_SENSITIVE=true
 
-mkdir -p "$ZSH_CACHE_DIR"
-
-# Oh My Zsh reads dircolors through process substitution, which fails where /dev/fd
-# is unavailable; setting LS_COLORS first skips that path.
-if [[ -z "$LS_COLORS" ]] && (( $+commands[dircolors] )); then
-  eval "$(dircolors -b)"
-fi
+# The kubectl plugin writes its completion cache here and fails if it is missing.
+mkdir -p "$ZSH_CACHE_DIR/completions"
 
 plugin_dirs=("$ZSH_PLUGINS"/*(N/))
 fpath=(/usr/local/share/zsh/site-functions $plugin_dirs $fpath)
