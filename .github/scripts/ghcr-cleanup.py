@@ -4,7 +4,8 @@
 Usage: ghcr-cleanup.py [--dry-run] <package>...
 Keeps every tagged version, every manifest reachable from a tagged index, every
 version younger than --min-age-days, and every manifest with an OCI `subject`
-(signatures and attestations stored as referrers). Requires `gh` authenticated
+(signatures and attestations stored as referrers). Cosign `sha256-<digest>`
+fallback tags whose subject image is gone count as untagged. Requires `gh` authenticated
 with packages write and `docker login ghcr.io`.
 """
 
@@ -27,12 +28,25 @@ def versions(package: str) -> list[dict]:
     return [json.loads(line) for line in output.splitlines() if line]
 
 
-def manifest(package: str, digest: str) -> dict:
-    output = subprocess.run(
+def manifest(package: str, digest: str) -> dict | None:
+    """Return the raw manifest, or None when the registry no longer has it."""
+    result = subprocess.run(
         ["docker", "buildx", "imagetools", "inspect", "--raw", f"ghcr.io/{OWNER}/{package}@{digest}"],
-        check=True, capture_output=True, text=True,
-    ).stdout
-    return json.loads(output)
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        if "not found" in result.stderr:
+            return None
+        sys.exit(f"inspect {package}@{digest} failed: {result.stderr.strip()}")
+    return json.loads(result.stdout)
+
+
+def is_orphan_referrer_tag(package: str, tags: list[str]) -> bool:
+    """True for a cosign `sha256-<digest>` fallback tag whose subject is gone."""
+    return all(
+        tag.startswith("sha256-") and manifest(package, "sha256:" + tag.removeprefix("sha256-")) is None
+        for tag in tags
+    )
 
 
 def referenced(package: str, roots: list[str]) -> set[str]:
@@ -43,19 +57,24 @@ def referenced(package: str, roots: list[str]) -> set[str]:
         if digest in seen:
             continue
         seen.add(digest)
-        pending.extend(child["digest"] for child in manifest(package, digest).get("manifests", []))
+        found = manifest(package, digest)
+        if found is not None:
+            pending.extend(child["digest"] for child in found.get("manifests", []))
     return seen
 
 
 def clean(package: str, min_age: datetime.timedelta, dry_run: bool) -> None:
     all_versions = versions(package)
-    tagged = [v["name"] for v in all_versions if v["metadata"]["container"]["tags"]]
+    tagged = [
+        v["name"] for v in all_versions
+        if (tags := v["metadata"]["container"]["tags"]) and not is_orphan_referrer_tag(package, tags)
+    ]
     keep = referenced(package, tagged)
     cutoff = datetime.datetime.now(datetime.timezone.utc) - min_age
     for version in all_versions:
         digest = version["name"]
         updated = datetime.datetime.fromisoformat(version["updated_at"].replace("Z", "+00:00"))
-        if digest in keep or updated > cutoff or "subject" in manifest(package, digest):
+        if digest in keep or updated > cutoff or "subject" in (manifest(package, digest) or {}):
             continue
         print(f"{'would delete' if dry_run else 'deleting'} {package}@{digest} ({version['updated_at']})")
         if not dry_run:
