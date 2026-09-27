@@ -9,7 +9,12 @@ ARG T3CODE_VERSION=0.0.42
 
 FROM ${NPM_BUILD_IMAGE} AS t3code-package
 ARG T3CODE_VERSION
-RUN npm install -g --prefix=/out/usr/local --no-audit --no-fund --cache /tmp/npm-cache "t3@${T3CODE_VERSION}" && \
+ARG TARGETARCH
+# npm can omit t3's optional platform binary in a clean build stage. Install it
+# explicitly so the copied CLI can start on both published architectures.
+RUN case "$TARGETARCH" in amd64) arch=x64 ;; arm64) arch=arm64 ;; *) exit 1 ;; esac && \
+    npm install -g --prefix=/out/usr/local --no-audit --no-fund --cache /tmp/npm-cache \
+        "t3@${T3CODE_VERSION}" "@t3code/t3-linux-${arch}@${T3CODE_VERSION}" && \
     rm -rf /tmp/npm-cache
 
 FROM ${BASE_IMAGE}
