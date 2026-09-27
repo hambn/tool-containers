@@ -50,8 +50,14 @@ RUN case "$TARGETARCH" in amd64) arch=x64 ;; arm64) arch=arm64 ;; *) exit 1 ;; e
     ln -s /opt/cursor-agent/cursor-agent /out/usr/local/bin/cursor-agent && \
     ln -s /opt/cursor-agent/cursor-agent /out/usr/local/bin/agent
 
+# Build tools let npm compile native addons in these temporary stages; none of them
+# reach the published image.
 FROM ${UBUNTU_NPM_IMAGE} AS ubuntu-npm
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 FROM ${ALPINE_NPM_IMAGE} AS alpine-npm
+RUN apk add --no-cache python3 make g++
 FROM ${DISTRO}-npm AS npm-base
 
 # Each CLI has its own build stage. COPY --link keeps its runtime layer reusable
@@ -93,6 +99,12 @@ COPY --link --from=opencode /out/ /
 COPY --link --from=copilot /out/ /
 COPY --link --from=gemini /out/ /
 COPY --link --from=pi /out/ /
+# Native addons built above must match the parent's Node ABI; fail when the pinned
+# Node build image and devbox's NODE_VERSION drift apart.
+RUN --mount=type=bind,from=npm-base,source=/usr/local/include/node/node_version.h,target=/tmp/npm-node-version.h \
+    want=$(sed -n 's/^#define NODE_MODULE_VERSION \([0-9]*\).*/\1/p' /tmp/npm-node-version.h) && \
+    have=$(node -p process.versions.modules) && \
+    { [ "$want" = "$have" ] || { echo "npm build Node ABI $want != parent Node ABI $have" >&2; exit 1; }; }
 ARG ACP_AGENT_VERSION
 ARG AGENT_CLIENT_PROTOCOL_VERSION
 RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install --no-cache --python python3 \

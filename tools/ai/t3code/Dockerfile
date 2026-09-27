@@ -23,6 +23,12 @@ RUN apt-get update && \
 FROM ${BASE_IMAGE}
 USER root
 COPY --link --from=t3code-package /out/ /
+# Native addons built above must match the parent's Node ABI; fail when the pinned
+# Node build image and devbox's NODE_VERSION drift apart.
+RUN --mount=type=bind,from=t3code-package,source=/usr/local/include/node/node_version.h,target=/tmp/npm-node-version.h \
+    want=$(sed -n 's/^#define NODE_MODULE_VERSION \([0-9]*\).*/\1/p' /tmp/npm-node-version.h) && \
+    have=$(node -p process.versions.modules) && \
+    { [ "$want" = "$have" ] || { echo "npm build Node ABI $want != parent Node ABI $have" >&2; exit 1; }; }
 ARG T3CODE_VERSION
 LABEL io.github.hambn.containers.tool.t3code.version="${T3CODE_VERSION}"
 USER sysadmin
