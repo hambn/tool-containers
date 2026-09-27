@@ -15,6 +15,19 @@ docker run --rm "$image" /bin/zsh -lic '
 '
 
 if [[ $TIER != lite ]]; then
+    docker run --rm "$image" /bin/zsh -lc '
+        set -eu
+        test "$(npm config get prefix)" = "$HOME/.local"
+        package_dir=$(mktemp -d)
+        printf "%s\n" "{\"name\":\"tc-npm-prefix-probe\",\"version\":\"1.0.0\",\"bin\":{\"tc-npm-prefix-probe\":\"bin.js\"}}" > "$package_dir/package.json"
+        printf "#!/usr/bin/env node\nconsole.log(\"ok\")\n" > "$package_dir/bin.js"
+        chmod +x "$package_dir/bin.js"
+        npm install -g --offline --no-audit --no-fund "$package_dir"
+        test "$(command -v tc-npm-prefix-probe)" = "$HOME/.local/bin/tc-npm-prefix-probe"
+        test "$(tc-npm-prefix-probe)" = ok
+        test ! -e /usr/local/bin/tc-npm-prefix-probe
+    '
+
     docker run --rm \
         --group-add "$(stat -c %g /var/run/docker.sock)" \
         --volume /var/run/docker.sock:/var/run/docker.sock \

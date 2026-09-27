@@ -216,6 +216,7 @@ ENV HOME=/home/sysadmin \
     XDG_CONFIG_HOME=/home/sysadmin/.config \
     XDG_DATA_HOME=/home/sysadmin/.local/share \
     XDG_RUNTIME_DIR=/run/user/1000 \
+    NPM_CONFIG_PREFIX=/home/sysadmin/.local \
     PATH=/home/sysadmin/.local/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     container=oci
 
@@ -252,7 +253,7 @@ COPY --link --from=node /out/ /
 ARG PNPM_VERSION YARN_VERSION
 RUN install -d /usr/local/share/zsh/site-functions \
     && kubectl completion zsh >/usr/local/share/zsh/site-functions/_kubectl \
-    && npm install --global --no-audit --no-fund --cache /tmp/npm-cache "pnpm@${PNPM_VERSION}" "yarn@${YARN_VERSION}" \
+    && npm install --global --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "pnpm@${PNPM_VERSION}" "yarn@${YARN_VERSION}" \
     && rm -rf /tmp/npm-cache \
     && usermod -aG docker sysadmin \
     && install -d -o 1000 -g 1000 /workspace

@@ -8,7 +8,7 @@ ARG CLAUDE_CODE_VERSION=2.1.282
 FROM ${BASE_IMAGE}
 ARG CLAUDE_CODE_VERSION
 USER root
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && \
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && \
     rm -rf /tmp/npm-cache
 LABEL io.github.hambn.containers.tool.claude-code.version="${CLAUDE_CODE_VERSION}"
 USER sysadmin

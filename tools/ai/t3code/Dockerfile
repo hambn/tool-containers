@@ -8,7 +8,7 @@ ARG T3CODE_VERSION=0.0.42
 FROM ${BASE_IMAGE}
 ARG T3CODE_VERSION
 USER root
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "t3@${T3CODE_VERSION}" && \
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "t3@${T3CODE_VERSION}" && \
     rm -rf /tmp/npm-cache
 LABEL io.github.hambn.containers.tool.t3code.version="${T3CODE_VERSION}"
 USER sysadmin

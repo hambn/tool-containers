@@ -94,6 +94,9 @@ on it. Do not leave a stray `CMD []`.
 - Elevate to root only for installation; end as the tier's user (`65532:65532` for core,
   `sysadmin` otherwise).
 - Make installed launchers readable and executable by any non-root UID.
+- Devbox gives runtime npm global installs a writable `sysadmin` prefix. Keep pinned
+  npm packages in the image's system prefix by passing `--prefix=/usr/local` to every
+  Dockerfile `npm install -g`, including in descendant agent images.
 - Never bake credentials, tokens, or build-host state into a layer; secrets arrive at
   runtime.
 - Clean caches in the `RUN` that created them.

@@ -8,7 +8,7 @@ ARG OPEN_CODE_REVIEW_VERSION=1.12.9
 FROM ${BASE_IMAGE}
 ARG OPEN_CODE_REVIEW_VERSION
 USER root
-RUN npm install -g --no-audit --no-fund --cache /tmp/npm-cache "@alibaba-group/open-code-review@${OPEN_CODE_REVIEW_VERSION}" && \
+RUN npm install -g --prefix=/usr/local --no-audit --no-fund --cache /tmp/npm-cache "@alibaba-group/open-code-review@${OPEN_CODE_REVIEW_VERSION}" && \
     rm -rf /tmp/npm-cache
 LABEL io.github.hambn.containers.tool.open-code-review.version="${OPEN_CODE_REVIEW_VERSION}"
 USER sysadmin
