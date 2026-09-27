@@ -33,10 +33,11 @@ begin with `USER root`).
 - **browser:** full plus headless Chromium (ubuntu copies `HEADLESS_SHELL_IMAGE`; alpine
   installs the chromium package); `BROWSER_BIN` points at it.
 
-Stages: `<tier>-payload` holds the heavy layers and every `ENV`; `config` (from scratch)
-holds the distro-independent `rootfs/` dotfiles and service config; the published `<tier>`
-stage is the payload plus `COPY --link --from=config / /`, `USER sysadmin`,
-`WORKDIR /home/sysadmin`, and a login-zsh `CMD`.
+Stages: `<tier>-payload` holds the heavy layers and environment needed by their build
+steps; `config` (from scratch) holds the distro-independent `rootfs/` dotfiles and
+service config. The published `<tier>` stage adds `COPY --link --from=config / /`,
+runtime-only environment, `USER sysadmin`, `WORKDIR /home/sysadmin`, and a login-zsh
+`CMD`.
 
 ## agents
 
@@ -45,9 +46,10 @@ distro and tier (`ubuntu` → `devbox:ubuntu-full`, `alpine-browser` →
 `devbox:alpine-browser`), or for omnigent and t3code the agentbloat image of the same
 variant. They add only their tool on top and inherit devbox's configuration layer.
 
-Agents inherit Node, Python, and shell tooling from devbox; never reinstall a runtime
-merely to package a CLI. The runtime user is `sysadmin` and the work directory
-`/workspace`.
+Agents inherit Node, Python, and shell tooling from devbox. Npm-based agents package
+their CLIs in independent, pinned Node build stages and copy only the installed files
+onto the parent with `COPY --link`; the Node build image is not in the published image.
+The runtime user is `sysadmin` and the work directory `/workspace`.
 
 ## Choosing where something belongs
 

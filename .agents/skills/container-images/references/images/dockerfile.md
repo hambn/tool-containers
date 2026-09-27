@@ -62,11 +62,16 @@ Map `TARGETARCH` to upstream asset names explicitly; both amd64 and arm64 must w
 
 ## Layering
 
-- Devbox keeps each tier's heavy layers in a `<tier>-payload` stage that sets every
-  `ENV` descendants need, and its published `lite`, `full`, and `browser` stages copy the
-  `rootfs/` config layer last with `COPY --link --from=config / /`, so a config change
-  rebuilds only that layer.
-- Agent Dockerfiles build on the published parent and add only their tool:
+- Devbox keeps each tier's heavy layers in a `<tier>-payload` stage. Its published
+  `lite`, `full`, and `browser` stages copy the `rootfs/` config layer last with
+  `COPY --link --from=config / /`. Set runtime-only `ENV` after the payload so a
+  setting change does not rebuild package-install layers.
+- For npm-based agents, install each CLI into `/out/usr/local` in an independent
+  stage based on a pinned, distro-compatible Node image. Add it to the published
+  parent with `COPY --link --from=<cli-stage> /out/ /`. Keep the install stages
+  independent of `BASE_IMAGE`; a parent update should not rerun npm or change the
+  CLI layers. Pin both Ubuntu and Alpine build images when both variants exist.
+- Other agent Dockerfiles build on the published parent and add only their tool:
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -95,8 +100,8 @@ on it. Do not leave a stray `CMD []`.
   `sysadmin` otherwise).
 - Make installed launchers readable and executable by any non-root UID.
 - Devbox gives runtime npm global installs a writable `sysadmin` prefix. Keep pinned
-  npm packages in the image's system prefix by passing `--prefix=/usr/local` to every
-  Dockerfile `npm install -g`, including in descendant agent images.
+  npm packages in the image's system prefix: use `--prefix=/usr/local` when installing
+  in place, or `--prefix=/out/usr/local` in an independent stage copied to `/`.
 - Never bake credentials, tokens, or build-host state into a layer; secrets arrive at
   runtime.
 - Clean caches in the `RUN` that created them.
