@@ -19,6 +19,7 @@ target "agentbloat" {
   tags    = ["tool-containers/agentbloat:${v.variant}"]
   args = {
     BASE_IMAGE = v.base
+    DISTRO     = v.distro
   }
   labels = {
     "org.opencontainers.image.title"         = "agentbloat"

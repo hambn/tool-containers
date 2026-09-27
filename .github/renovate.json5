@@ -83,6 +83,7 @@
       matchFileNames: ["tools/**/Dockerfile"],
       matchDepNames: [
         "docker.io/library/alpine",
+        "docker.io/library/node",
         "docker.io/library/ubuntu",
         "docker.io/chainguard/wolfi-base",
         "docker.io/chromedp/headless-shell",
