@@ -234,7 +234,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0 # SOURCE_DATE_EPOCH needs this tool's last commit.
+          fetch-depth: 0 # The created label needs this tool's last commit.
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         if: env.TRUSTED == 'true'
@@ -272,9 +272,11 @@ jobs:
       - name: Prepare build options
         run: |
           set -euo pipefail
-          # This tool's last commit, not the repository's: unrelated commits must
-          # not change the timestamps written into rebuilt layers.
-          epoch=$(git log -1 --format=%ct -- .)
+          # Layer timestamps use one fixed epoch: rewrite-timestamp stamps it into
+          # every layer, so a moving value would give unchanged layers new digests
+          # and force a full re-pull. The created label keeps this tool's last commit.
+          epoch=1767225600 # 2026-01-01T00:00:00Z
+          committed=$(git log -1 --format=%ct -- .)
           cache=$CACHE:$IMAGE-$VARIANT-$ARCH
           {
               echo "SOURCE_DATE_EPOCH=$epoch"
@@ -288,7 +290,7 @@ jobs:
               fi
               echo "$TARGET.labels.org.opencontainers.image.version=$VERSION"
               echo "$TARGET.labels.org.opencontainers.image.revision=$GITHUB_SHA"
-              echo "$TARGET.labels.org.opencontainers.image.created=$(date -u -d "@$epoch" +%Y-%m-%dT%H:%M:%SZ)"
+              echo "$TARGET.labels.org.opencontainers.image.created=$(date -u -d "@$committed" +%Y-%m-%dT%H:%M:%SZ)"
               echo "$TARGET.labels.org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY"
               echo "$TARGET.labels.org.opencontainers.image.url=https://tool-containers.hgh.dev"
               echo "$TARGET.labels.org.opencontainers.image.licenses=MIT"
