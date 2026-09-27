@@ -1,3 +1,11 @@
+---
+name: t3code
+description: T3 Code web GUI over coding agents on the agentbloat image, serving on port 3773 with Codex, Claude Code, and other CLIs ready.
+upstream: https://github.com/pingdotgg/t3code
+image: ghcr.io/hambn/t3code
+keywords: [t3code, t3 code, web gui, coding agents, docker image]
+---
+
 # t3code
 
 [T3 Code](https://github.com/pingdotgg/t3code), a web GUI over coding agents, on the [`agentbloat`](../agentbloat/) image so Codex, Claude Code, Cursor, OpenCode, and the other bundled CLIs are ready to drive. The entrypoint is `t3 serve --host=0.0.0.0 --port=3773` and port `3773` is exposed.
@@ -41,10 +49,10 @@ The Browser item in T3 Code's served web interface is disabled. It uses a deskto
 
 ## Use cases
 
-- **Local GUI over a checkout** — [`examples/docker/`](./examples/docker/), then open `http://127.0.0.1:3773`.
-- **Persistent local instance** — [`examples/docker-compose/`](./examples/docker-compose/) or rootless [`examples/podman/`](./examples/podman/).
-- **Shared cluster instance** — Deployment and Service in [`examples/kubernetes/`](./examples/kubernetes/) or the Helm chart in [`examples/helm/`](./examples/helm/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
+- **Local GUI over a checkout** — [`docs/docker/`](./docs/docker/), then open `http://127.0.0.1:3773`.
+- **Persistent local instance** — [`docs/docker-compose/`](./docs/docker-compose/) or rootless [`docs/podman/`](./docs/podman/).
+- **Shared cluster instance** — Deployment and Service in [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 
 ## Sources
 

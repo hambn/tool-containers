@@ -1,3 +1,11 @@
+---
+name: claude-code
+description: Anthropic's Claude Code CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
+upstream: https://github.com/anthropics/claude-code
+image: ghcr.io/hambn/claude-code
+keywords: [claude code, anthropic, coding agent, cli, docker image]
+---
+
 # claude-code
 
 [Claude Code](https://github.com/anthropics/claude-code), Anthropic's coding agent CLI, on the [`devbox`](../../base/devbox/) development image. The entrypoint is `claude`.
@@ -45,10 +53,10 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 
 ## Use cases
 
-- **Interactive coding on a local checkout** — [`examples/docker/`](./examples/docker/) or rootless [`examples/podman/`](./examples/podman/).
-- **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **One-shot review in a cluster** — Kubernetes Job in [`examples/kubernetes/`](./examples/kubernetes/) or the Helm chart in [`examples/helm/`](./examples/helm/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
+- **Interactive coding on a local checkout** — [`docs/docker/`](./docs/docker/) or rootless [`docs/podman/`](./docs/podman/).
+- **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **One-shot review in a cluster** — Kubernetes Job in [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 
 ## Sources
 

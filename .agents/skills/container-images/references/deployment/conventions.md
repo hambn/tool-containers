@@ -1,9 +1,9 @@
-# Platform example conventions
+# Platform doc conventions
 
-Each supported platform lives at `tools/<category>/<tool>/examples/<platform>/` with a
+Each supported platform lives at `tools/<category>/<tool>/docs/<platform>/` with a
 README plus runnable files. Add only platforms that serve the tool's real use cases.
 The `references/deployment/` path is this skill's grouping; image projects always use
-`examples/`.
+`docs/`.
 
 | Platform | Guide |
 |---|---|

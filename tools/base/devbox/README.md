@@ -1,3 +1,10 @@
+---
+name: devbox
+description: Interactive Ubuntu and Alpine development and CI images in lite, full, and browser tiers, built on core with Zsh and sudo.
+image: ghcr.io/hambn/devbox
+keywords: [devbox, development container, ci image, ubuntu, alpine, zsh]
+---
+
 # devbox
 
 Interactive Ubuntu and Alpine development and CI images in three tiers, built on
@@ -101,12 +108,12 @@ lingering for `sysadmin`, and hardware, getty, and update units masked.
 ## Use cases
 
 - Open an interactive shell on a project, optionally with the host Docker daemon, with
-  [Docker](examples/docker/).
+  [Docker](docs/docker/).
 - Keep a persistent home directory across sessions with
-  [Docker Compose](examples/docker-compose/).
-- Work rootless with your UID mapped to `sysadmin` with [Podman](examples/podman/).
-- Exec into a disposable development pod with [Kubernetes](examples/kubernetes/), or a
-  long-running one with a persistent workspace with [Helm](examples/helm/).
+  [Docker Compose](docs/docker-compose/).
+- Work rootless with your UID mapped to `sysadmin` with [Podman](docs/podman/).
+- Exec into a disposable development pod with [Kubernetes](docs/kubernetes/), or a
+  long-running one with a persistent workspace with [Helm](docs/helm/).
 
 ## Sources
 

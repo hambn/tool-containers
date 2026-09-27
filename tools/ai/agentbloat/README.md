@@ -1,3 +1,10 @@
+---
+name: agentbloat
+description: Every current command-line coding agent in one interactive devbox image, with Ubuntu and Alpine variants and optional Chromium.
+image: ghcr.io/hambn/agentbloat
+keywords: [agentbloat, coding agents, codex, claude code, cursor agent, docker image]
+---
+
 # agentbloat
 
 Every current command-line coding agent in one interactive image, built on the [`devbox`](../../base/devbox/) development image. It starts a Zsh login shell and is also the base of [`omnigent`](../omnigent/) and [`t3code`](../t3code/).
@@ -71,10 +78,10 @@ Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as
 
 ## Use cases
 
-- **Interactive multi-agent workspace** — [`examples/docker/`](./examples/docker/).
-- **Rootless workstation** — [`examples/podman/`](./examples/podman/).
-- **Repeatable local environment** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **Long-lived cluster workspace** — [`examples/kubernetes/`](./examples/kubernetes/) or the Helm chart in [`examples/helm/`](./examples/helm/).
+- **Interactive multi-agent workspace** — [`docs/docker/`](./docs/docker/).
+- **Rootless workstation** — [`docs/podman/`](./docs/podman/).
+- **Repeatable local environment** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Long-lived cluster workspace** — [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
 
 ## Sources
 

@@ -17,7 +17,7 @@ tools/<category>/<tool>/
 │   ├── structure.yaml         # container-structure-test, every variant
 │   ├── structure-<x>.yaml     # optional distro/tier/variant additions
 │   └── smoke.sh               # optional runtime check
-└── examples/<platform>/
+└── docs/<platform>/
     ├── README.md
     └── runnable files
 ```
@@ -29,7 +29,7 @@ Each tool has one workflow, `.github/workflows/<category>-<tool>.yml` ([CI](ci.m
 A tool's build context is its own directory. Cross-tool inputs arrive only through the
 published parent image named by `ARG BASE_IMAGE`; never `COPY` from another tool's
 path. The `references/deployment/` directory belongs to this skill; image projects always
-use `examples/`.
+use `docs/`.
 
 ## Naming
 

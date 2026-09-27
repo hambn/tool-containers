@@ -289,15 +289,19 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
                 error(f"{tool}: missing {required}")
         if (tool / "images").exists():
             error(f"{tool}: images/ is obsolete; use one Dockerfile per tool")
-        examples = tool / "examples"
-        platforms = sorted(p for p in examples.iterdir() if p.is_dir()) if examples.is_dir() else []
+        if (tool / "examples").exists():
+            error(f"{tool}: examples/ is obsolete; use docs/<platform>/")
+        docs = tool / "docs"
+        platforms = sorted(p for p in docs.iterdir() if p.is_dir()) if docs.is_dir() else []
         if not platforms:
-            error(f"{tool}: missing examples/<platform>/")
+            error(f"{tool}: missing docs/<platform>/")
+        check_frontmatter(tool / "README.md", TOOL_KEYS)
         for platform in platforms:
             readme = platform / "README.md"
             if not readme.is_file():
                 error(f"{platform}: missing README.md")
                 continue
+            check_frontmatter(readme, PLATFORM_KEYS)
             linked = {(platform / target).resolve() for target in local_links(readme) if target}
             for path in all_files:
                 if platform in path.parents and path != readme and path.resolve() not in linked:
@@ -318,6 +322,45 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
         error("README.md: duplicate catalog link")
     if set(catalog) != names:
         error(f"README.md catalog mismatch: missing={sorted(names - set(catalog))}, unexpected={sorted(set(catalog) - names)}")
+
+
+# Frontmatter the web UI reads for titles, meta descriptions, cards, and search.
+FRONTMATTER_KEYS = {"name", "description", "upstream", "image", "keywords", "usecase"}
+TOOL_KEYS = {"name", "description", "image"}
+PLATFORM_KEYS = {"name", "description", "usecase"}
+
+
+def check_frontmatter(path: pathlib.Path, required: set[str]) -> None:
+    if not path.is_file():
+        return
+    match = re.match(r"---\n(.*?)\n---\n", path.read_text(), re.S)
+    if not match:
+        error(f"{path}: missing YAML frontmatter")
+        return
+    try:
+        data = yaml.safe_load(match.group(1))
+    except yaml.YAMLError as exc:
+        error(f"{path}: invalid frontmatter: {exc}")
+        return
+    if not isinstance(data, dict):
+        error(f"{path}: frontmatter must be a mapping")
+        return
+    for key in sorted(required - data.keys()):
+        error(f"{path}: frontmatter missing {key}")
+    for key in sorted(data.keys() - FRONTMATTER_KEYS):
+        error(f"{path}: frontmatter key {key} is not allowed")
+    for key, value in data.items():
+        if key == "keywords":
+            if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
+                error(f"{path}: frontmatter keywords must be a list of strings")
+        elif not isinstance(value, str) or not value.strip():
+            error(f"{path}: frontmatter {key} must be a non-empty string")
+    description = data.get("description")
+    if isinstance(description, str) and not 70 <= len(description) <= 160:
+        error(f"{path}: frontmatter description is {len(description)} chars; use 70-160")
+    upstream = data.get("upstream")
+    if isinstance(upstream, str) and not upstream.startswith("https://"):
+        error(f"{path}: frontmatter upstream must start with https://")
 
 
 # Build args that are set per variant or by CI rather than pinned to an upstream release.
@@ -342,7 +385,7 @@ def check_files(all_files: list[pathlib.Path]) -> None:
         posix = path.as_posix()
         must_execute = (
             (posix.startswith(".github/scripts/") and path.suffix == ".sh")
-            or (posix.startswith("tools/") and path.suffix == ".sh" and {"examples", "tests"} & set(path.parts))
+            or (posix.startswith("tools/") and path.suffix == ".sh" and {"docs", "tests"} & set(path.parts))
             or posix.startswith("tools/base/devbox/scripts/")
         )
         if must_execute and not os.access(path, os.X_OK):

@@ -18,7 +18,7 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 | Its variants and labels | `tools/<category>/<tool>/docker-bake.hcl` |
 | Its CI workflow | `.github/workflows/<category>-<tool>.yml` (calls `tool-image.yml`) |
 | Its tests | `tools/<category>/<tool>/tests/` |
-| One platform example | `tools/<category>/<tool>/examples/<platform>/` |
+| One platform example | `tools/<category>/<tool>/docs/<platform>/` |
 | Web application source, config, assets, tests | `web-ui/` |
 
 ## Coupled changes

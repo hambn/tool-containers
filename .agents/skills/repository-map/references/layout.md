@@ -70,7 +70,7 @@ tools/
     ├── Dockerfile
     ├── docker-bake.hcl
     ├── tests/
-    └── examples/<platform>/
+    └── docs/<platform>/
 ```
 
 `ci` and `sandboxes` are catalog categories with no projects yet. A tool contains only

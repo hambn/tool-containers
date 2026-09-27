@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Write and review the repository's written documents - the root catalog README, every tools/<category>/<tool>/README.md, and every per-platform example README - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
+description: Write and review the repository's written documents - the root catalog README, every tools/<category>/<tool>/README.md, and every per-platform doc README (and their YAML frontmatter) - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
 ---
 
 # Documentation
@@ -17,7 +17,7 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 |---|---|---|
 | Root catalog | `README.md` | Public index of every tool |
 | Tool README | `tools/<category>/<tool>/README.md` | One tool's full public contract |
-| Platform example README | `tools/<category>/<tool>/examples/<platform>/README.md` | Runnable recipes for one platform |
+| Platform doc | `tools/<category>/<tool>/docs/<platform>/README.md` | Runnable recipes for one platform |
 
 ## Root catalog
 
@@ -56,10 +56,10 @@ materially helps operation:
    where available.
 
 Do not add a file map; the Source link opens the directory. Do not duplicate `docker run` instructions in the
-tool README; runnable commands belong under `examples/`. Do not add a generic build or
+tool README; runnable commands belong under `docs/<platform>/`. Do not add a generic build or
 update section when CI is the sole supported build/update path.
 
-## Platform example README
+## Platform doc
 
 Each present platform README explains, in this order where applicable: prerequisites,
 exact commands, required variables or secrets, workspace behavior, files, cleanup, and
@@ -71,14 +71,43 @@ contents: the web-ui renders sibling example files inline, so embedded copies du
 and drift. Short command lines to type are fine. Example image references use moving
 tags from `ghcr.io/hambn/<repo>`.
 
+## Frontmatter contract
+
+Every tool README and every platform doc starts with YAML frontmatter. The web UI reads
+it for page titles, meta descriptions, catalog cards, and search, and
+`.github/scripts/check-repo.py` enforces it. Use flat keys only, plain scalars or flow
+lists, and quote any value that contains `:` or `#`.
+
+```yaml
+---
+name: codex
+description: OpenAI Codex CLI on the devbox development image, with Ubuntu and Alpine variants.
+upstream: https://github.com/openai/codex
+image: ghcr.io/hambn/codex
+keywords: [codex, openai, coding agent, cli]
+---
+```
+
+| Key | Tool README | Platform doc | Rule |
+|---|---|---|---|
+| `name` | required | required | Tool directory name; platform display name (Docker, Docker Compose, Podman, Kubernetes, Helm) |
+| `description` | required | required | One plain-text sentence, 70–160 characters, no markdown, unique per file |
+| `upstream` | required when an upstream exists | not used | `https://` URL of the upstream project; omit for images built only here |
+| `image` | required | not used | Primary pull path without tag, e.g. `ghcr.io/hambn/<repo>` |
+| `usecase` | not used | required | Short phrase naming what the recipe is for |
+| `keywords` | recommended | recommended | Flow list of 3–8 real search terms |
+
+No other keys are allowed. Derive every value from the document's own content; the
+existing `# Title` heading and body stay unchanged below the frontmatter.
+
 ## Cross-linking contract
 
 Every document must be reachable from every other document of the same tool, with no
 orphan pages:
 
-- Catalog → every tool README; tool README → every platform example README and back via
-  its file map; platform example README → its tool README.
-- Keep every present platform example reachable from the tool's Use cases or file map.
+- Catalog → every tool README; tool README → every platform doc and back via
+  its file map; platform doc → its tool README.
+- Keep every present platform doc reachable from the tool's Use cases or file map.
 - Update the file map in the same change that adds, moves, or removes any tracked file.
 - Use relative GitHub-compatible links between repository documents; verify claimed
   inventories against:
