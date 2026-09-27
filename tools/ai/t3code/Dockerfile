@@ -32,6 +32,6 @@ RUN --mount=type=bind,from=t3code-package,source=/usr/local/include/node/node_ve
 ARG T3CODE_VERSION
 LABEL io.github.hambn.containers.tool.t3code.version="${T3CODE_VERSION}"
 USER sysadmin
-WORKDIR /workspace
+WORKDIR /home/sysadmin
 EXPOSE 3773
 ENTRYPOINT ["t3", "serve", "--host=0.0.0.0", "--port=3773"]

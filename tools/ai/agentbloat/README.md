@@ -33,7 +33,7 @@ Every current command-line coding agent in one interactive image, built on the [
 
 Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant); every tag moves on each rebuild. Pin a digest for reproducibility. Earlier dated `<variant>-<YYYYMMDD>-<sha7>` tags are no longer published. Old per-agent tags such as `claude-code-v<version>` are frozen and deprecated.
 
-The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in.
+The image runs as `sysadmin` (UID 1000) in its home directory, `/home/sysadmin`, with projects mounted at `/workspace`; credentials are supplied at runtime and never baked in.
 
 ## Included software
 

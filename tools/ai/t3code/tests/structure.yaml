@@ -2,7 +2,7 @@ schemaVersion: 2.0.0
 
 metadataTest:
   user: sysadmin
-  workdir: /workspace
+  workdir: /home/sysadmin
   entrypoint: ["t3", "serve", "--host=0.0.0.0", "--port=3773"]
   exposedPorts: ["3773"]
 

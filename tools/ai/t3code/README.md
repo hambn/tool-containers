@@ -27,7 +27,7 @@ No Alpine variants: upstream publishes only glibc builds of the `t3` binary, whi
 
 Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `t3code-<version>` for the pinned T3 Code npm release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `t3code-stable-v<version>` and `t3code-nightly-v<version>` tags are frozen and deprecated.
 
-The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Authenticate agents from the T3 Code UI; the server itself has no built-in network authentication, so keep it on loopback or behind an authenticating proxy.
+The image runs as `sysadmin` (UID 1000) in its home directory, `/home/sysadmin`, with projects mounted at `/workspace`; credentials are supplied at runtime and never baked in. Authenticate agents from the T3 Code UI; the server itself has no built-in network authentication, so keep it on loopback or behind an authenticating proxy.
 
 The Browser item in T3 Code's served web interface is disabled. It uses a desktop client browser view; the `ubuntu-browser` image's headless Chromium is available to command-line tools but does not enable that interface item. Use the T3 Code desktop client for its Browser view.
 
