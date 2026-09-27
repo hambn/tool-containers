@@ -102,7 +102,7 @@ COPY --link --from=pi /out/ /
 # Native addons built above must match the parent's Node ABI; fail when the pinned
 # Node build image and devbox's NODE_VERSION drift apart.
 RUN --mount=type=bind,from=npm-base,source=/usr/local/include/node/node_version.h,target=/tmp/npm-node-version.h \
-    want=$(sed -n 's/^#define NODE_MODULE_VERSION \([0-9]*\).*/\1/p' /tmp/npm-node-version.h) && \
+    want=$(awk '$1 == "#define" && $2 == "NODE_MODULE_VERSION" && $3 ~ /^[0-9]+$/ {print $3}' /tmp/npm-node-version.h) && \
     have=$(node -p process.versions.modules) && \
     { [ "$want" = "$have" ] || { echo "npm build Node ABI $want != parent Node ABI $have" >&2; exit 1; }; }
 ARG ACP_AGENT_VERSION
