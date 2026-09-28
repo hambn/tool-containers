@@ -1,5 +1,5 @@
 # Offline: docker load -i t3code.tar first, then
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up -d
 name: t3code
 
 services:
