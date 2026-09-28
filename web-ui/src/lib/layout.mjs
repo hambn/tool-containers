@@ -38,7 +38,7 @@ export function docsNav(page, site) {
   return html`<ul class="tree">
 <li>${link(site.docs, "tree-link")}</li>
 ${catalog.categories.map(
-  (category) => html`<li class="tree-group">${link(site.categoryPage(category), "tree-label")}<ul>${category.tools.map((tool) => {
+  (category) => html`<li class="tree-group">${link(site.categoryPage(category), page.category === category ? "tree-label active" : "tree-label")}<ul>${category.tools.map((tool) => {
     const [toolPage, ...platforms] = families.get(tool);
     // Platforms show only under the tool being read, keeping the tree short.
     const open = page.tool === tool;

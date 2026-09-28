@@ -165,7 +165,14 @@ for (const mode of MODES) {
         assert.deepEqual(listed, bullets.map((tool) => `${mode.basePath}/docs/${category}/${tool}/`), route);
         for (const item of dom.querySelectorAll(".category-tool")) {
           assert.ok(item.querySelectorAll(".image code").length > 0, `${route}: every tool shows its images`);
+          const toolRoute = item.querySelector(".category-tool-title a").getAttribute("href").slice(mode.basePath.length);
+          const tabs = site.pages.get(toolRoute).querySelectorAll(".tabs-link").slice(1).map((link) => link.getAttribute("href"));
+          assert.deepEqual(item.querySelectorAll(".chip").map((chip) => chip.getAttribute("href")), tabs, `${route}: platform chips`);
         }
+        const sidebar = dom.querySelector(".sidebar");
+        assert.equal(sidebar.querySelector('a.tree-label[aria-current="page"]').getAttribute("href"), `${mode.basePath}${route}`);
+        const toolPage = site.pages.get(listed[0].slice(mode.basePath.length));
+        assert.deepEqual(toolPage.querySelectorAll(".sidebar a.tree-label.active").map((link) => link.getAttribute("href")), [`${mode.basePath}${route}`], "a tool page highlights its category");
         const collection = jsonLd(dom).find((node) => node["@type"] === "CollectionPage");
         assert.equal(collection.headline, dom.querySelector("h1").text.trim(), route);
         assert.deepEqual(collection.mainEntity.itemListElement.map((entry) => entry.url), listed.map((href) => canonical(href.slice(mode.basePath.length))), route);

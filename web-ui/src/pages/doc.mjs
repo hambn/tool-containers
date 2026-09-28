@@ -1,7 +1,7 @@
 import { html, raw } from "../lib/html.mjs";
 import { docsNav } from "../lib/layout.mjs";
 import { toolRoute } from "../lib/site.mjs";
-import { imageList } from "../lib/ui.mjs";
+import { imageList, platformChips } from "../lib/ui.mjs";
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
 
@@ -42,15 +42,16 @@ ${keywords.length ? html`<div><dt>Keywords</dt><dd class="muted">${keywords.join
 
 /**
  * The generated body of a category README's Tools section: every tool of the
- * category in `order`, with its title, description, and images.
+ * category in `order`, with its title, description, images, and platform pages.
  */
 function categoryTools(page, site, icon) {
   if (page.kind !== "category") return "";
   return html`<ul class="category-tools">${page.category.tools.map(
     (tool) => html`<li class="category-tool">
 <h3 class="category-tool-title"><a href="${site.config.href(toolRoute(tool))}">${tool.meta.title}</a></h3>
-<p>${tool.meta.description}</p>
+<p class="category-tool-desc">${tool.meta.description}</p>
 ${imageList(tool.meta.images, icon)}
+${platformChips(tool, site)}
 </li>`,
   )}</ul>`;
 }
