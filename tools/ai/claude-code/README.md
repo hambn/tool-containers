@@ -1,5 +1,6 @@
 ---
 name: claude-code
+title: Claude Code
 description: Anthropic's Claude Code CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
 upstream: https://github.com/anthropics/claude-code
 image: ghcr.io/hambn/claude-code

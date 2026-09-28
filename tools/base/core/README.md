@@ -1,5 +1,6 @@
 ---
 name: core
+title: core
 description: Hardened minimal base images on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, curl, bash, and a nonroot user.
 image: ghcr.io/hambn/core
 keywords: [base image, wolfi, alpine, ubuntu, nonroot, hardened]

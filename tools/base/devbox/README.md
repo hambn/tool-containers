@@ -1,5 +1,6 @@
 ---
 name: devbox
+title: devbox
 description: Interactive Ubuntu and Alpine development and CI images in lite, full, and browser tiers, built on core with Zsh and sudo.
 image: ghcr.io/hambn/devbox
 keywords: [development container, ci image, ubuntu, alpine, zsh, headless chromium]

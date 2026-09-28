@@ -279,6 +279,8 @@ def tool_dirs() -> list[pathlib.Path]:
 def check_tools(all_files: list[pathlib.Path]) -> None:
     tools = tool_dirs()
     names = {tool.as_posix() for tool in tools}
+    tool_descriptions: dict[str, pathlib.Path] = {}
+    platform_descriptions: dict[str, pathlib.Path] = {}
     for tool in tools:
         check_tool_workflow(tool)
         for name, target in bake_targets(tool).items():
@@ -295,13 +297,14 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
         platforms = sorted(p for p in docs.iterdir() if p.is_dir()) if docs.is_dir() else []
         if not platforms:
             error(f"{tool}: missing docs/<platform>/")
-        check_frontmatter(tool / "README.md", TOOL_KEYS)
+        check_tool_frontmatter(tool, tool_descriptions)
+        usecases: dict[str, pathlib.Path] = {}
         for platform in platforms:
             readme = platform / "README.md"
             if not readme.is_file():
                 error(f"{platform}: missing README.md")
                 continue
-            check_frontmatter(readme, PLATFORM_KEYS)
+            check_platform_frontmatter(readme, platform_descriptions, usecases)
             linked = {(platform / target).resolve() for target in local_links(readme) if target}
             for path in all_files:
                 if platform in path.parents and path != readme and path.resolve() not in linked:
@@ -316,6 +319,8 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
             if re.search(r"apk\s+upgrade|apt-get\s+(dist-)?upgrade|apt\s+(full-|dist-)?upgrade", text):
                 error(f"{path}: use OS_REFRESH instead of upgrading packages")
 
+    if FRONTMATTER.match(pathlib.Path("README.md").read_text()):
+        error("README.md: the root catalog must not have YAML frontmatter")
     links = (target.removeprefix("./").rstrip("/") for target in LINK.findall(pathlib.Path("README.md").read_text()))
     catalog = [link for link in links if re.fullmatch(r"tools/[^/]+/[^/]+", link)]
     if len(catalog) != len(set(catalog)):
@@ -324,43 +329,100 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
         error(f"README.md catalog mismatch: missing={sorted(names - set(catalog))}, unexpected={sorted(set(catalog) - names)}")
 
 
-# Frontmatter the web UI reads for titles, meta descriptions, cards, and search.
-FRONTMATTER_KEYS = {"name", "description", "upstream", "image", "keywords", "usecase"}
-TOOL_KEYS = {"name", "description", "image"}
-PLATFORM_KEYS = {"name", "description", "usecase"}
+# Frontmatter the web UI reads for titles, meta descriptions, cards, and search. The
+# contract is documented in .agents/skills/documentation/SKILL.md; each key maps to whether it is required.
+FRONTMATTER = re.compile(r"---\n(.*?)\n---\n", re.S)
+TOOL_KEYS = {"name": True, "title": True, "description": True, "image": True, "upstream": False, "keywords": False}
+PLATFORM_KEYS = {"name": True, "description": True, "usecase": True, "keywords": False}
+PLATFORM_NAMES = {
+    "docker": "Docker", "docker-compose": "Docker Compose", "podman": "Podman",
+    "kubernetes": "Kubernetes", "helm": "Helm",
+}
+DESCRIPTION_LENGTH = (110, 160)
+MARKUP = re.compile(r"[`*<>\n]|\]\(|^#")
 
 
-def check_frontmatter(path: pathlib.Path, required: set[str]) -> None:
+def frontmatter(path: pathlib.Path, keys: dict[str, bool], keyword_count: tuple[int, int]) -> dict | None:
+    """Parse and check the rules shared by every document; return the data if usable."""
     if not path.is_file():
-        return
-    match = re.match(r"---\n(.*?)\n---\n", path.read_text(), re.S)
+        return None
+    match = FRONTMATTER.match(path.read_text())
     if not match:
         error(f"{path}: missing YAML frontmatter")
-        return
+        return None
     try:
         data = yaml.safe_load(match.group(1))
     except yaml.YAMLError as exc:
         error(f"{path}: invalid frontmatter: {exc}")
-        return
+        return None
     if not isinstance(data, dict):
         error(f"{path}: frontmatter must be a mapping")
-        return
-    for key in sorted(required - data.keys()):
+        return None
+    for key in sorted(k for k, required in keys.items() if required and k not in data):
         error(f"{path}: frontmatter missing {key}")
-    for key in sorted(data.keys() - FRONTMATTER_KEYS):
-        error(f"{path}: frontmatter key {key} is not allowed")
+    for key in sorted(map(str, data.keys() - keys.keys())):
+        error(f"{path}: frontmatter key {key} is not allowed; use {', '.join(keys)}")
     for key, value in data.items():
         if key == "keywords":
-            if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
-                error(f"{path}: frontmatter keywords must be a list of strings")
-        elif not isinstance(value, str) or not value.strip():
+            low, high = keyword_count
+            if not isinstance(value, list) or not all(isinstance(v, str) and v.strip() for v in value):
+                error(f"{path}: frontmatter keywords must be a list of non-empty strings")
+            elif not low <= len(value) <= high:
+                error(f"{path}: frontmatter has {len(value)} keywords; use {low}-{high}")
+            elif len({v.strip().casefold() for v in value}) != len(value):
+                error(f"{path}: frontmatter keywords must be unique")
+        elif key in keys and (not isinstance(value, str) or not value.strip()):
             error(f"{path}: frontmatter {key} must be a non-empty string")
+    for key in ("description", "usecase"):
+        if isinstance(data.get(key), str) and MARKUP.search(data[key]):
+            error(f"{path}: frontmatter {key} must be plain text without Markdown or HTML")
     description = data.get("description")
-    if isinstance(description, str) and not 70 <= len(description) <= 160:
-        error(f"{path}: frontmatter description is {len(description)} chars; use 70-160")
+    low, high = DESCRIPTION_LENGTH
+    if isinstance(description, str) and not low <= len(description) <= high:
+        error(f"{path}: frontmatter description is {len(description)} chars; use {low}-{high}")
+    return data
+
+
+def unique(path: pathlib.Path, key: str, value: object, seen: dict[str, pathlib.Path], scope: str) -> None:
+    if not isinstance(value, str):
+        return
+    if value in seen:
+        error(f"{path}: frontmatter {key} duplicates {seen[value]}; make it unique {scope}")
+    else:
+        seen[value] = path
+
+
+def check_tool_frontmatter(tool: pathlib.Path, descriptions: dict[str, pathlib.Path]) -> None:
+    path = tool / "README.md"
+    data = frontmatter(path, TOOL_KEYS, (3, 8))
+    if data is None:
+        return
+    name = data.get("name")
+    if isinstance(name, str) and name != tool.name:
+        error(f"{path}: frontmatter name {name} must equal the directory name {tool.name}")
+    image = data.get("image")
+    if isinstance(image, str) and image != f"ghcr.io/hambn/{tool.name}":
+        error(f"{path}: frontmatter image must be ghcr.io/hambn/{tool.name}, not {image}")
     upstream = data.get("upstream")
-    if isinstance(upstream, str) and not upstream.startswith("https://"):
-        error(f"{path}: frontmatter upstream must start with https://")
+    if isinstance(upstream, str) and not re.fullmatch(r"https://[^/\s]+\S*", upstream):
+        error(f"{path}: frontmatter upstream must be an https:// URL")
+    unique(path, "description", data.get("description"), descriptions, "across tool READMEs")
+
+
+def check_platform_frontmatter(
+    path: pathlib.Path, descriptions: dict[str, pathlib.Path], usecases: dict[str, pathlib.Path]
+) -> None:
+    platform = path.parent.name
+    if platform not in PLATFORM_NAMES:
+        error(f"{path.parent}: unknown platform {platform}; use one of {', '.join(PLATFORM_NAMES)}")
+    data = frontmatter(path, PLATFORM_KEYS, (2, 6))
+    if data is None:
+        return
+    name = data.get("name")
+    if platform in PLATFORM_NAMES and isinstance(name, str) and name != PLATFORM_NAMES[platform]:
+        error(f"{path}: frontmatter name must be {PLATFORM_NAMES[platform]}, not {name}")
+    unique(path, "description", data.get("description"), descriptions, "across platform READMEs")
+    unique(path, "usecase", data.get("usecase"), usecases, "within the tool")
 
 
 # Build args that are set per variant or by CI rather than pinned to an upstream release.

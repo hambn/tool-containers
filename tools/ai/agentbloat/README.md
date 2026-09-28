@@ -1,5 +1,6 @@
 ---
 name: agentbloat
+title: agentbloat
 description: Codex, Claude Code, Cursor Agent, Gemini CLI, Copilot, and other coding-agent CLIs in one interactive devbox image, with Ubuntu and Alpine variants.
 image: ghcr.io/hambn/agentbloat
 keywords: [coding agents, codex, claude code, cursor agent, gemini cli, github copilot, opencode, grok]
