@@ -1,7 +1,7 @@
 # Web UI
 
 A static catalog and documentation site generated from the root [README](../README.md)
-and the tool and platform READMEs under `tools/`. Browsers get pre-rendered HTML, one
+and the category, tool, and platform READMEs under `tools/`. Browsers get pre-rendered HTML, one
 CSS file, a small module script, an external icon sprite, and a lazily loaded search
 index. The site needs no framework, API, web fonts, or application server.
 
@@ -26,6 +26,7 @@ only in tests.
 | Document                                            | Page                                  |
 | --------------------------------------------------- | ------------------------------------- |
 | `README.md`                                         | `/` (catalog) and `/docs/`            |
+| `tools/<category>/README.md`                        | `/docs/<category>/`                   |
 | `tools/<category>/<tool>/README.md`                 | `/docs/<category>/<tool>/`            |
 | `tools/<category>/<tool>/docs/<platform>/README.md` | `/docs/<category>/<tool>/<platform>/` |
 
@@ -33,18 +34,32 @@ The frontmatter contract is defined in
 [`$documentation`](../.agents/skills/documentation/SKILL.md) and enforced strictly. The
 build fails on any of these:
 
-- unknown, missing, or wrongly typed keys, or invalid values;
+- unknown, missing, duplicate, or wrongly typed keys (YAML 1.1, as PyYAML reads it),
+  or invalid values;
 - frontmatter in the root README;
 - an unknown platform directory;
-- a platform doc without a tool README.
+- a tool without a category README, or a platform doc without a tool README;
+- a category README whose `## Tools` section does not link each tool once, in `order`;
+- a raw HTML block, or a link that fails to resolve (see below).
 
-The build reports every problem at once and names each file:
+The build validates and renders every document before it writes anything, then reports
+every problem at once and names each file:
 
 ```text
 build failed: Invalid documents:
   - tools/ai/codex/docs/helm/README.md: missing required key "usecase"
   - tools/ai/codex/README.md: keywords: expected list, got string
 ```
+
+A failed build leaves the previous `dist/` untouched. A successful build writes into a
+sibling `.dist-*` staging directory and swaps it in by rename, so a server on `dist/`
+never sees a half-written site.
+
+[`check-repo.py`](../.github/scripts/check-repo.py) enforces the same document rules.
+The cases in [`tests/fixtures/documents.yaml`](tests/fixtures/documents.yaml) pin them:
+`tests/fixtures.test.mjs` and
+[`test_check_repo.py`](../.github/scripts/test_check_repo.py) each apply every case to
+the same base tree and must flag the same files. Add a case there when a rule changes.
 
 To add, rename, or remove a document or recipe file, change it and rebuild. There is no
 content list to update.
@@ -58,14 +73,18 @@ content list to update.
   page's table of contents replaces it.
 - A list item whose only link points at the page itself (such as a "Docs:" link to the
   site) is dropped. A list left empty by this rule disappears.
+- On a category page, the `## Tools` section is replaced by a list generated from the
+  tool READMEs: each tool's title, description, and images.
+- Categories and tools appear in frontmatter `order` everywhere; platforms follow the
+  fixed platform order.
 - Links are resolved against the Git inventory:
   - Links to documents become site routes.
   - Links to a platform's sibling files become in-page anchors. A link with a fragment
     into one of those files goes to GitHub instead.
   - Other repository paths go to GitHub `blob` or `tree` URLs.
   - Absolute links into `SITE_URL` follow `BASE_PATH`.
-- These fail the build: a link that climbs out of the repository, a `javascript:` or
-  `data:` link, and raw HTML.
+- These fail the build: a link that climbs out of the repository, a link with any
+  scheme other than `http:`, `https:`, or `mailto:`, and raw HTML.
 - On platform pages, every sibling file (scripts, manifests, charts) appears under
   "File contents". Files over 40 lines start collapsed. Binary files and files over
   128 KiB keep their GitHub links.
@@ -74,7 +93,7 @@ content list to update.
 
 - **Catalog:** a table of images grouped by category. Each row shows:
   - the title and description;
-  - the image reference, with a copy button;
+  - the GHCR image reference, with a copy button;
   - platform links, in a fixed column order.
 
   You can filter by text, category, or platform. The filter state is kept in the URL
@@ -84,8 +103,10 @@ content list to update.
   matching sections nested under each page. The same engine powers the `/search/?q=`
   page, which shows every result.
 - **Docs:**
-  - A sidebar tree, breadcrumbs, and platform tabs.
-  - A facts panel on each page: image, use case, upstream, source, and keywords.
+  - A sidebar tree whose category labels open the category pages, breadcrumbs, and
+    platform tabs.
+  - A category page per category, listing its tools with their images.
+  - A facts panel on each page: images, use case, upstream, source, and keywords.
   - A table of contents, which becomes a collapsible panel below 1280px.
   - Previous/next links and copy buttons.
   - A light/dark theme that follows the OS until you choose one.
@@ -93,7 +114,8 @@ content list to update.
   - Titles and descriptions come from frontmatter or from whole sentences of the root
     README lead.
   - Canonical and `og:url` tags appear only on indexable pages.
-  - JSON-LD: WebSite with SearchAction, CollectionPage, and TechArticle with Git dates.
+  - JSON-LD: WebSite with SearchAction, CollectionPage with an ItemList of tools (home
+    and category pages), and TechArticle with Git dates.
     BreadcrumbList appears only where a visible breadcrumb exists.
   - The build writes these files:
     - `sitemap.xml`, with Git `lastmod`;
@@ -111,6 +133,7 @@ content list to update.
 - Pages rank by field: title, then headings, then keywords and use case, then
   description, then prose.
 - Matches are highlighted on raw text, which is escaped afterwards.
+- Only `/docs/` pages are indexed; a category page indexes its generated tool list.
 - Code blocks are never indexed.
 
 ## Deployment configuration
@@ -118,7 +141,9 @@ content list to update.
 | Variable            | Purpose                                                      | Default                           |
 | ------------------- | ------------------------------------------------------------ | --------------------------------- |
 | `SITE_URL`          | Public URL for canonical links, structured data, and sitemap | `https://tool-containers.hgh.dev` |
+| `SITE_ORIGIN`       | Older alias for `SITE_URL`, used only when that is unset     | unset                             |
 | `BASE_PATH`         | Optional prefix for internal links and assets                | empty                             |
+| `GITHUB_SERVER_URL` | GitHub host for source links (set by Actions)                | `https://github.com`              |
 | `GITHUB_REPOSITORY` | `owner/repo` for GitHub source links                         | `hambn/tool-containers`           |
 
 `SITE_URL` must be an absolute http(s) URL. `SITE_URL` and `BASE_PATH` are independent.
@@ -142,6 +167,7 @@ src/client/       main.js, the lazy search-ui.js, and the pre-paint theme.js
 src/styles/       base, layout, components, and prose CSS
 public/           files copied to dist/ as-is
 tests/            unit tests and site tests
+tests/fixtures/   document cases shared with check-repo.py
 ```
 
 ## Tests
@@ -157,14 +183,15 @@ sets `SITE_URL` and `BASE_PATH` for a subpath. The tests parse every page and ch
 - internal links, assets, and fragments resolve inside `BASE_PATH`;
 - canonical tags and the sitemap cover exactly the indexable pages;
 - JSON-LD parses and its breadcrumb matches the visible one;
-- the search index covers every page;
+- the search index covers every `/docs/` page;
+- category pages list their tools in `order`, with images, and the sidebar links them;
 - the favicon and manifest are valid;
 - raw size budgets hold (about twice the current output).
 
-Fixture repositories cover escaping of hostile frontmatter and headings, and invalid
-content. Unit tests cover:
+Fixture repositories cover escaping of hostile frontmatter and headings, and a failed
+build that must report every problem and keep the previous output. Unit tests cover:
 
-- frontmatter rules;
+- frontmatter and cross-document rules, including the shared fixture cases;
 - link resolution;
 - headings and rendering rules;
 - search ranking, typos, and highlighting.

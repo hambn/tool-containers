@@ -14,7 +14,7 @@ them without an explicit user request.
 The site automatically showcases the repository's markdown as pages — nothing else:
 
 - Content source of truth is the tracked documents themselves: root `README.md`, every
-  `tools/<category>/<tool>/README.md`, and every
+  `tools/<category>/README.md`, every `tools/<category>/<tool>/README.md`, and every
   `tools/<category>/<tool>/docs/<platform>/README.md`, discovered with `git ls-files`
   (untracked files never publish). Document standards live in `$documentation`.
 - Generate pages at build time from those files. Never copy catalog rows, commands, or
@@ -22,6 +22,15 @@ The site automatically showcases the repository's markdown as pages — nothing 
   under `tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
+- Each category README renders at `/docs/<category>/` with the breadcrumb Docs /
+  category. Its `## Tools` section is replaced by a tool list generated from the tool
+  READMEs (title, description, and every `images` entry), so the README's bullets never
+  drift from the site.
+- Categories and tools sort by frontmatter `order` everywhere: catalog, sidebar, docs
+  overview, search empty state, `llms.txt`, and the sitemap. Platforms follow the fixed
+  platform order in `$documentation`.
+- A tool's `images` list (GHCR first) is the only source of image references; show the
+  list, never a hand-built registry path.
 - Platform pages render their sibling recipe files (scripts, manifests, charts) inline
   from the tracked files, which is why platform READMEs link rather than embed them.
 - Site-only rendering rules, so a README reads well on both GitHub and the site:
@@ -37,19 +46,27 @@ The site automatically showcases the repository's markdown as pages — nothing 
   - Any other repository path becomes a GitHub blob or tree URL.
   - A link that leaves the repository fails the build, as does a non-http(s)/mailto
     scheme and raw HTML.
-- Navigation mirrors the repository shape: catalog categories → tools → tool page → its
-  platform pages. Every discovered document gets a page.
+- Navigation mirrors the repository shape: catalog → category page → tool page → its
+  platform pages. Sidebar category labels link their category page. Every discovered
+  document gets a page.
 - Page metadata comes from YAML frontmatter (parsed with `yaml`), validated strictly
   against the contract in `$documentation`:
   - Unknown, missing, or mistyped keys fail the build, as do invalid values.
-  - So do frontmatter in the root README, unknown platform directories, and a platform
-    doc without its tool README.
-  - Every problem is reported at once, each naming its file.
+  - So do frontmatter in the root README, unknown platform directories, a tool without
+    its category README, a platform doc without its tool README, and a category
+    `## Tools` section that does not link each tool once in `order`.
+  - The build validates and renders every document first and reports every problem —
+    frontmatter, Markdown, and links — at once, each naming its file. Only then does it
+    write, into a sibling staging directory that replaces `dist/` by rename, so a
+    failed build leaves the previous `dist/` intact.
+  - `check-repo.py` holds the same rules; the shared cases in
+    `tests/fixtures/documents.yaml` run against both.
   - Never default around a failure or keep metadata tables in UI code.
 - Search is fully static. A content-addressed JSON index is loaded lazily by the dialog
   (`/`, Ctrl/Cmd+K) and by the noindex `/search/?q=` page, which is also the WebSite
   SearchAction target.
-  - The index holds titles, frontmatter, headings, and full section prose, never code.
+  - The index covers the `/docs/` pages and holds titles, frontmatter, headings, and
+    full section prose, never code. A category page indexes its generated tool list.
   - Ranking and matching live in the pure `src/shared/search.mjs`, shared by the
     browser and the tests; the home filter uses the same matcher.
   - Every term must match. Matches are exact, prefix, or within one typo for terms of
@@ -66,8 +83,9 @@ The site automatically showcases the repository's markdown as pages — nothing 
   if it serves these goals; otherwise prefer the lightest static generator. Ship
   minimal or no client JavaScript.
 - Keep structured data limited to facts in the visible documents. Do not infer setup
-  durations, prices, ratings, or publisher identity. Use TechArticle (never
-  SoftwareApplication), and emit BreadcrumbList only where a visible breadcrumb with at
+  durations, prices, ratings, or publisher identity. Use TechArticle for tool, platform,
+  and root README pages, and CollectionPage with an ItemList of its tools for the home
+  and category pages (never SoftwareApplication), and emit BreadcrumbList only where a visible breadcrumb with at
   least two items exists. Canonical and `og:url` tags appear on indexable pages only.
 - Escape every value interpolated into HTML or XML through the `html` tagged template
   or `escapeHtml`; JSON-LD escapes `<`.
@@ -117,7 +135,8 @@ variables at runtime cannot alter already generated HTML.
 - `src/shared/` holds modules the browser bundle and Node share.
 - `src/pages/` holds the templates.
 - `src/client/` holds the module script, the lazy search UI, and the pre-paint theme.
-- `tests/` holds unit tests and site tests.
+- `tests/` holds unit tests and site tests; `tests/fixtures/` holds the document cases
+  shared with `check-repo.py`.
 
 ## Verification
 

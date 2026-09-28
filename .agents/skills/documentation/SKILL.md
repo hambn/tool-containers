@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Write and review the repository's written documents - the root catalog README, every tools/<category>/<tool>/README.md, and every per-platform doc README (and their YAML frontmatter) - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
+description: Write and review the repository's written documents - the root catalog README, every tools/<category>/README.md and tools/<category>/<tool>/README.md, and every per-platform doc README (and their YAML frontmatter) - including their required sections, cross-links, and quality bar. Use when adding, editing, or reviewing any README or document in this repository; do not use for Dockerfiles, CI workflows, or the web-ui application itself.
 ---
 
 # Documentation
@@ -16,6 +16,7 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 | Document | Path | Role |
 |---|---|---|
 | Root catalog | `README.md` | Public index of every tool |
+| Category README | `tools/<category>/README.md` | What one category is for and which tools it holds |
 | Tool README | `tools/<category>/<tool>/README.md` | One tool's full public contract |
 | Platform doc | `tools/<category>/<tool>/docs/<platform>/README.md` | Runnable recipes for one platform |
 
@@ -23,11 +24,22 @@ and platform mechanics stay owned by `$container-images`; rendering stays owned 
 
 - Contain the title and repository description, the repository-guidance pointer, and
   one subsection per category with a table of tool links and one-line descriptions.
+  Each category heading is a link to its category README at `./tools/<category>/`.
 - List every tool exactly once using `tools/<category>/<tool>/` links.
 - Keep category order stable and show a catalog category with no implementation as
   `_None yet._`.
 - Add or remove the catalog row in the same change as the project.
 - Keep operational detail in the tool README; the catalog links, it does not explain.
+
+## Category README
+
+Keep `tools/<category>/README.md` short and factual: the `# <title>` heading, one intro
+paragraph on what the category holds, the **Source** and **Docs** links as in a tool
+README, then a `## Tools` section. That section holds only bullets and blank lines: one
+bullet per tool directory, each exactly once, in the tools' `order`. A bullet is the
+tool title linked to `./<tool>/`, then ` — ` and a prose description with no links or
+HTML. The site
+replaces this section with a generated tool list, so keep anything else out of it.
 
 ## Tool README
 
@@ -78,42 +90,60 @@ tags from `ghcr.io/hambn/<repo>`.
 
 ## Frontmatter contract
 
-Every tool README and every platform doc starts with YAML frontmatter. The web UI reads
-it for page titles, meta descriptions, catalog cards, structured data, and search, and
-`.github/scripts/check-repo.py` enforces it. Use flat keys only, plain scalars or flow
-lists, and quote a value only when YAML would misread it (for example one containing
-`: ` or ` #`). No other keys are allowed.
+Every category README, tool README, and platform doc starts with YAML frontmatter. The
+web UI reads it for page titles, meta descriptions, catalog cards, ordering, structured
+data, and search. `.github/scripts/check-repo.py` and the web UI enforce identical
+rules, pinned by the shared cases in `web-ui/tests/fixtures/documents.yaml` that both
+run. Use flat keys only, plain scalars or flow lists, and quote a value only when YAML
+would misread it (for example one containing `: ` or ` #`). No other keys are allowed.
 
 ```yaml
 ---
 name: codex
 title: Codex CLI
 description: OpenAI Codex CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
+order: 3
+images: [ghcr.io/hambn/codex, docker.io/hambn/codex]
 upstream: https://github.com/openai/codex
-image: ghcr.io/hambn/codex
 keywords: [openai, coding agent, devbox, ubuntu, alpine, headless chromium]
 ---
 ```
+
+Values are parsed as YAML 1.1 and must have the exact type: a bare `yes`, `on`, `123`, or
+date where a string is required is an error, as is a boolean `order`; quote such strings.
+Duplicate keys are an error. A **plain string** is a single line without Markdown or
+HTML (no backticks, `*`, `<`, `>`, link syntax, leading `#`, or `_` emphasis); lengths are
+measured and uniqueness is compared after trimming, ignoring case.
+
+Category README (`tools/<category>/README.md`):
+
+| Key | Required | Rule |
+|---|---|---|
+| `name` | yes | Equals the `<category>` directory name |
+| `title` | yes | Plain string display name, for example `AI` |
+| `description` | yes | Plain string, 110–160 characters, unique across all documents |
+| `order` | yes | Integer ≥ 1, unique among categories; sorts categories everywhere |
 
 Tool README (`tools/<category>/<tool>/README.md`):
 
 | Key | Required | Rule |
 |---|---|---|
 | `name` | yes | Equals the `<tool>` directory name |
-| `title` | yes | Human display name of the product, for example `Claude Code` or `core` |
-| `description` | yes | Plain text, 110–160 characters, unique across tool READMEs |
-| `image` | yes | Exactly `ghcr.io/hambn/<name>` |
+| `title` | yes | Plain string display name of the product, for example `Claude Code` or `core` |
+| `description` | yes | Plain string, 110–160 characters, unique across all documents |
+| `order` | yes | Integer ≥ 1, unique within the category; sorts tools everywhere |
+| `images` | yes | Untagged references in display order, no duplicates: `ghcr.io/hambn/<name>` first, then `docker.io/hambn/<name>` when published there |
 | `upstream` | no | `https://` URL of the upstream project; omit for images built only here |
-| `keywords` | no | Flow list of 3–8 unique, non-empty strings |
+| `keywords` | no | Flow list of 3–8 unique plain strings |
 
 Platform doc (`tools/<category>/<tool>/docs/<platform>/README.md`):
 
 | Key | Required | Rule |
 |---|---|---|
-| `name` | yes | Fixed by directory: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm; any other directory fails |
-| `description` | yes | Plain text, 110–160 characters, unique across platform docs |
-| `usecase` | yes | Short plain phrase, unique within the tool, matching its Use cases scenario name |
-| `keywords` | no | Flow list of 2–6 unique, non-empty strings |
+| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm; any other directory fails |
+| `description` | yes | Plain string, 110–160 characters, unique across all documents |
+| `usecase` | yes | Plain string of at most 80 characters, unique within the tool, matching its Use cases scenario name |
+| `keywords` | no | Flow list of 2–6 unique plain strings |
 
 The root `README.md` has no frontmatter. Derive every value from the document's own
 content; the `# Title` heading and body stay unchanged below the frontmatter:
@@ -123,13 +153,19 @@ content; the `# Title` heading and body stay unchanged below the frontmatter:
 - Pick keywords a reader would search for that the page does not already carry: skip
   the tool name, title, platform name, and generic terms such as `cli` or
   `docker image`.
+- Give a new tool the next free `order` in its category and add its bullet to the
+  category README's `## Tools` section in the same change.
+
+When a rule changes, change `check-repo.py`, `web-ui/src/lib/frontmatter.mjs` (and
+`content.mjs` for cross-document rules), and the shared fixture cases together.
 
 ## Cross-linking contract
 
 Every document must be reachable from every other document of the same tool, with no
 orphan pages:
 
-- Catalog → every tool README; tool README → every platform doc through its Use cases;
+- Catalog → every category README and tool README; category README → every tool README
+  through its Tools section; tool README → every platform doc through its Use cases;
   platform doc → its tool README through the "tool overview" link, and → every file in
   its directory through its Files section (`check-repo.py` enforces the latter).
 - Update the Files section in the same change that adds, moves, or removes a file in

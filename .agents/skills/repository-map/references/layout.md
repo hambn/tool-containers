@@ -44,6 +44,7 @@ mechanics. There are no global agent references, memory logs, or secondary route
 ├── ISSUE_TEMPLATE/
 ├── scripts/
 │   ├── check-repo.py             # static repository validator
+│   ├── test_check_repo.py        # its document-rule tests (shared web-ui fixtures)
 │   ├── ghcr-cleanup.py           # prune untagged GHCR versions after publishing
 │   ├── hub-readme.py             # sync a Docker Hub README after publishing
 │   ├── validate_pr_metadata.py   # PR title/body policy
@@ -63,15 +64,21 @@ There is no Dependabot configuration; Renovate owns updates.
 ```text
 tools/
 ├── base/
+│   ├── README.md                 # category README: intro and ordered tool list
 │   ├── core/                     # hardened alpine/ubuntu/wolfi base
 │   └── devbox/                   # lite/full/browser dev images (+ packages/, rootfs/, scripts/)
-└── ai/<tool>/                    # agentbloat, claude-code, codex, omnigent,
-    ├── README.md                 #   open-code-review, pi-agent, t3code
-    ├── Dockerfile
-    ├── docker-bake.hcl
-    ├── tests/
-    └── docs/<platform>/
+└── ai/
+    ├── README.md                 # category README
+    └── <tool>/                   # agentbloat, claude-code, codex, omnigent,
+        ├── README.md             #   open-code-review, pi-agent, t3code
+        ├── Dockerfile
+        ├── docker-bake.hcl
+        ├── tests/
+        └── docs/<platform>/
 ```
+
+Every category directory has a `README.md` with frontmatter; `check-repo.py` requires it
+and checks its `## Tools` list against the category's tool directories.
 
 `ci` and `sandboxes` are catalog categories with no projects yet. A tool contains only
 the platform docs it actually supports. README standards are owned by
@@ -80,7 +87,9 @@ the platform docs it actually supports. README standards are owned by
 ## Web UI
 
 `web-ui/` owns the static site generated at build time from the root catalog, every
-tool README, and every platform doc README with its sibling files. Use `$web-ui`.
+category and tool README, and every platform doc README with its sibling files.
+`web-ui/tests/fixtures/documents.yaml` holds the document-rule cases that both the web
+UI tests and `.github/scripts/test_check_repo.py` run. Use `$web-ui`.
 
 ## Exact-inventory commands
 
