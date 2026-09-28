@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Print a README with relative Markdown links rewritten to absolute GitHub URLs.
+"""Print a README for Docker Hub: YAML frontmatter stripped and relative Markdown links
+rewritten to absolute GitHub URLs.
 
 Usage: hub-readme.py <path/to/README.md>  (run from the repository root)
 """
@@ -11,6 +12,8 @@ import sys
 
 REPOSITORY = "https://github.com/hambn/tool-containers"
 RAW = "https://raw.githubusercontent.com/hambn/tool-containers/main"
+# Docker Hub renders frontmatter as Markdown, so the leading block would show as a heading.
+FRONTMATTER = re.compile(r"\A---\n.*?\n---\n\n?", re.S)
 
 
 def rewrite(readme: pathlib.Path, text: str) -> str:
@@ -32,4 +35,4 @@ def rewrite(readme: pathlib.Path, text: str) -> str:
 
 if __name__ == "__main__":
     path = pathlib.Path(sys.argv[1])
-    sys.stdout.write(rewrite(path, path.read_text()))
+    sys.stdout.write(rewrite(path, FRONTMATTER.sub("", path.read_text(), count=1)))
