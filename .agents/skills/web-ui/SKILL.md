@@ -23,7 +23,9 @@ The site automatically showcases the repository's markdown as pages — nothing 
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
 - Render the home catalog as a hero from the root README, then every tool per category
-  with all its `images` entries and their registries. Platforms stay out of the
+  with all its `images` entries and their registries. The catalog filter (text plus
+  category) is the home page's only field and sits at the end of the hero; site-wide
+  search lives in the header only. Platforms stay out of the
   catalog; they live on the docs pages and category cards.
 - Each category README renders at `/docs/<category>/` with the breadcrumb Docs /
   category. Its `## Tools` section is replaced by tool cards generated from the tool
@@ -102,21 +104,37 @@ The site automatically showcases the repository's markdown as pages — nothing 
 - SEO requirements per page: semantic HTML, exactly one `<h1>`, unique title and meta
   description from document content, clean slugs, generated sitemap and robots where
   the pipeline supports them.
-- Design language: minimal modern shadcn zinc style.
+- Design language: minimal Vercel/Geist style.
   - Tokens are CSS `light-dark()` values that follow the OS until the user picks a
-    theme.
-  - One radius scale (8/6/4/12px), the system font stack, and one shared container.
+    theme: a neutral `--gray-1`..`--gray-12` ramp per theme (near-white light, `#0a0a0a`
+    dark) and one accent. Components use the semantic tokens, never raw grays.
+  - One radius scale (8/6/4/12px), a type scale of 12/13/14/15/16px (`--text-*`), and
+    one shared container.
+  - Text is self-hosted Geist and code Geist Mono (`src/fonts/`, Latin subsets, OFL
+    beside them). Keep both under 70 kB together, content-addressed, with
+    `font-display: swap`, the sans file preloaded, and the metric-matched fallback faces
+    in `fonts.mjs` so the swap causes no layout shift. web-ui/README.md has the subset
+    command.
   - Surfaces are `--bg`, `--surface` (cards and controls), `--surface-2` (headers and
     table heads), and `--code-bg`. Controls share `--control` (36px height), the
-    `--input` border (at least 3:1), and the `--ring` focus shadow; `--success` marks
-    a completed copy.
+    `--input` border, and the `--ring` focus shadow; `--success` marks a completed copy.
+  - Contrast floor in both themes: text 4.5:1 (`--fg`, `--muted-fg`, `--accent`,
+    placeholders, kbd hints); meaningful glyphs 3:1 (`--faint`: separators, icons, list
+    markers, the rail marker) and control borders 3:1 (`--input`). `--border` and
+    `--border-strong` only divide or frame and may be calmer.
+  - The platform switcher is Overview plus platform pages grouped by use
+    (`PLATFORM_GROUPS` in `pages/doc.mjs`; a new platform needs a group there or falls
+    under "More"). Groups wrap as units; on phones each group is a labelled row. Never
+    make it a horizontally scrolling tab strip.
+  - "On this page" is a thin rail: same-weight muted entries, h3 entries indented and
+    smaller, the section in view in foreground with a rail marker.
   - Code token colours are adjusted at build time (`highlight.mjs`) to at least 4.5:1
     on `--code-bg` in both themes; never hand-tune a Shiki colour instead.
   - Below 1024px the sidebar moves into the menu drawer, which also holds the theme
     switch and the GitHub link; the table of contents collapses below 1280px.
   - The Markdown renderer plus the sidebar and nav are the core components.
-  - Weight performance above decoration: small payload, no web fonts, and no heavy
-    frameworks in the shipped bundle.
+  - Weight performance above decoration: small payload, only the two subset fonts, and
+    no heavy frameworks in the shipped bundle.
 - Accessibility floor on every surface: semantic landmarks, keyboard operation, visible
   focus, sufficient contrast, reduced-motion support.
 - A static showcase has no secrets; never introduce tokens, analytics keys, or private
