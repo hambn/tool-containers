@@ -12,8 +12,8 @@ parameterization or repeated releases.
   persistent work. State which data survives pod replacement.
 - Use a real default `ghcr.io/hambn/<tool>:<variant>` and declare `imagePullPolicy`
   explicitly instead of relying on the `:latest` default. A pull policy cannot make a
-  moving tag reproducible; pin an immutable version tag or digest when a workload must
-  keep running one exact image.
+  moving tag reproducible; pin a digest when a workload must keep running one exact
+  image.
 - Set non-root security context, dropped capabilities, resource requests/limits, and
   service account behavior compatible with the image. Do not add cluster-wide RBAC when
   the tool does not require it.

@@ -10,11 +10,13 @@ The wrapper runs the static repository validator `.github/scripts/check-repo.py`
 whitespace checks for staged and unstaged changes. The validator covers agent-workspace
 integrity, workflow YAML, Dockerfile and bake contracts, Renovate comments on `ARG` pins,
 per-tool workflows, test layout, executable bits, Markdown links, documentation
-frontmatter, and Compose/Helm rendering when those tools are available. It never builds,
-pulls, or runs an image.
+frontmatter, Compose/Helm rendering when those tools are available, and the CI and Dev
+Container recipes (workflow hardening, actionlint when installed, GitLab `script`
+syntax, and JSON with Comments parsing). It never builds, pulls, or runs an image.
 
 Linters that cannot be verified statically on every machine (for example hadolint,
-shellcheck, shfmt, actionlint) run in the `lint` job of `.github/workflows/pr.yml`. Run
+shellcheck, shfmt, actionlint) run in the `lint` job of `.github/workflows/pr.yml`;
+actionlint there also covers `tools/*/*/docs/github-actions/` workflows. Run
 them locally when installed; otherwise say they are left to CI.
 
 ## Targeted checks

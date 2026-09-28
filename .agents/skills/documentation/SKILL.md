@@ -62,7 +62,7 @@ materially helps operation:
 4. **Included software** as nested lists (grouped by tier or by tool, with commands and
    sources), and what comes from the parent image. Base images without a bundle may
    use a focused section such as Hardening instead.
-5. **Use cases** with three to five concrete scenarios, each a bold scenario name and
+5. **Use cases** with three to seven concrete scenarios, each a bold scenario name and
    links to the platform docs that serve it. The scenario name is the `usecase` of the
    platform doc it links; when one scenario links two platform docs, each `usecase`
    extends the name to stay unique (for example "… from plain manifests" and
@@ -140,7 +140,7 @@ Platform doc (`tools/<category>/<tool>/docs/<platform>/README.md`):
 
 | Key | Required | Rule |
 |---|---|---|
-| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm; any other directory fails |
+| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm, `github-actions` → GitHub Actions, `gitlab-ci` → GitLab CI, `devcontainer` → Dev Container; any other directory fails |
 | `description` | yes | Plain string, 110–160 characters, unique across all documents |
 | `usecase` | yes | Plain string of at most 80 characters, unique within the tool, matching its Use cases scenario name |
 | `keywords` | no | Flow list of 2–6 unique plain strings |
