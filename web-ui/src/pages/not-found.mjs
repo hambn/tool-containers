@@ -1,15 +1,12 @@
-import { icon } from "../lib/icons.mjs";
+import { html } from "../lib/html.mjs";
 
-export function renderNotFound({ site }) {
-  const { href } = site.config;
-  return `<main id="content" class="narrow center" tabindex="-1">
-<p class="eyebrow">404</p>
-<h1>Page not found</h1>
-<p class="lead">The page may have moved when a tool or recipe was renamed. Search for it, or start from the catalog.</p>
-<form class="search-form" action="${href("/search/")}" method="get" role="search">
-<div class="field">${icon("search")}<label class="sr-only" for="search-q">Search the documentation</label><input id="search-q" name="q" type="search" placeholder="Search tools, platforms, docs…" autocomplete="off"></div>
-<button class="btn primary" type="submit">Search</button>
-</form>
-<p class="actions"><a class="btn" href="${href("/")}">Catalog</a><a class="btn" href="${href("/docs/")}">Docs</a></p>
-</main>`;
+/** GitHub Pages serves this for any missing path, so every link is root-relative. */
+export function notFoundPage({ page, site }) {
+  const { config } = site;
+  return html`<div class="container narrow not-found">
+<p class="muted">404</p>
+<h1>${page.heading}</h1>
+<p>The page you asked for does not exist or has moved.</p>
+<p class="actions-row"><a class="button" href="${config.href("/")}">Browse the catalog</a><a class="button ghost" href="${config.href("/search/")}" data-search-open>Search docs</a></p>
+</div>`;
 }

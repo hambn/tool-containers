@@ -1,108 +1,98 @@
-/**
- * Static site build: tracked markdown in, a self-contained `dist/` out.
- *
- *   content.mjs   discover documents, parse and validate frontmatter
- *   site.mjs      pages, routes, and navigation order
- *   markdown.mjs  render a document (links, headings, code, inline files)
- *   seo.mjs       titles, descriptions, JSON-LD, sitemap, robots, llms.txt
- *   search.mjs    the client search index
- *   layout.mjs + pages/*  HTML templates
- */
-import fs from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
-import { gzipSync } from "node:zlib";
-import { resolveConfig, lastModified, uiRoot } from "./lib/config.mjs";
-import { ContentError, readInlineFiles } from "./lib/content.mjs";
+import { pathToFileURL } from "node:url";
+import { createOutput, pngToIco } from "./lib/assets.mjs";
+import { ConfigError, repoRoot, resolveConfig, uiRoot } from "./lib/config.mjs";
+import { ContentError, discover, readInlineFiles } from "./lib/content.mjs";
+import { combinedDates, commitDates, trackedFiles } from "./lib/git.mjs";
+import { createCodeHighlighter } from "./lib/highlight.mjs";
+import { createIcons, spriteSvg } from "./lib/icons.mjs";
+import { TEMPLATE_IDS, renderPage } from "./lib/layout.mjs";
+import { createLinkResolver } from "./lib/links.mjs";
+import { createMarkdown } from "./lib/markdown.mjs";
+import { searchIndex } from "./lib/search-index.mjs";
+import { describePages, llmsTxt, manifest, robots, sitemap, structuredData } from "./lib/seo.mjs";
 import { buildSite } from "./lib/site.mjs";
-import { createTheme } from "./lib/highlight.mjs";
-import { renderMarkdown } from "./lib/markdown.mjs";
-import { createAssets, readStyles, minifyCss, minifyJs } from "./lib/assets.mjs";
-import { pageMeta, structuredData, sitemap, robots, llmsTxt } from "./lib/seo.mjs";
-import { searchIndex } from "./lib/search.mjs";
-import { renderPage } from "./lib/layout.mjs";
-import { firstSentence } from "./lib/html.mjs";
-import { renderHome } from "./pages/home.mjs";
-import { renderDoc } from "./pages/doc.mjs";
-import { renderSearch } from "./pages/search.mjs";
-import { renderNotFound } from "./pages/not-found.mjs";
+import { docPage } from "./pages/doc.mjs";
+import { homePage } from "./pages/home.mjs";
+import { notFoundPage } from "./pages/not-found.mjs";
+import { searchPage } from "./pages/search.mjs";
 
-const distRoot = path.join(uiRoot, "dist");
-const STYLES = ["base.css", "layout.css", "components.css", "prose.css"];
+const TEMPLATES = { home: homePage, docs: docPage, tool: docPage, platform: docPage, search: searchPage, notFound: notFoundPage };
 
-const config = resolveConfig();
-let site;
-try {
-  site = buildSite(config);
-} catch (error) {
-  if (!(error instanceof ContentError)) throw error;
-  console.error(`build failed: ${error.message}`);
-  process.exit(1);
-}
-const theme = await createTheme();
+/**
+ * Build the site from the Git-tracked documents under `root` into `outDir`,
+ * replacing whatever was there.
+ * @param {{ env?: NodeJS.ProcessEnv, root?: string, outDir?: string }} [options]
+ * @returns {Promise<{ pages: number, outDir: string }>}
+ */
+export async function build({ env = process.env, root = repoRoot, outDir = path.join(uiRoot, "dist") } = {}) {
+  const config = resolveConfig(env);
+  const files = trackedFiles(root);
+  const catalog = discover({ files, read: (file) => readFileSync(path.join(root, file), "utf8") });
+  const site = buildSite(config, catalog);
+  const dates = commitDates(root);
 
-/* Pass 1: render every document. Highlighting interns token colours as it
- * runs, so the stylesheet can only be finalised after the last code block. */
-const readme = await renderMarkdown(site.catalog.readme.body, { sourceDir: ".", site, theme });
-const entries = [];
-for (const page of site.pages) {
-  let doc = null;
-  if (page.kind === "home" || page.kind === "docs") doc = readme;
-  else if (page.kind === "tool" || page.kind === "platform") {
-    const item = page.platform ?? page.tool;
-    const sourceDir = path.posix.dirname(item.source);
-    const files = page.platform ? readInlineFiles(sourceDir, page.platform.files) : [];
-    doc = await renderMarkdown(item.body, { sourceDir, site, theme, files });
+  rmSync(outDir, { recursive: true, force: true });
+  const output = createOutput(outDir, config);
+  const icon = createIcons(output.asset("icons", "svg", spriteSvg()));
+  const highlighter = await createCodeHighlighter();
+  const render = createMarkdown({
+    highlighter,
+    icon,
+    reservedIds: TEMPLATE_IDS,
+    resolveLink: createLinkResolver({ config, routeBySource: site.routeBySource, files }),
+  });
+
+  // The home page and /docs/ share one rendering of the root README.
+  const readme = render(catalog.readme.body, { source: "README.md", selfHref: config.href(site.docs.route) });
+  const rendered = new Map();
+  for (const page of site.pages) {
+    if (page.source === "README.md") rendered.set(page, readme);
+    else if (page.tool) {
+      const doc = page.platform ?? page.tool;
+      const files = page.platform ? readInlineFiles(root, path.posix.dirname(doc.source), page.platform.files) : [];
+      rendered.set(page, render(doc.body, { source: doc.source, selfHref: config.href(page.route), files }));
+    }
   }
-  const meta = pageMeta(page, site, doc);
-  entries.push({ page, doc, meta, modified: page.source ? lastModified(page.source) : "" });
+
+  const meta = describePages(site, readme);
+  const assets = {
+    css: await output.css(highlighter.css()),
+    js: await output.js(),
+    theme: await output.inlineScript("theme.js"),
+    index: output.asset("search", "json", JSON.stringify(searchIndex(site, rendered, meta))),
+  };
+
+  const entries = [];
+  for (const page of site.pages) {
+    const pageDates = combinedDates(dates, page.sources);
+    const heading = page.kind === "home" ? readme.title : page.heading;
+    const seo = { ...meta.get(page), dates: pageDates };
+    seo.structuredData = structuredData(page, site, { ...seo, heading });
+    const main = TEMPLATES[page.kind]({ page, site, readme, rendered: rendered.get(page), dates: pageDates, icon });
+    output.write(page.file, renderPage({ page, site, seo, main, assets, icon }));
+    entries.push({ page, dates: pageDates });
+  }
+
+  output.copyPublic();
+  output.write("favicon.ico", pngToIco(readFileSync(path.join(uiRoot, "public/apple-touch-icon.png"))));
+  output.write("site.webmanifest", manifest(site, meta));
+  output.write("sitemap.xml", sitemap(entries, config));
+  output.write("robots.txt", robots(config));
+  output.write("llms.txt", llmsTxt(site, meta, readme));
+  // Serve files as-is: no Jekyll processing on GitHub Pages.
+  output.write(".nojekyll", "");
+  return { pages: site.pages.length, outDir };
 }
 
-/* Pass 2: shared assets, then the pages that reference them by digest. */
-fs.rmSync(distRoot, { recursive: true, force: true });
-const assets = createAssets({ distRoot, config });
-for (const file of fs.readdirSync(path.join(uiRoot, "public"))) {
-  assets.copy(path.join(uiRoot, "public", file), file);
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  try {
+    const { pages, outDir } = await build();
+    console.log(`built ${pages} pages into ${path.relative(process.cwd(), outDir) || "."}`);
+  } catch (error) {
+    if (!(error instanceof ContentError || error instanceof ConfigError)) throw error;
+    console.error(`build failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 }
-
-const css = minifyCss(STYLES.map((file) => readStyles(`styles/${file}`, config)).join("\n") + theme.css());
-const js = minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8"));
-const index = JSON.stringify(searchIndex(entries, site));
-const shared = {
-  styles: assets.emit("site.css", css),
-  script: assets.emit("site.js", js),
-  searchIndex: assets.emit("search.json", index),
-  themeScript: minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8")),
-};
-
-const bodies = {
-  home: renderHome,
-  docs: renderDoc,
-  tool: renderDoc,
-  platform: renderDoc,
-  search: renderSearch,
-};
-for (const { page, doc, meta, modified } of entries) {
-  const body = bodies[page.kind]({ page, site, doc, meta });
-  const data = page.indexable ? structuredData(page, site, meta, modified) : null;
-  assets.write(
-    path.join(page.route, "index.html"),
-    renderPage({ page, site, meta, body, modified, structuredData: data, assets: shared }),
-  );
-}
-
-const notFound = { kind: "404", route: "/404.html", source: null, indexable: false };
-assets.write(
-  "404.html",
-  renderPage({ page: notFound, site, meta: pageMeta(notFound, site, null), body: renderNotFound({ site }), assets: shared }),
-);
-
-assets.write("sitemap.xml", sitemap(entries, config));
-assets.write("robots.txt", robots(config));
-assets.write("llms.txt", llmsTxt(site, firstSentence(readme.lead)));
-// GitHub Pages would otherwise run Jekyll and drop underscore-prefixed paths.
-assets.write(".nojekyll", "");
-
-const kb = (text) => `${(gzipSync(text).length / 1024).toFixed(1)} kB gz`;
-console.log(
-  `built ${entries.length} pages + 404.html into dist/ (css ${kb(css)}, js ${kb(js)}, search index ${kb(index)})`,
-);

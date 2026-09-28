@@ -1,40 +1,19 @@
-import { escapeHtml } from "../lib/html.mjs";
-import { icon } from "../lib/icons.mjs";
-import { platformRoute, toolRoute } from "../lib/site.mjs";
+import { html, raw } from "../lib/html.mjs";
 
 /**
- * `/search/?q=` — the target of the WebSite SearchAction and the no-JavaScript
- * fallback for the header search. The form submits to itself; the client
- * script reads `q` and renders results from the static index. Without
- * JavaScript the page still lists every document, so nothing is unreachable.
+ * The full results page. It shares the dialog's engine; the form submits to
+ * itself, so the query lives in the URL and results are linkable.
  */
-export function renderSearch({ site }) {
-  const { href } = site.config;
-  const all = site.catalog.categories
-    .map(({ name, tools }) => {
-      const items = tools
-        .map(
-          (tool) => `<li><a href="${href(toolRoute(tool))}">${escapeHtml(tool.meta.name)}</a> <span>${escapeHtml(tool.meta.description)}</span>${
-            tool.platforms.length
-              ? `<ul class="pills">${tool.platforms.map((p) => `<li><a href="${href(platformRoute(tool, p))}">${escapeHtml(p.meta.name)}</a></li>`).join("")}</ul>`
-              : ""
-          }</li>`,
-        )
-        .join("");
-      return `<h2>${escapeHtml(name)}</h2><ul class="index-list">${items}</ul>`;
-    })
-    .join("");
-  return `<main id="content" class="narrow" tabindex="-1" data-search-page>
-<h1>Search</h1>
-<form class="search-form" action="${href("/search/")}" method="get" role="search">
-<div class="field">${icon("search")}<label class="sr-only" for="search-q">Search the documentation</label><input id="search-q" name="q" type="search" placeholder="Search tools, platforms, docs…" autocomplete="off" spellcheck="false"></div>
-<button class="btn primary" type="submit">Search</button>
+export function searchPage({ page, site, icon }) {
+  const { config } = site;
+  return html`<div class="container narrow search-page">
+<h1>${page.heading}</h1>
+<form class="search-form" action="${config.href(page.route)}" role="search" data-search-page>
+<div class="filter-input">${raw(icon("search"))}<input type="search" name="q" placeholder="Search docs…" aria-label="Search docs" autocomplete="off" spellcheck="false"></div>
+<button class="button" type="submit">Search</button>
 </form>
-<p class="sr-only" role="status" data-search-status></p>
-<ol class="results" data-search-results hidden></ol>
-<section data-search-all aria-label="All pages">
-<p class="muted js-hide">Search runs in your browser and needs JavaScript. Every page is listed below.</p>
-${all}
-</section>
-</main>`;
+<p class="search-count" role="status" data-search-count></p>
+<ol class="search-list" data-search-list></ol>
+<noscript><p class="muted">Search runs in your browser and needs JavaScript. Browse the <a href="${config.href("/")}">catalog</a> or the <a href="${config.href("/docs/")}">documentation</a> instead.</p></noscript>
+</div>`;
 }

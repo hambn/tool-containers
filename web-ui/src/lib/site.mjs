@@ -1,93 +1,165 @@
-import { discover } from "./content.mjs";
+import path from "node:path";
 
 /**
+ * The page model: every route the site serves, with the labels, headings, and
+ * breadcrumbs each surface (navigation, templates, SEO, search) reads from.
+ *
  * @typedef {import("./content.mjs").Tool} Tool
  * @typedef {import("./content.mjs").Platform} Platform
+ * @typedef {{ label: string, route: string }} Crumb
  * @typedef {object} Page
- * @property {"home" | "docs" | "tool" | "platform" | "search" | "404"} kind
- * @property {string} route  site-root-relative, always ending in "/" (or ".html")
+ * @property {"home" | "docs" | "tool" | "platform" | "search" | "notFound"} kind
+ * @property {string} route    site-root-relative path
+ * @property {string} file     output path inside dist/
  * @property {string | null} source repository document the page renders
+ * @property {string[]} sources every tracked file whose history dates the page
  * @property {boolean} indexable whether search engines should index it
+ * @property {boolean} reading  part of the docs reading order (sidebar, pager, search)
+ * @property {string} label    short name for navigation
+ * @property {string} name     full name for search results, recents, and the pager
+ * @property {string} heading  visible h1 (home takes the README title instead)
+ * @property {Crumb[]} crumbs  visible breadcrumb trail, empty when it would be one item
  * @property {Tool} [tool]
  * @property {Platform} [platform]
  */
 
+// Category directories are lowercase slugs; these read better as acronyms.
+const CATEGORY_LABELS = { ai: "AI", ci: "CI" };
+
+export const categoryLabel = (slug) => CATEGORY_LABELS[slug] ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 export const toolRoute = (tool) => `/docs/${tool.category}/${tool.slug}/`;
 export const platformRoute = (tool, platform) => `${toolRoute(tool)}${platform.slug}/`;
+export const categoryAnchor = (slug) => `cat-${slug}`;
 
-/**
- * Every page in reading order, derived from the catalog. The home page and
- * `/docs/` both come from the root README: the first is its catalog view, the
- * second the complete document.
- * @returns {Page[]}
- */
-export function buildPages(catalog) {
+// Tabs and catalog columns are narrow; the full platform name stays in headings.
+const PLATFORM_LABELS = { "docker-compose": "Compose" };
+export const platformLabel = (platform) => PLATFORM_LABELS[platform.slug] ?? platform.meta.name;
+
+const DOCS_CRUMB = { label: "Docs", route: "/docs/" };
+
+/** Every page in reading order. The root README feeds both `/` and `/docs/`. */
+function buildPages(catalog) {
+  const index = (route) => `${route.slice(1)}index.html`;
   const pages = [
-    { kind: "home", route: "/", source: "README.md", indexable: true },
-    { kind: "docs", route: "/docs/", source: "README.md", indexable: true },
+    {
+      kind: "home",
+      route: "/",
+      source: "README.md",
+      sources: ["README.md", ...catalog.tools.map((tool) => tool.source)],
+      indexable: true,
+      reading: false,
+      label: "Catalog",
+      name: "Catalog",
+      heading: "",
+      crumbs: [],
+    },
+    {
+      kind: "docs",
+      route: "/docs/",
+      source: "README.md",
+      sources: ["README.md"],
+      indexable: true,
+      reading: true,
+      label: "Overview",
+      name: "Documentation",
+      heading: "Documentation",
+      crumbs: [],
+    },
   ];
-  for (const { tools } of catalog.categories) {
-    for (const tool of tools) {
-      pages.push({ kind: "tool", route: toolRoute(tool), source: tool.source, indexable: true, tool });
-      for (const platform of tool.platforms) {
-        pages.push({
-          kind: "platform",
-          route: platformRoute(tool, platform),
-          source: platform.source,
-          indexable: true,
-          tool,
-          platform,
-        });
-      }
+  for (const tool of catalog.tools) {
+    const category = { label: categoryLabel(tool.category), route: `/#${categoryAnchor(tool.category)}` };
+    const toolCrumb = { label: tool.meta.title, route: toolRoute(tool) };
+    pages.push({
+      kind: "tool",
+      route: toolCrumb.route,
+      source: tool.source,
+      sources: [tool.source],
+      indexable: true,
+      reading: true,
+      label: tool.meta.title,
+      name: tool.meta.title,
+      heading: tool.meta.title,
+      crumbs: [DOCS_CRUMB, category, toolCrumb],
+      tool,
+    });
+    for (const platform of tool.platforms) {
+      const route = platformRoute(tool, platform);
+      const dir = path.posix.dirname(platform.source);
+      pages.push({
+        kind: "platform",
+        route,
+        source: platform.source,
+        sources: [platform.source, ...platform.files.map((file) => `${dir}/${file}`)],
+        indexable: true,
+        reading: true,
+        label: platformLabel(platform),
+        name: `${tool.meta.title} · ${platform.meta.name}`,
+        heading: `Run ${tool.meta.title} with ${platform.meta.name}`,
+        crumbs: [DOCS_CRUMB, category, toolCrumb, { label: platform.meta.name, route }],
+        tool,
+        platform,
+      });
     }
   }
   // Result pages are thin and query-dependent, so they stay out of the index.
-  pages.push({ kind: "search", route: "/search/", source: null, indexable: false });
+  pages.push({
+    kind: "search",
+    route: "/search/",
+    source: null,
+    sources: [],
+    indexable: false,
+    reading: false,
+    label: "Search",
+    name: "Search",
+    heading: "Search",
+    crumbs: [],
+  });
+  pages.push({
+    kind: "notFound",
+    route: "/404.html",
+    source: null,
+    sources: [],
+    indexable: false,
+    reading: false,
+    label: "Page not found",
+    name: "Page not found",
+    heading: "Page not found",
+    crumbs: [],
+  });
+  for (const page of pages) page.file = page.route.endsWith("/") ? index(page.route) : page.route.slice(1);
   return pages;
 }
 
-/** Short label for navigation, pagination, and breadcrumbs. */
-export function pageLabel(page) {
-  if (page.kind === "platform") return `${page.tool.meta.name} · ${page.platform.meta.name}`;
-  if (page.kind === "tool") return page.tool.meta.name;
-  if (page.kind === "docs") return "Overview";
-  if (page.kind === "search") return "Search";
-  return "Catalog";
-}
-
 /**
- * The site model shared by every renderer: the catalog, the page list, and
- * lookups for rewriting repository links into routes and for pagination.
+ * The site model shared by every renderer: configuration, catalog, pages, and
+ * the lookups link rewriting and navigation need.
+ * @param {import("./content.mjs").Catalog} catalog
  */
-export function buildSite(config, catalog = discover()) {
+export function buildSite(config, catalog) {
   const pages = buildPages(catalog);
-  const bySource = new Map();
   // Links to the root README land on /docs/, where every section anchor exists.
-  for (const page of pages) if (page.source && page.kind !== "home") bySource.set(page.source, page);
-
-  const tools = catalog.categories.flatMap(({ tools: list }) => list);
-  /** Platform slug → display name, for the catalog's platform filter. */
-  const platforms = new Map();
-  for (const tool of tools) {
-    for (const platform of tool.platforms) {
-      if (!platforms.has(platform.slug)) platforms.set(platform.slug, platform.meta.name);
-    }
-  }
-  const reading = pages.filter((page) => ["docs", "tool", "platform"].includes(page.kind));
+  const routeBySource = new Map(
+    pages.filter((page) => page.source && page.kind !== "home").map((page) => [page.source, page.route]),
+  );
+  const reading = pages.filter((page) => page.reading);
+  const byKind = (kind) => pages.find((page) => page.kind === kind);
 
   return {
     config,
     catalog,
     pages,
-    bySource,
-    tools,
-    platforms,
-    platformCount: tools.reduce((sum, tool) => sum + tool.platforms.length, 0),
+    routeBySource,
+    home: byKind("home"),
+    docs: byKind("docs"),
+    recipeCount: catalog.tools.reduce((sum, tool) => sum + tool.platforms.length, 0),
+    /** The tool page and its platform pages, in tab order. */
+    toolFamily(tool) {
+      return reading.filter((page) => page.tool === tool);
+    },
     /** Previous and next pages in docs reading order. */
     neighbours(page) {
       const index = reading.indexOf(page);
-      if (index === -1) return { previous: null, next: null };
-      return { previous: reading[index - 1] ?? null, next: reading[index + 1] ?? null };
+      return { previous: reading[index - 1] ?? null, next: index === -1 ? null : (reading[index + 1] ?? null) };
     },
   };
 }

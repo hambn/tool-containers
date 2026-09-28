@@ -1,46 +1,66 @@
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-
-const DEFAULT_SITE_URL = "https://tool-containers.hgh.dev";
-const DEFAULT_REPO = { owner: "hambn", repo: "tool-containers" };
 
 export const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const repoRoot = path.resolve(uiRoot, "..");
 
-/** `owner/repo` from the Git remote, so the build never hardcodes a fork's URLs. */
-function detectRepository() {
+export const SITE_NAME = "tool-containers";
+const DEFAULT_SITE_URL = "https://tool-containers.hgh.dev";
+const DEFAULT_REPOSITORY = "hambn/tool-containers";
+
+/** A deployment setting the operator must fix; the build prints it verbatim. */
+export class ConfigError extends Error {
+  name = "ConfigError";
+}
+
+function parseSiteUrl(name, raw) {
+  let url;
   try {
-    const remote = execFileSync("git", ["remote", "get-url", "origin"], { cwd: repoRoot, stdio: ["ignore", "pipe", "ignore"] })
-      .toString()
-      .trim();
-    const parts = remote.replace(/\.git$/, "").split(/[/:]/);
-    const [owner, repo] = [parts.at(-2), parts.at(-1)];
-    return owner && repo ? { owner, repo } : DEFAULT_REPO;
+    url = new URL(raw.trim());
   } catch {
-    return DEFAULT_REPO;
+    throw new ConfigError(`${name} must be an absolute http(s) URL, got ${JSON.stringify(raw)}`);
   }
+  if (!/^https?:$/.test(url.protocol) || url.search || url.hash || url.username || url.password) {
+    throw new ConfigError(`${name} must be a plain http(s) URL without query, fragment, or credentials, got ${JSON.stringify(raw)}`);
+  }
+  return url.href.replace(/\/+$/, "");
+}
+
+function parseBasePath(raw) {
+  const trimmed = raw.trim().replace(/^\/+|\/+$/g, "");
+  if (!trimmed) return "";
+  const parts = trimmed.split("/");
+  if (parts.some((part) => !/^[\w.~-]+$/.test(part) || /^\.+$/.test(part))) {
+    throw new ConfigError(`BASE_PATH must be a plain URL path such as /tool-containers, got ${JSON.stringify(raw)}`);
+  }
+  return `/${trimmed}`;
+}
+
+function parseRepository(raw) {
+  const value = raw.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(value)) {
+    throw new ConfigError(`GITHUB_REPOSITORY must look like owner/repo, got ${JSON.stringify(raw)}`);
+  }
+  return value;
 }
 
 /**
- * Deployment configuration, resolved once and threaded through the build as an
- * explicit argument. `siteUrl` is the public address used by canonical links,
- * structured data, the sitemap and robots.txt; `basePath` prefixes internal
- * links and local assets. The two are independent: a site served from a
- * subpath sets both, a custom domain sets only `siteUrl`.
+ * Deployment configuration, resolved once from the environment and passed
+ * explicitly. `siteUrl` is the public address for canonical links, structured
+ * data, the sitemap and robots.txt; `basePath` prefixes browser-navigable
+ * links. They are independent so a custom domain and a project subpath both
+ * work. The repository comes from `GITHUB_REPOSITORY` (set by Actions) rather
+ * than `git remote`, so every clone builds the same artifact.
  */
 export function resolveConfig(env = process.env) {
-  const siteUrl = (env.SITE_URL ?? env.SITE_ORIGIN ?? DEFAULT_SITE_URL).trim().replace(/\/+$/, "");
-  const trimmed = (env.BASE_PATH ?? "").trim().replace(/^\/+|\/+$/g, "");
-  const basePath = trimmed ? `/${trimmed}` : "";
-  const { owner, repo } = detectRepository();
-  const repoUrl = `https://github.com/${owner}/${repo}`;
+  const siteUrl = parseSiteUrl("SITE_URL", env.SITE_URL ?? env.SITE_ORIGIN ?? DEFAULT_SITE_URL);
+  const basePath = parseBasePath(env.BASE_PATH ?? "");
+  const server = parseSiteUrl("GITHUB_SERVER_URL", env.GITHUB_SERVER_URL || "https://github.com");
+  const repoUrl = `${server}/${parseRepository(env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY)}`;
 
   return {
     siteUrl,
     basePath,
-    owner,
-    repo,
     repoUrl,
     /** Absolute public URL for a site-root-relative route. */
     canonical: (route) => `${siteUrl}${route}`,
@@ -48,35 +68,6 @@ export function resolveConfig(env = process.env) {
     href: (route) => `${basePath}${route}`,
     blobUrl: (repoPath) => `${repoUrl}/blob/HEAD/${repoPath}`,
     treeUrl: (repoPath) => `${repoUrl}/tree/HEAD/${repoPath}`,
+    rawUrl: (repoPath) => `${repoUrl}/raw/HEAD/${repoPath}`,
   };
-}
-
-/** Commit date of the last change to a tracked file, for honest sitemap lastmod. */
-export function lastModified(repoRelPath) {
-  try {
-    const date = execFileSync("git", ["log", "-1", "--format=%cI", "--", repoRelPath], {
-      cwd: repoRoot,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .toString()
-      .trim();
-    return /^\d{4}-\d{2}-\d{2}/.test(date) ? date.slice(0, 10) : "";
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Repository paths Git tracks (including staged renames). Discovery reads this
- * rather than the working tree so untracked scratch files can never become
- * public pages.
- */
-export function trackedFiles(root = repoRoot) {
-  return execFileSync("git", ["ls-files", "-z", "--", "README.md", "tools"], {
-    cwd: root,
-    maxBuffer: 64 * 1024 * 1024,
-  })
-    .toString()
-    .split("\0")
-    .filter(Boolean);
 }

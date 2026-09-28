@@ -1,168 +1,179 @@
-import { toolRoute, pageLabel } from "./site.mjs";
-import { escapeHtml, firstSentence, truncate } from "./html.mjs";
+import { SITE_NAME } from "./config.mjs";
+import { DESCRIPTION_LENGTH } from "./frontmatter.mjs";
+import { escapeHtml, fitClauses, fitSentences, html, sentences } from "./html.mjs";
+import { toolRoute } from "./site.mjs";
 
-export const SITE_NAME = "tool-containers";
-const DESCRIPTION_MAX = 160;
+const TITLE_MAX = 60;
+const SEPARATOR = " — ";
+export const THEME_COLORS = { light: "#ffffff", dark: "#09090b" };
+export const OG_IMAGE = { path: "/og.png", width: 1200, height: 630 };
+
+const withSiteName = (text) => (`${text}${SEPARATOR}${SITE_NAME}`.length <= TITLE_MAX ? `${text}${SEPARATOR}${SITE_NAME}` : text);
 
 /**
- * Title and description for a page. Frontmatter descriptions are written to be
- * meta descriptions, so they are used verbatim; only the derived ones (from the
- * root README) are trimmed.
- * @returns {{ title: string, description: string }}
+ * Titles and descriptions for every page, derived from frontmatter and the
+ * root README so no marketing copy lives in code. Home and /docs/ share the
+ * README lead: home takes its opening sentences, /docs/ the ones after.
+ * @param {ReturnType<import("./site.mjs").buildSite>} site
+ * @param {import("./markdown.mjs").Rendered} readme
+ * @returns {Map<import("./site.mjs").Page, { title: string, description: string }>}
  */
-export function pageMeta(page, site, doc) {
-  const suffix = ` | ${SITE_NAME}`;
-  switch (page.kind) {
-    case "home":
-      return { title: `${doc.title} | Container image catalog`, description: truncate(doc.lead, DESCRIPTION_MAX) };
-    case "docs":
-      return {
-        title: `Documentation${suffix}`,
-        description: truncate(
-          `${site.tools.length} container images and ${site.platformCount} deployment recipes. ${firstSentence(doc.lead)}`,
-          DESCRIPTION_MAX,
-        ),
-      };
-    case "tool":
-      return { title: `${page.tool.meta.name} container image${suffix}`, description: page.tool.meta.description };
-    case "platform":
-      return {
-        title: `Run ${page.tool.meta.name} with ${page.platform.meta.name}${suffix}`,
-        description: page.platform.meta.description,
-      };
-    case "search":
-      return {
-        title: `Search${suffix}`,
-        description: `Search ${site.tools.length} container images and their Docker, Compose, Podman, Kubernetes, and Helm recipes.`,
-      };
-    default:
-      return { title: `Page not found${suffix}`, description: "This page is not part of the tool-containers site." };
+export function describePages(site, readme) {
+  const lead = sentences(readme.lead);
+  const home = fitSentences(lead, DESCRIPTION_LENGTH.max);
+  const docs = fitSentences(lead, DESCRIPTION_LENGTH.max, home.end);
+  const summary = fitClauses(lead[0] ?? "", TITLE_MAX - SEPARATOR.length - SITE_NAME.length);
+  const imageCount = `${site.catalog.tools.length} images`;
+
+  const meta = new Map();
+  for (const page of site.pages) {
+    const { tool, platform } = page;
+    switch (page.kind) {
+      case "home":
+        meta.set(page, { title: summary ? `${SITE_NAME}${SEPARATOR}${summary}` : SITE_NAME, description: home.text });
+        break;
+      case "docs":
+        meta.set(page, { title: withSiteName(page.heading), description: docs.text || home.text });
+        break;
+      case "tool":
+        meta.set(page, { title: withSiteName(`${tool.meta.title} Docker image`), description: tool.meta.description });
+        break;
+      case "platform":
+        meta.set(page, { title: withSiteName(page.heading), description: platform.meta.description });
+        break;
+      case "search":
+        meta.set(page, { title: withSiteName("Search"), description: `Search the documentation for ${imageCount} and ${site.recipeCount} deployment recipes.` });
+        break;
+      default:
+        meta.set(page, { title: withSiteName(page.heading), description: `This page does not exist. Browse the catalog of ${imageCount} or search the documentation.` });
+    }
   }
+  return meta;
 }
 
-/** Breadcrumb trail for a page, shared by the visible nav and JSON-LD. */
-export function breadcrumbTrail(page) {
-  const trail = [{ label: "Docs", route: "/docs/" }];
-  if (page.tool) trail.push({ label: page.tool.meta.name, route: toolRoute(page.tool) });
-  if (page.platform) trail.push({ label: page.platform.meta.name, route: page.route });
-  return trail;
+/** `<head>` tags for search engines and link previews. */
+export function headTags(page, { config }, { title, description, dates }) {
+  const image = config.canonical(OG_IMAGE.path);
+  const article = page.kind === "tool" || page.kind === "platform";
+  const canonical = page.indexable ? config.canonical(page.route) : "";
+  const meta = (attribute, name, content) => (content ? html`<meta ${attribute}="${name}" content="${content}">` : "");
+  return [
+    html`<title>${title}</title>`,
+    meta("name", "description", description),
+    meta("name", "robots", page.indexable ? "index, follow, max-image-preview:large" : "noindex, follow"),
+    canonical ? html`<link rel="canonical" href="${canonical}">` : "",
+    meta("property", "og:type", article ? "article" : "website"),
+    meta("property", "og:site_name", SITE_NAME),
+    meta("property", "og:title", title),
+    meta("property", "og:description", description),
+    meta("property", "og:url", canonical),
+    meta("property", "og:image", image),
+    meta("property", "og:image:width", String(OG_IMAGE.width)),
+    meta("property", "og:image:height", String(OG_IMAGE.height)),
+    meta("property", "og:image:alt", SITE_NAME),
+    article ? meta("property", "article:published_time", dates.published) : "",
+    article ? meta("property", "article:modified_time", dates.modified) : "",
+    meta("name", "twitter:card", "summary_large_image"),
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
- * JSON-LD describing only what the page visibly states. No ratings, prices,
- * durations, or publisher identity are inferred; the `SearchAction` points at
- * the real `/search/?q=` page.
+ * JSON-LD describing only what the page visibly states: no ratings, prices,
+ * durations, or publisher identity are inferred.
+ * @returns {object | null}
  */
-export function structuredData(page, site, meta, modified) {
+export function structuredData(page, site, { title, description, heading, dates }) {
+  if (!page.indexable) return null;
   const { config } = site;
   const url = config.canonical(page.route);
-  const websiteId = `${config.siteUrl}/#website`;
-  const nodes = [
-    {
-      "@type": "WebSite",
-      "@id": websiteId,
-      name: SITE_NAME,
-      url: config.canonical("/"),
-      inLanguage: "en",
-      potentialAction: {
-        "@type": "SearchAction",
-        target: { "@type": "EntryPoint", urlTemplate: `${config.canonical("/search/")}?q={search_term_string}` },
-        "query-input": "required name=search_term_string",
-      },
-    },
-  ];
-
-  const document = {
-    "@id": `${url}#main`,
-    url,
-    name: meta.title,
-    headline: meta.title.replace(/ \| .*$/, ""),
-    description: meta.description,
-    inLanguage: "en",
-    isPartOf: { "@id": websiteId },
-    ...(modified ? { dateModified: modified } : {}),
+  const website = { "@type": "WebSite", "@id": `${config.canonical("/")}#website`, name: SITE_NAME, url: config.canonical("/") };
+  const dated = {
+    ...(dates.published ? { datePublished: dates.published } : {}),
+    ...(dates.modified ? { dateModified: dates.modified } : {}),
   };
 
   if (page.kind === "home") {
-    nodes.push({
-      ...document,
-      "@type": "CollectionPage",
-      mainEntity: {
-        "@type": "ItemList",
-        numberOfItems: site.tools.length,
-        itemListElement: site.tools.map((tool, index) => ({
-          "@type": "ListItem",
-          position: index + 1,
-          name: tool.meta.name,
-          url: config.canonical(toolRoute(tool)),
-        })),
+    return graph([
+      {
+        ...website,
+        inLanguage: "en",
+        potentialAction: {
+          "@type": "SearchAction",
+          target: { "@type": "EntryPoint", urlTemplate: `${config.canonical("/search/")}?q={search_term_string}` },
+          "query-input": "required name=search_term_string",
+        },
       },
-    });
-    return graph(nodes);
+      {
+        "@type": "CollectionPage",
+        "@id": `${url}#page`,
+        url,
+        name: title,
+        headline: heading,
+        description,
+        isPartOf: { "@id": website["@id"] },
+        ...dated,
+        mainEntity: {
+          "@type": "ItemList",
+          numberOfItems: site.catalog.tools.length,
+          itemListElement: site.catalog.tools.map((tool, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: tool.meta.title,
+            url: config.canonical(toolRoute(tool)),
+          })),
+        },
+      },
+    ]);
   }
 
   const keywords = page.platform?.meta.keywords ?? page.tool?.meta.keywords ?? [];
-  const trail = breadcrumbTrail(page);
-  nodes.push(
+  const upstream = page.kind === "tool" ? page.tool.meta.upstream : "";
+  const nodes = [
     {
-      ...document,
       "@type": "TechArticle",
+      "@id": `${url}#article`,
+      url,
+      mainEntityOfPage: url,
+      headline: heading,
+      description,
+      image: config.canonical(OG_IMAGE.path),
+      inLanguage: "en",
+      isPartOf: website,
+      ...dated,
       ...(keywords.length ? { keywords: keywords.join(", ") } : {}),
-      breadcrumb: { "@id": `${url}#breadcrumb` },
+      ...(upstream ? { about: { "@type": "Thing", name: page.tool.meta.title, sameAs: upstream } } : {}),
     },
-    {
+  ];
+  if (page.crumbs.length >= 2) {
+    nodes.push({
       "@type": "BreadcrumbList",
-      "@id": `${url}#breadcrumb`,
-      itemListElement: trail.map(({ label, route }, index) => ({
+      itemListElement: page.crumbs.map(({ label, route }, index) => ({
         "@type": "ListItem",
         position: index + 1,
         name: label,
         item: config.canonical(route),
       })),
-    },
-  );
+    });
+  }
   return graph(nodes);
 }
 
 const graph = (nodes) => ({ "@context": "https://schema.org", "@graph": nodes });
 
-/** `<head>` tags for search engines and link previews. */
-export function headTags(page, site, meta, modified) {
-  const { config } = site;
-  const canonical = config.canonical(page.route);
-  const ogImage = config.canonical("/og.png");
-  const tag = (attribute, name, content) => `<meta ${attribute}="${name}" content="${escapeHtml(content)}">`;
-  const article = page.kind === "tool" || page.kind === "platform";
-  return [
-    `<title>${escapeHtml(meta.title)}</title>`,
-    tag("name", "description", meta.description),
-    page.indexable
-      ? tag("name", "robots", "index, follow, max-image-preview:large, max-snippet:-1")
-      : tag("name", "robots", "noindex, follow"),
-    page.kind === "404" ? "" : `<link rel="canonical" href="${escapeHtml(canonical)}">`,
-    tag("property", "og:type", article ? "article" : "website"),
-    tag("property", "og:site_name", SITE_NAME),
-    tag("property", "og:locale", "en_US"),
-    tag("property", "og:title", meta.title),
-    tag("property", "og:description", meta.description),
-    page.kind === "404" ? "" : tag("property", "og:url", canonical),
-    tag("property", "og:image", ogImage),
-    tag("property", "og:image:width", "1200"),
-    tag("property", "og:image:height", "630"),
-    tag("property", "og:image:alt", `${SITE_NAME}: container images for AI coding agents and dev boxes`),
-    article && modified ? tag("property", "article:modified_time", modified) : "",
-    tag("name", "twitter:card", "summary_large_image"),
-    tag("name", "twitter:title", meta.title),
-    tag("name", "twitter:description", meta.description),
-    tag("name", "twitter:image", ogImage),
-  ].filter(Boolean);
-}
+/** Serialize JSON-LD for a `<script>` element; `<` is escaped so content can never close the tag. */
+export const jsonLdScript = (data) =>
+  data ? `<script type="application/ld+json">${JSON.stringify(data).replaceAll("<", "\\u003c")}</script>` : "";
 
-/** sitemap.xml: indexable pages only, dated from their source's Git history. */
+/** sitemap.xml: indexable pages only, dated from their sources' Git history. */
 export function sitemap(entries, config) {
   const urls = entries
     .filter(({ page }) => page.indexable)
-    .map(({ page, modified }) => `<url><loc>${config.canonical(page.route)}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ""}</url>`);
+    .map(({ page, dates }) => {
+      const lastmod = dates.modified ? `<lastmod>${escapeHtml(dates.modified)}</lastmod>` : "";
+      return `<url><loc>${escapeHtml(config.canonical(page.route))}</loc>${lastmod}</url>`;
+    });
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
 }
 
@@ -170,22 +181,40 @@ export function robots(config) {
   return `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`;
 }
 
-/**
- * llms.txt (llmstxt.org): a plain markdown map of the site for language-model
- * crawlers, built from the same frontmatter as the pages.
- */
-export function llmsTxt(site, summary) {
+/** llms.txt (llmstxt.org): a markdown map of the site built from the same metadata as the pages. */
+export function llmsTxt(site, meta, readme) {
   const { config } = site;
-  const lines = [`# ${SITE_NAME}`, "", `> ${summary}`, "", `- [Documentation](${config.canonical("/docs/")}): the full catalog README, image naming, and tag policy`, ""];
-  for (const { name, tools } of site.catalog.categories) {
-    lines.push(`## ${name}`, "");
-    for (const tool of tools) {
-      lines.push(`- [${tool.meta.name}](${config.canonical(toolRoute(tool))}): ${tool.meta.description}`);
-      for (const platform of tool.platforms) {
-        lines.push(`  - [${pageLabel({ kind: "platform", tool, platform })}](${config.canonical(`${toolRoute(tool)}${platform.slug}/`)}): ${platform.meta.usecase}`);
-      }
+  const docs = meta.get(site.docs);
+  const lines = [`# ${SITE_NAME}`, "", `> ${meta.get(site.home).description}`, ""];
+  lines.push(`- [${site.docs.heading}](${config.canonical(site.docs.route)}): ${readme.headings.join(", ") || docs.description}`, "");
+  for (const page of site.pages) {
+    if (page.kind === "tool") {
+      lines.push(`## ${page.tool.meta.title}`, "", `- [${page.tool.meta.title}](${config.canonical(page.route)}): ${page.tool.meta.description}`);
+    } else if (page.kind === "platform") {
+      lines.push(`- [${page.heading}](${config.canonical(page.route)}): ${page.platform.meta.usecase}`);
+      if (page === site.toolFamily(page.tool).at(-1)) lines.push("");
     }
-    lines.push("");
   }
-  return lines.join("\n");
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+/** Web app manifest, sharing the theme colours with the `theme-color` meta tags. */
+export function manifest(site, meta) {
+  return JSON.stringify(
+    {
+      name: SITE_NAME,
+      short_name: SITE_NAME,
+      description: meta.get(site.home).description,
+      start_url: site.config.href("/"),
+      display: "standalone",
+      background_color: THEME_COLORS.dark,
+      theme_color: THEME_COLORS.dark,
+      icons: [
+        { src: site.config.href("/favicon.svg"), sizes: "any", type: "image/svg+xml" },
+        { src: site.config.href("/apple-touch-icon.png"), sizes: "180x180", type: "image/png" },
+      ],
+    },
+    null,
+    2,
+  );
 }

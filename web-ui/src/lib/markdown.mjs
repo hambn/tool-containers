@@ -1,41 +1,12 @@
-import fs from "node:fs";
 import path from "node:path";
-import { Marked } from "marked";
-import { repoRoot } from "./config.mjs";
-import { escapeHtml, textContent } from "./html.mjs";
-import { highlight } from "./highlight.mjs";
-import { icon } from "./icons.mjs";
+import { Marked, Renderer } from "marked";
+import { ContentError } from "./content.mjs";
+import { fileLanguage } from "./highlight.mjs";
+import { html, raw } from "./html.mjs";
 
-/* --------------------------------------------------------------- links */
-
-const EXTERNAL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
-
-/**
- * Rewrite a repository-relative link. Documents are written for GitHub, so a
- * link can point at another README (becomes its site route), at a recipe file
- * shown on this page (becomes an in-page anchor), or at any other repository
- * path (becomes a GitHub URL). External links and bare fragments pass through.
- */
-function rewriteTarget(target, { sourceDir, site, anchors }, image) {
-  if (EXTERNAL.test(target) || target.startsWith("#")) return target;
-  const [relative, fragment = ""] = target.split("#", 2);
-  const hash = fragment ? `#${fragment}` : "";
-  const resolved = path.posix.normalize(path.posix.join(sourceDir, decodeURI(relative)));
-  const bare = resolved.replace(/\/$/, "");
-  if (resolved.startsWith("../")) return target;
-  if (image) return `${site.config.repoUrl}/raw/HEAD/${bare}`;
-
-  const anchor = anchors.get(bare);
-  if (anchor) return `#${anchor}`;
-  const page = site.bySource.get(bare) ?? site.bySource.get(`${bare}/README.md`);
-  if (page) return `${site.config.href(page.route)}${hash}`;
-
-  const absolute = path.join(repoRoot, bare);
-  const isDirectory = fs.existsSync(absolute) && fs.statSync(absolute).isDirectory();
-  return `${isDirectory ? site.config.treeUrl(bare) : site.config.blobUrl(bare)}${hash}`;
-}
-
-/* ------------------------------------------------------------ headings */
+// Longer recipe files start collapsed so the page stays scannable.
+const COLLAPSE_LINES = 40;
+const FILES_HEADING = "File contents";
 
 /**
  * GitHub's heading slug algorithm, so fragments written against GitHub's
@@ -46,14 +17,14 @@ export function slugify(text) {
     text
       .trim()
       .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+      .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, "")
       .replace(/\s/g, "-") || "section"
   );
 }
 
 /** An id generator that never hands out the same id twice on one page. */
-function uniqueIds() {
-  const seen = new Set();
+export function uniqueIds(reserved = []) {
+  const seen = new Set(reserved);
   return (base) => {
     let id = base;
     for (let n = 1; seen.has(id); n += 1) id = `${base}-${n}`;
@@ -62,151 +33,222 @@ function uniqueIds() {
   };
 }
 
-const anchoredHeading = (level, id, inner) =>
-  `<h${level} id="${id}"><a class="anchor" href="#${id}">${inner}</a></h${level}>`;
+const BLOCKS = new Set(["paragraph", "heading", "list", "list_item", "table", "blockquote", "code", "html", "space", "hr"]);
+const UNINDEXED = new Set(["code", "html", "space", "hr"]);
 
-/* --------------------------------------------------------------- code */
-
-const LANGUAGE_LABELS = {
-  bash: "shell",
-  sh: "shell",
-  shell: "shell",
-  shellscript: "shell",
-  console: "shell",
-  dockerfile: "Dockerfile",
-  yaml: "YAML",
-  yml: "YAML",
-  json: "JSON",
-  toml: "TOML",
-  md: "Markdown",
-  markdown: "Markdown",
-};
-
-const EXTENSION_LANGUAGES = { sh: "bash", bash: "bash", yml: "yaml", yaml: "yaml", json: "json", toml: "toml", md: "markdown" };
-
-/** Highlighting grammar for an inline file, chosen by its name. */
-export function fileLanguage(name) {
-  const base = path.posix.basename(name);
-  if (/^Dockerfile|\.Dockerfile$/i.test(base)) return "dockerfile";
-  return EXTENSION_LANGUAGES[path.posix.extname(base).slice(1).toLowerCase()] ?? "text";
+/** Visible text of inline or block tokens, without markup or code blocks. */
+export function plainText(tokens = []) {
+  const text = tokens
+    .map((token) => {
+      let value;
+      if (UNINDEXED.has(token.type)) value = "";
+      else if (token.type === "list") value = plainText(token.items);
+      else if (token.type === "table") value = [...token.header, ...token.rows.flat()].map((cell) => plainText(cell.tokens)).join(" ");
+      else if (token.type === "br") value = " ";
+      else if (token.tokens) value = plainText(token.tokens);
+      else value = token.text ?? "";
+      return BLOCKS.has(token.type) ? ` ${value} ` : value;
+    })
+    .join("");
+  return text.replace(/\s+/g, " ").trim();
 }
 
-/** A code block with a caption and a copy button (enabled by the client script). */
-export function codeBlock(label, html) {
-  return `<figure class="code" data-copy-scope><figcaption><span>${escapeHtml(label)}</span><button type="button" class="copy" data-copy aria-label="Copy code">${icon("copy")}${icon("check")}</button></figcaption>${html}</figure>`;
-}
-
-/* ----------------------------------------------------------- rendering */
+/** A copy button; the client script copies the nearest `[data-copy-source]` text. */
+export const copyButton = (icon, label) =>
+  html`<button type="button" class="copy" data-copy aria-label="${label}">${raw(icon("copy"))}${raw(icon("check"))}</button>`;
 
 /**
  * @typedef {object} Rendered
- * @property {string} title     plain text of the document's `# ` heading
- * @property {string} titleHtml inline HTML of that heading
- * @property {string} html      the document body without its title
- * @property {string} lead      plain text of the first paragraph
+ * @property {string} title    plain text of the document's `# ` heading
+ * @property {string} leadHtml inline HTML of the opening paragraph, moved out of the body
+ * @property {string} lead     plain text of that paragraph
+ * @property {string} html     the body without its title and lead
  * @property {{ level: number, id: string, text: string }[]} toc
- * @property {{ id: string, heading: string, text: string }[]} sections
+ * @property {{ id: string, heading: string, text: string }[]} sections searchable prose, never code
+ * @property {string[]} headings plain text of every h2 in the body
  */
 
 /**
- * Render one document. The `# ` title is returned separately because the page
- * template owns the single `<h1>`; any further level-one headings are demoted
- * so a page can never carry two. `files` are recipe files rendered inline
- * after the document, and links to them become in-page anchors.
- * @param {string} markdown document body without frontmatter
- * @param {{ sourceDir: string, site: any, theme: any, files?: { name: string, text: string }[] }} context
- * @returns {Promise<Rendered>}
+ * The markdown pipeline. Everything structural (heading ids, the page title,
+ * the lead, removed sections, link targets) is decided on marked's tokens
+ * before rendering, so no rendered HTML is ever re-parsed.
+ * @param {object} options
+ * @param {{ render(code: string, lang?: string): string }} options.highlighter
+ * @param {ReturnType<import("./links.mjs").createLinkResolver>} options.resolveLink
+ * @param {(name: string) => string} options.icon
+ * @param {string[]} [options.reservedIds] ids the page template already uses
  */
-export async function renderMarkdown(markdown, { sourceDir, site, theme, files = [] }) {
-  const unique = uniqueIds();
-  const anchors = new Map();
-  const inline = files.map((file) => {
-    const id = unique(`file-${slugify(file.name.replace(/[^a-z0-9]+/gi, " ")).replace(/-+/g, "-")}`);
-    // Links to a directory that holds inline files jump to its first file.
-    for (let target = path.posix.join(sourceDir, file.name); target !== sourceDir && !anchors.has(target); ) {
-      anchors.set(target, id);
-      target = path.posix.dirname(target);
-    }
-    return { ...file, id };
-  });
-  const context = { sourceDir, site, anchors };
-
-  const parser = new Marked({
-    async: true,
+export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [] }) {
+  const codeBlock = (highlighted, copy = true) =>
+    `<div class="code" data-copy-source>${copy ? copyButton(icon, "Copy code") : ""}${highlighted}</div>`;
+  const recipeFile = (file) => {
+    const text = file.text.replace(/\n$/, "");
+    const lines = text.split("\n").length;
+    return String(
+      html`<details class="file" id="${file.id}" data-copy-source${raw(lines <= COLLAPSE_LINES ? " open" : "")}><summary><span class="file-name">${file.name}</span><span class="file-lines">${lines} ${lines === 1 ? "line" : "lines"}</span>${copyButton(icon, `Copy ${file.name}`)}</summary>${raw(codeBlock(highlighter.render(text, fileLanguage(file.name)), false))}</details>`,
+    );
+  };
+  const marked = new Marked({
     gfm: true,
-    async walkTokens(token) {
-      if (token.type === "link" || token.type === "image") {
-        token.href = rewriteTarget(token.href, context, token.type === "image");
-      } else if (token.type === "code") {
-        const lang = (token.lang || "text").split(/\s+/)[0].toLowerCase();
-        token.rendered = codeBlock(LANGUAGE_LABELS[lang] ?? lang, await highlight(token.text, lang, theme));
-      }
-    },
     renderer: {
-      code: (token) => token.rendered,
-      link(token) {
-        const inner = this.parser.parseInline(token.tokens);
-        const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
-        const rel = /^https?:/.test(token.href) && !token.href.startsWith(site.config.siteUrl) ? ' rel="noopener"' : "";
-        return `<a href="${escapeHtml(token.href)}"${title}${rel}>${inner}</a>`;
+      heading({ tokens, depth, id }) {
+        return `<h${depth} id="${id}">${this.parser.parseInline(tokens)}<a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a></h${depth}>\n`;
+      },
+      code({ text, lang }) {
+        return codeBlock(highlighter.render(text.replace(/\n$/, ""), (lang ?? "").split(/\s+/)[0]));
+      },
+      // Wide tables scroll inside their own focusable region instead of the page.
+      table(token) {
+        return String(html`<div class="table" role="region" tabindex="0" aria-label="${token.label}">${raw(Renderer.prototype.table.call(this, token))}</div>`);
       },
     },
   });
 
-  // Wide tables scroll inside their own focusable region instead of the page.
-  let html = (await parser.parse(markdown)).replace(
-    /<table>[\s\S]*?<\/table>/g,
-    (table) => `<div class="table" tabindex="0" role="region" aria-label="Table">${table}</div>`,
-  );
-  let titleHtml = "";
-  html = html.replace(/<h1>([\s\S]*?)<\/h1>\n?/, (_m, inner) => {
-    titleHtml = inner;
-    return "";
-  });
-  html = html.replace(/<(\/?)h1>/g, "<$1h2>");
+  /**
+   * @param {string} markdown document body without frontmatter
+   * @param {{ source: string, selfHref: string, files?: { name: string, text: string }[] }} context
+   *   `selfHref` is the page's own href: list items that only link there are dropped
+   * @returns {Rendered}
+   */
+  return function render(markdown, { source, selfHref, files = [] }) {
+    const nextId = uniqueIds(reservedIds);
+    const sourceDir = path.posix.dirname(source);
+    const problems = [];
 
-  const toc = [];
-  html = html.replace(/<h([2-6])>([\s\S]*?)<\/h\1>/g, (_m, level, inner) => {
-    const text = textContent(inner);
-    const id = unique(slugify(text));
-    if (level <= 3) toc.push({ level: Number(level), id, text });
-    return anchoredHeading(level, id, inner);
-  });
-
-  const lead = textContent(html.match(/<p>([\s\S]*?)<\/p>/)?.[1] ?? "");
-  const sections = splitSections(html);
-
-  if (inline.length) {
-    const id = unique("file-contents");
-    toc.push({ level: 2, id, text: "File contents" });
-    const blocks = [];
+    const inline = files.map((file) => ({ ...file, id: nextId(`file-${slugify(file.name.replace(/[^\p{L}\p{N}]+/gu, " ")).replace(/-+/g, "-")}`) }));
+    const anchors = new Map();
     for (const file of inline) {
-      const lang = fileLanguage(file.name);
-      toc.push({ level: 3, id: file.id, text: file.name });
-      sections.push({ id: file.id, heading: file.name, text: "" });
-      blocks.push(
-        anchoredHeading(3, file.id, `<code>${escapeHtml(file.name)}</code>`),
-        codeBlock(LANGUAGE_LABELS[lang] ?? lang, await highlight(file.text.replace(/\n$/, ""), lang, theme)),
-      );
+      // A link to a directory of inline files jumps to its first file.
+      for (let target = path.posix.join(sourceDir, file.name); target !== sourceDir && !anchors.has(target); ) {
+        anchors.set(target, file.id);
+        target = path.posix.dirname(target);
+      }
     }
-    html += `<section class="files" aria-labelledby="${id}">${anchoredHeading(2, id, "File contents")}${blocks.join("")}</section>`;
-  }
 
-  return { title: textContent(titleHtml), titleHtml, html, lead, toc, sections };
+    const tokens = marked.lexer(markdown);
+    marked.walkTokens(tokens, (token) => {
+      if (token.type === "html") problems.push(`raw HTML is not published; use Markdown instead of ${JSON.stringify(token.raw.trim().slice(0, 40))}`);
+      if (token.type === "link" || token.type === "image") {
+        try {
+          token.href = resolveLink(token.href, { source, anchors, image: token.type === "image" });
+        } catch (error) {
+          problems.push(error.message);
+        }
+      }
+    });
+    if (problems.length) throw new ContentError(`Invalid documents:\n  - ${problems.map((problem) => `${source}: ${problem}`).join("\n  - ")}`);
+
+    const blocks = tokens.filter((token) => token.type !== "space");
+    const title = blocks[0]?.type === "heading" && blocks[0].depth === 1 ? blocks.shift() : null;
+    const lead = blocks[0]?.type === "paragraph" ? blocks.shift() : null;
+    const body = dropSelfLinks(dropContents(blocks), selfHref);
+
+    const toc = [];
+    const headings = [];
+    let label = "";
+    marked.walkTokens(body, (token) => {
+      if (token.type === "heading") {
+        token.depth = Math.max(token.depth, 2);
+        label = plainText(token.tokens);
+        token.id = nextId(slugify(label));
+        if (token.depth <= 3) toc.push({ level: token.depth, id: token.id, text: label });
+        if (token.depth === 2) headings.push(label);
+      } else if (token.type === "table") {
+        token.label = label ? `${label} table` : "Table";
+      }
+    });
+
+    const sections = splitSections(body);
+    let bodyHtml = marked.parser(body);
+    if (inline.length) {
+      const id = nextId(slugify(FILES_HEADING));
+      toc.push({ level: 2, id, text: FILES_HEADING });
+      const items = inline.map((file) => {
+        toc.push({ level: 3, id: file.id, text: file.name });
+        sections.push({ id: file.id, heading: file.name, text: "" });
+        return recipeFile(file);
+      });
+      bodyHtml += `<section class="files" aria-labelledby="${id}"><h2 id="${id}">${FILES_HEADING}<a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a></h2>${items.join("")}</section>`;
+    }
+
+    return {
+      title: title ? plainText(title.tokens) : "",
+      leadHtml: lead ? marked.parser([lead]).trim().replace(/^<p>|<\/p>$/g, "") : "",
+      lead: lead ? plainText(lead.tokens) : "",
+      html: bodyHtml,
+      toc,
+      headings,
+      sections: withLead(sections, lead ? plainText(lead.tokens) : ""),
+    };
+  };
 }
 
 /**
- * Split rendered HTML at its h2/h3 headings into searchable sections. Code
- * blocks are dropped: search should match prose, not every flag in a script.
+ * Drop a `## Contents` section whose only content is a list of same-page
+ * links: the site's "On this page" navigation replaces it.
  */
-function splitSections(html) {
+function dropContents(blocks) {
+  const index = blocks.findIndex((token) => token.type === "heading" && token.depth === 2 && /^contents$/i.test(plainText(token.tokens)));
+  if (index === -1) return blocks;
+  const list = blocks[index + 1];
+  const next = blocks[index + 2];
+  const onlyAnchors =
+    list?.type === "list" &&
+    (!next || next.type === "heading") &&
+    list.items.every((item) => {
+      const links = allLinks(item.tokens);
+      return links.length > 0 && links.every((link) => link.href.startsWith("#"));
+    });
+  return onlyAnchors ? [...blocks.slice(0, index), ...blocks.slice(index + 2)] : blocks;
+}
+
+/**
+ * Drop list items whose only link points at the page itself, such as a
+ * README's "Docs:" line linking to its own published URL.
+ */
+function dropSelfLinks(blocks, selfHref) {
+  const keep = (list) => {
+    list.items = list.items.filter((item) => {
+      item.tokens = item.tokens.filter((token) => token.type !== "list" || keep(token));
+      const links = allLinks(item.tokens.filter((token) => token.type !== "list"));
+      return !(links.length === 1 && links[0].href.split("#")[0] === selfHref);
+    });
+    return list.items.length > 0;
+  };
+  return blocks.filter((token) => token.type !== "list" || keep(token));
+}
+
+function allLinks(tokens = []) {
+  return tokens.flatMap((token) => {
+    if (token.type === "link") return [token];
+    if (token.type === "list") return token.items.flatMap((item) => allLinks(item.tokens));
+    return allLinks(token.tokens);
+  });
+}
+
+/** Split top-level blocks at h2/h3 into searchable sections; code is never indexed. */
+function splitSections(blocks) {
   const sections = [];
-  const parts = html.split(/(?=<h[23] id=")/);
-  for (const part of parts) {
-    const heading = part.match(/^<h[23] id="([^"]+)">([\s\S]*?)<\/h[23]>/);
-    const body = textContent(part.replace(/^<h[23][\s\S]*?<\/h[23]>/, "").replace(/<figure class="code"[\s\S]*?<\/figure>/g, " "));
-    if (heading) sections.push({ id: heading[1], heading: textContent(heading[2]), text: body });
-    else if (body) sections.push({ id: "", heading: "", text: body });
+  let current = { id: "", heading: "", parts: [] };
+  const flush = () => {
+    const text = current.parts.join(" ").replace(/\s+/g, " ").trim();
+    if (current.heading || text) sections.push({ id: current.id, heading: current.heading, text });
+  };
+  for (const token of blocks) {
+    if (token.type === "heading" && token.depth <= 3) {
+      flush();
+      current = { id: token.id, heading: plainText(token.tokens), parts: [] };
+    } else {
+      current.parts.push(plainText([token]));
+    }
   }
+  flush();
   return sections;
+}
+
+/** The lead opens the page's preamble section (text before the first heading). */
+function withLead(sections, lead) {
+  if (!lead) return sections;
+  if (sections[0]?.heading === "") return [{ ...sections[0], text: `${lead} ${sections[0].text}`.trim() }, ...sections.slice(1)];
+  return [{ id: "", heading: "", text: lead }, ...sections];
 }
