@@ -1,8 +1,8 @@
 import path from "node:path";
 import { Marked, Renderer } from "marked";
-import { fileLanguage } from "./highlight.mjs";
+import { fileLanguage, languageLabel } from "./highlight.mjs";
 import { html, raw } from "./html.mjs";
-import { copyButton } from "./ui.mjs";
+import { NEW_TAB, NEW_TAB_TEXT, copyButton, isExternal } from "./ui.mjs";
 
 // Longer recipe files start collapsed so the page stays scannable.
 const COLLAPSE_LINES = 40;
@@ -22,8 +22,11 @@ export function slugify(text) {
   );
 }
 
+/** `chart/values.yaml` → `file-chart-values-yaml`. */
+const fileId = (name) => `file-${(name.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? ["file"]).join("-")}`;
+
 /** An id generator that never hands out the same id twice on one page. */
-export function uniqueIds(reserved = []) {
+function uniqueIds(reserved = []) {
   const seen = new Set(reserved);
   return (base) => {
     let id = base;
@@ -77,13 +80,21 @@ export function plainText(tokens = []) {
  * @param {string[]} [options.reservedIds] ids the page template already uses
  */
 export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [] }) {
-  const codeBlock = (highlighted, copy = true) =>
-    `<div class="code" data-copy-source>${copy ? copyButton(icon, "Copy code") : ""}${highlighted}</div>`;
+  // Code scrolls sideways inside a focusable region, like tables, so keyboards can reach it.
+  const pre = (highlighted, label) => highlighted.replace(/^<pre>/, String(html`<pre tabindex="0" role="region" aria-label="${label}">`));
+  const codeBlock = (code, lang) => {
+    const label = languageLabel(lang);
+    return String(
+      html`<div class="code" data-copy-source><div class="code-head"><span class="code-lang">${label}</span>${copyButton(icon, "Copy code")}</div>${raw(pre(highlighter.render(code, lang), `${label} code`))}</div>`,
+    );
+  };
+  // The copy button sits beside the summary, never inside it: a summary is itself a control.
   const recipeFile = (file) => {
     const text = file.text.replace(/\n$/, "");
     const lines = text.split("\n").length;
+    const code = pre(highlighter.render(text, fileLanguage(file.name)), file.name);
     return String(
-      html`<details class="file" id="${file.id}" data-copy-source${raw(lines <= COLLAPSE_LINES ? " open" : "")}><summary><span class="file-name">${file.name}</span><span class="file-lines">${lines} ${lines === 1 ? "line" : "lines"}</span>${copyButton(icon, `Copy ${file.name}`)}</summary>${raw(codeBlock(highlighter.render(text, fileLanguage(file.name)), false))}</details>`,
+      html`<div class="file" data-copy-source><details id="${file.id}"${raw(lines <= COLLAPSE_LINES ? " open" : "")}><summary>${raw(icon("chevron"))}<span class="file-name">${file.name}</span><span class="file-lines">${lines} ${lines === 1 ? "line" : "lines"}</span></summary><div class="code">${raw(code)}</div></details>${copyButton(icon, `Copy ${file.name}`)}</div>`,
     );
   };
   const marked = new Marked({
@@ -93,7 +104,13 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
         return `<h${depth} id="${id}">${this.parser.parseInline(tokens)}<a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a></h${depth}>\n`;
       },
       code({ text, lang }) {
-        return codeBlock(highlighter.render(text.replace(/\n$/, ""), (lang ?? "").split(/\s+/)[0]));
+        return codeBlock(text.replace(/\n$/, ""), (lang ?? "").split(/\s+/)[0]);
+      },
+      // Off-site links open in a new tab, marked by an icon and hidden text.
+      link({ href, title, tokens }) {
+        if (!isExternal(href)) return false;
+        const titleAttr = title ? html` title="${title}"` : "";
+        return String(html`<a class="external" href="${href}"${titleAttr}${NEW_TAB}>${raw(this.parser.parseInline(tokens))}${raw(icon("external"))}${NEW_TAB_TEXT}</a>`);
       },
       // Wide tables scroll inside their own focusable region instead of the page.
       table(token) {
@@ -104,18 +121,19 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
 
   /**
    * @param {string} markdown document body without frontmatter
-   * @param {{ source: string, selfHref: string, files?: { name: string, text: string }[], slot?: string }} context
-   *   `selfHref` is the page's own href: list items that only link there are dropped.
+   * @param {{ source: string, isSelfLink: (href: string) => boolean, files?: { name: string, text: string }[], slot?: string }} context
+   *   `isSelfLink` names hrefs that stand for the page itself (its own URL, or a
+   *   source link the page shows elsewhere): list items that only link there are dropped.
    *   `slot` names an h2 section whose content the page generates instead: its
    *   heading stays at the end of `html`, and the rest of the body is `tail`.
    * @returns {Rendered} rendered even when `problems` is not empty, so one build reports everything
    */
-  return function render(markdown, { source, selfHref, files = [], slot }) {
+  return function render(markdown, { source, isSelfLink, files = [], slot }) {
     const nextId = uniqueIds(reservedIds);
     const sourceDir = path.posix.dirname(source);
     const problems = [];
 
-    const inline = files.map((file) => ({ ...file, id: nextId(`file-${slugify(file.name.replace(/[^\p{L}\p{N}]+/gu, " ")).replace(/-+/g, "-")}`) }));
+    const inline = files.map((file) => ({ ...file, id: nextId(fileId(file.name)) }));
     const anchors = new Map();
     for (const file of inline) {
       // A link to a directory of inline files jumps to its first file.
@@ -140,7 +158,7 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
     const blocks = tokens.filter((token) => token.type !== "space");
     const title = blocks[0]?.type === "heading" && blocks[0].depth === 1 ? blocks.shift() : null;
     const lead = blocks[0]?.type === "paragraph" ? blocks.shift() : null;
-    let body = dropSelfLinks(dropContents(blocks), selfHref);
+    let body = dropSelfLinks(dropContents(blocks), isSelfLink);
     let after = [];
     if (slot) {
       const isH2 = (token) => token.type === "heading" && token.depth === 2;
@@ -220,12 +238,12 @@ function dropContents(blocks) {
  * Drop list items whose only link points at the page itself, such as a
  * README's "Docs:" line linking to its own published URL.
  */
-function dropSelfLinks(blocks, selfHref) {
+function dropSelfLinks(blocks, isSelfLink) {
   const keep = (list) => {
     list.items = list.items.filter((item) => {
       item.tokens = item.tokens.filter((token) => token.type !== "list" || keep(token));
       const links = allLinks(item.tokens.filter((token) => token.type !== "list"));
-      return !(links.length === 1 && links[0].href.split("#")[0] === selfHref);
+      return !(links.length === 1 && isSelfLink(links[0].href.split("#")[0]));
     });
     return list.items.length > 0;
   };

@@ -11,7 +11,7 @@ const render = createMarkdown({
   reservedIds: ["main"],
 });
 const page = (markdown, context = {}) => {
-  const out = render(markdown, { source: "tools/ai/demo/README.md", selfHref: "/docs/self/", ...context });
+  const out = render(markdown, { source: "tools/ai/demo/README.md", isSelfLink: (href) => href === "/docs/self/", ...context });
   return { ...out, dom: parse(out.html) };
 };
 
@@ -49,8 +49,30 @@ test("a Contents section of same-page links is stripped; other Contents sections
 
 test("list items whose only link is the page itself are dropped", () => {
   const { dom } = page("# T\n\nLead.\n\n- Docs: [site](self.md#top)\n- Source: [GitHub](https://github.com)\n\nText.\n\n- [self](self.md)\n");
-  assert.deepEqual(dom.querySelectorAll("li").map((item) => item.text.trim()), ["Source: GitHub"]);
+  assert.deepEqual(dom.querySelectorAll("li").map((item) => item.text.trim()), ["Source: GitHub (opens in new tab)"]);
   assert.equal(dom.querySelectorAll("ul").length, 1, "a list left empty disappears");
+});
+
+test("off-site links open in a new tab and say so; site links stay in place", () => {
+  const { dom } = page('# T\n\nLead.\n\nSee [upstream](https://example.com/x "Home") and [docs](self.md) or [mail](mailto:a@b.c).\n');
+  const [external, internal, mail] = dom.querySelectorAll("a");
+  assert.equal(external.getAttribute("target"), "_blank");
+  assert.equal(external.getAttribute("rel"), "noopener noreferrer");
+  assert.equal(external.getAttribute("title"), "Home");
+  assert.equal(external.querySelector(".sr-only").text, " (opens in new tab)");
+  assert.equal(external.querySelector("svg").getAttribute("data-icon"), "external");
+  for (const link of [internal, mail]) assert.equal(link.getAttribute("target"), undefined, link.getAttribute("href"));
+});
+
+test("code blocks carry a language header, a copy button, and a focusable scroll region", () => {
+  const { dom } = page("# T\n\nLead.\n\n```sh\nls\n```\n\n```\nplain\n```\n");
+  assert.deepEqual(dom.querySelectorAll(".code-lang").map((label) => label.text), ["Shell", "Text"]);
+  for (const block of dom.querySelectorAll(".code")) {
+    assert.ok(block.querySelector(".code-head button[data-copy]"));
+    const pre = block.querySelector("pre");
+    assert.equal(pre.getAttribute("tabindex"), "0");
+    assert.equal(pre.getAttribute("role"), "region");
+  }
 });
 
 test("raw HTML is reported, naming the file, without stopping the render", () => {
@@ -73,8 +95,12 @@ test("a slot keeps its heading in html and moves the sections after it to tail",
 test("inline recipe files render as details, collapsed when long", () => {
   const long = Array.from({ length: 50 }, (_, index) => `line${index}`).join("\n");
   const { dom, toc, sections } = page("# T\n\nLead.\n", { files: [{ name: "compose.yaml", text: "a: 1\n" }, { name: "chart/values.yaml", text: long }] });
-  const files = dom.querySelectorAll("details.file");
+  const files = dom.querySelectorAll(".file details");
   assert.deepEqual(files.map((file) => [file.id, file.hasAttribute("open")]), [["file-compose-yaml", true], ["file-chart-values-yaml", false]]);
+  for (const file of files) {
+    assert.equal(file.querySelectorAll("summary button, summary a").length, 0, "no control nested in a summary");
+    assert.ok(file.parentNode.querySelector(":scope > button[data-copy]"), "the copy button sits beside the details");
+  }
   assert.deepEqual(toc.map((entry) => entry.text), ["File contents", "compose.yaml", "chart/values.yaml"]);
   assert.ok(sections.every((section) => !section.text.includes("line1")), "code is never indexed");
 });

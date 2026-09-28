@@ -49,8 +49,15 @@ export async function build({ env = process.env, root = repoRoot, outDir = path.
   // Render every document before anything is written, so link and markup
   // problems are reported together with frontmatter problems.
   const bySource = new Map();
-  const renderDoc = (doc, options = {}) => {
-    const rendered = render(doc.body, { source: doc.source, selfHref: config.href(sourceRoute(doc.source)), ...options });
+  const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // A tool page's facts panel links its source directory, so a README bullet linking it again is dropped.
+  const isSelfLink = (doc, { facts }) => {
+    const self = config.href(sourceRoute(doc.source));
+    const tree = facts ? new RegExp(`/tree/[^/]+/${escapeRegExp(path.posix.dirname(doc.source))}/?$`) : null;
+    return (href) => href === self || Boolean(tree?.test(href));
+  };
+  const renderDoc = (doc, { facts = false, ...options } = {}) => {
+    const rendered = render(doc.body, { source: doc.source, isSelfLink: isSelfLink(doc, { facts }), ...options });
     problems.push(...rendered.problems);
     bySource.set(doc.source, rendered);
   };
@@ -58,9 +65,9 @@ export async function build({ env = process.env, root = repoRoot, outDir = path.
   for (const category of catalog.categories) {
     if (category.source) renderDoc(category, { slot: TOOLS_SECTION });
     for (const tool of category.tools) {
-      renderDoc(tool);
+      renderDoc(tool, { facts: true });
       for (const platform of tool.platforms) {
-        renderDoc(platform, { files: readInlineFiles(root, path.posix.dirname(platform.source), platform.files) });
+        renderDoc(platform, { facts: true, files: readInlineFiles(root, path.posix.dirname(platform.source), platform.files) });
       }
     }
   }

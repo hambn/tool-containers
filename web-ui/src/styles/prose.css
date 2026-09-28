@@ -51,50 +51,59 @@
 }
 :is(h2, h3, h4):hover > .anchor, .anchor:focus-visible { opacity: 1; }
 
-/* Code blocks and recipe files */
+/* Code blocks: a header with the language and a copy button, then the code. */
 .code {
-  position: relative;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--muted);
+  background: var(--code-bg);
 }
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 4px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.code-lang { color: var(--muted-fg); font-size: 12px; font-weight: 500; }
 .code pre {
   margin: 0;
-  padding: 16px;
+  padding: 14px 16px;
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.6;
   tab-size: 2;
 }
-.code > .copy {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: var(--muted);
-}
-@media (hover: hover) {
-  .code > .copy { opacity: 0; }
-  .code:hover > .copy, .code > .copy:focus-visible { opacity: 1; }
-}
+.code pre:focus-visible { outline-offset: -2px; }
 .files { margin-top: 40px; }
 .files > * + * { margin-top: 12px; }
 .file {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: var(--surface);
 }
-.file > summary {
+.file summary {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px 6px 12px;
+  min-height: 36px;
+  padding: 4px 44px 4px 10px;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 13px;
   line-height: 1.5;
+  list-style: none;
 }
-.file > summary::marker { color: var(--muted-fg); }
-.file-name { font-family: var(--mono); font-weight: 500; }
-.file-lines { color: var(--muted-fg); }
-.file > summary .copy { margin-left: auto; }
+.file summary::-webkit-details-marker { display: none; }
+.file summary:hover { background: var(--hover); }
+.file summary:focus-visible { outline-offset: -2px; }
+.file summary .i-chevron { width: 14px; height: 14px; color: var(--muted-fg); transition: transform 0.15s; }
+.file details[open] > summary .i-chevron { transform: rotate(90deg); }
+.file-name { font-family: var(--mono); font-weight: 500; overflow-wrap: anywhere; }
+.file-lines { flex: none; color: var(--muted-fg); }
+.file > .copy { position: absolute; top: 4px; right: 4px; }
 .file .code {
   border: 0;
   border-top: 1px solid var(--border);

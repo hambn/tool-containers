@@ -111,6 +111,31 @@ for (const mode of MODES) {
       assert.deepEqual(problems, []);
     });
 
+    test("off-site links open in a new tab and announce it", () => {
+      for (const [route, dom] of site.pages) {
+        for (const link of dom.querySelectorAll("a[href]").filter((a) => /^https?:/.test(a.getAttribute("href")))) {
+          const where = `${route}: ${link.getAttribute("href")}`;
+          assert.equal(link.getAttribute("target"), "_blank", where);
+          assert.equal(link.getAttribute("rel"), "noopener noreferrer", where);
+          const name = link.getAttribute("aria-label") ?? link.querySelector(".sr-only")?.text ?? "";
+          assert.match(name, /\(opens in new tab\)$/, where);
+        }
+        for (const link of dom.querySelectorAll("a[target]").filter((a) => !/^https?:/.test(a.getAttribute("href")))) {
+          assert.fail(`${route}: ${link.getAttribute("href")} is internal but opens a new tab`);
+        }
+      }
+    });
+
+    test("a tool page links its source once, from the facts panel", () => {
+      for (const [route, dom] of site.pages) {
+        const source = dom.querySelector(".facts a[href*='/tree/']");
+        if (!source) continue;
+        const href = source.getAttribute("href").replace(/\/tree\/[^/]+\//, "/tree/");
+        const prose = dom.querySelectorAll(".prose a[href*='/tree/']").map((link) => link.getAttribute("href").replace(/\/tree\/[^/]+\//, "/tree/").replace(/\/$/, ""));
+        assert.ok(!prose.includes(href), `${route}: the README's Source bullet is dropped`);
+      }
+    });
+
     test("canonical URLs and the sitemap list exactly the indexable pages", () => {
       for (const [route, dom] of site.pages) {
         const link = dom.querySelector('link[rel="canonical"]')?.getAttribute("href");
@@ -264,7 +289,7 @@ describe("hostile content", () => {
     assert.equal(article.headline, title);
 
     const helm = site.pages.get("/docs/ai/demo/helm/");
-    assert.ok(helm.querySelector("details.file").text.includes("</details><script>alert(1)</script>"));
+    assert.ok(helm.querySelector(".file details").text.includes("</details><script>alert(1)</script>"));
   });
 
   test("attributes and generated files round-trip hostile values", () => {

@@ -1,6 +1,7 @@
 import { SITE_NAME } from "./config.mjs";
 import { html, raw } from "./html.mjs";
 import { THEME_COLORS, headTags, jsonLdScript } from "./seo.mjs";
+import { NEW_TAB, externalLink } from "./ui.mjs";
 
 /** Ids the page chrome uses, reserved so document headings never collide with them. */
 export const TEMPLATE_IDS = ["main", "menu", "menu-title", "search", "search-input", "search-results", "search-status", "on-this-page", "toc-title"];
@@ -55,7 +56,7 @@ function header(page, site, icon) {
 <nav class="nav" aria-label="Main">${mainNav(page, site, "tab")}</nav>
 <div class="actions">
 <a class="search-trigger" href="${config.href("/search/")}" data-search-open aria-label="Search docs" aria-keyshortcuts="Control+K Meta+K">${raw(icon("search"))}<span class="search-label">Search docs…</span><kbd data-hotkey>Ctrl K</kbd></a>
-<a class="icon-btn" href="${config.repoUrl}" aria-label="${SITE_NAME} on GitHub">${raw(icon("github"))}</a>
+<a class="icon-btn" href="${config.repoUrl}"${NEW_TAB} aria-label="${SITE_NAME} on GitHub (opens in new tab)">${raw(icon("github"))}</a>
 <button class="icon-btn theme" type="button" data-theme-toggle aria-label="Toggle dark theme">${raw(icon("sun"))}${raw(icon("moon"))}</button>
 <button class="icon-btn menu-open" type="button" data-menu-open aria-label="Open menu" aria-haspopup="dialog" aria-controls="menu">${raw(icon("menu"))}</button>
 </div>
@@ -84,7 +85,7 @@ function footer(site) {
   const { config } = site;
   return html`<footer class="footer"><div class="container footer-inner">
 <span>${SITE_NAME}</span>
-<nav aria-label="Footer"><a href="${config.href("/")}">Catalog</a><a href="${config.href("/docs/")}">Docs</a><a href="${config.href("/llms.txt")}">llms.txt</a><a href="${config.repoUrl}">GitHub</a></nav>
+<nav aria-label="Footer"><a href="${config.href("/")}">Catalog</a><a href="${config.href("/docs/")}">Docs</a><a href="${config.href("/llms.txt")}">llms.txt</a>${externalLink(config.repoUrl, "GitHub")}</nav>
 </div></footer>`;
 }
 

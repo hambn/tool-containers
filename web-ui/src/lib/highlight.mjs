@@ -7,6 +7,14 @@ const GRAMMARS = ["shellscript", "dockerfile", "yaml", "json", "toml", "markdown
 const ALIASES = { bash: "shellscript", sh: "shellscript", shell: "shellscript", zsh: "shellscript", console: "shellscript", yml: "yaml", md: "markdown", env: "ini" };
 const EXTENSIONS = { sh: "shellscript", bash: "shellscript", yml: "yaml", yaml: "yaml", json: "json", toml: "toml", md: "markdown", env: "ini", conf: "ini", ini: "ini" };
 
+const LABELS = { shellscript: "Shell", dockerfile: "Dockerfile", yaml: "YAML", json: "JSON", toml: "TOML", markdown: "Markdown", ini: "INI" };
+
+/** The name a code block's header shows for its fence language. */
+export function languageLabel(lang = "") {
+  const key = lang.toLowerCase();
+  return LABELS[ALIASES[key] ?? key] ?? (key && key !== "text" ? key : "Text");
+}
+
 /** Highlighting grammar for a recipe file, chosen by its name. */
 export function fileLanguage(name) {
   const base = path.posix.basename(name);

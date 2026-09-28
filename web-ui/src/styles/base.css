@@ -75,6 +75,16 @@ code, kbd, pre { font-family: var(--mono); }
   flex: none;
 }
 
+/* The arrow after an off-site link; its hidden text says it opens a new tab. */
+a > .i-external {
+  display: inline;
+  width: 0.75em;
+  height: 0.75em;
+  margin-left: 0.2em;
+  vertical-align: -0.02em;
+  color: var(--muted-fg);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

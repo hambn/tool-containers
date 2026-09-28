@@ -17,7 +17,7 @@ export const isExternal = (href) => /^https?:\/\//i.test(href);
 export const NEW_TAB = raw(' target="_blank" rel="noopener noreferrer"');
 export const NEW_TAB_TEXT = raw('<span class="sr-only"> (opens in new tab)</span>');
 
-/** An off-site link that opens in a new tab and says so; `arrow` adds the external-link icon. */
+/** An off-site link that opens in a new tab and says so; passing `icon` adds the external-link arrow. */
 export function externalLink(href, content, { icon, className = "" } = {}) {
   const arrow = icon ? raw(icon("external")) : "";
   return html`<a${className ? html` class="${className}"` : ""} href="${href}"${NEW_TAB}>${content}${arrow}${NEW_TAB_TEXT}</a>`;

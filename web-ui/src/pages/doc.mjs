@@ -1,7 +1,7 @@
 import { html, raw } from "../lib/html.mjs";
 import { docsNav } from "../lib/layout.mjs";
 import { toolRoute } from "../lib/site.mjs";
-import { imageList, platformChips } from "../lib/ui.mjs";
+import { externalLink, imageList, platformChips } from "../lib/ui.mjs";
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
 
@@ -34,8 +34,8 @@ function facts(page, site, icon) {
   return html`<dl class="facts">
 <div><dt>${meta.images.length > 1 ? "Images" : "Image"}</dt><dd>${imageList(meta.images, icon)}</dd></div>
 ${platform ? html`<div><dt>Use case</dt><dd>${platform.meta.usecase}</dd></div>` : ""}
-${upstream ? html`<div><dt>Upstream</dt><dd><a href="${upstream.href}">${upstream.host}${upstream.pathname.replace(/\/$/, "")}</a></dd></div>` : ""}
-<div><dt>Source</dt><dd><a href="${site.config.treeUrl(source)}">${source}</a></dd></div>
+${upstream ? html`<div><dt>Upstream</dt><dd>${externalLink(upstream.href, `${upstream.host}${upstream.pathname.replace(/\/$/, "")}`, { icon })}</dd></div>` : ""}
+<div><dt>Source</dt><dd>${externalLink(site.config.treeUrl(source), source, { icon })}</dd></div>
 ${keywords.length ? html`<div><dt>Keywords</dt><dd class="muted">${keywords.join(", ")}</dd></div>` : ""}
 </dl>`;
 }
@@ -92,7 +92,7 @@ ${tabs(page, site)}
 ${facts(page, site, icon)}
 ${toc ? html`<details class="toc-inline"><summary>On this page</summary>${toc}</details>` : ""}
 <div class="prose">${raw(rendered.html)}${categoryTools(page, site, icon)}${raw(rendered.tail)}</div>
-<p class="doc-meta"><a href="${config.blobUrl(page.source)}">View source on GitHub</a>${modified}</p>
+<p class="doc-meta">${externalLink(config.blobUrl(page.source), "View source on GitHub", { icon })}${modified}</p>
 ${pager(page, site)}
 </article>
 ${toc ? html`<nav class="toc" id="on-this-page" aria-labelledby="toc-title"><p class="toc-title" id="toc-title">On this page</p>${toc}</nav>` : html`<div class="toc"></div>`}
