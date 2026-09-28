@@ -131,16 +131,19 @@ html:not(.js) .copy { display: none; }
   gap: 4px 20px;
   margin: 20px 0 0;
   padding: 0;
+  overflow: hidden; /* clips the dot of an item that starts a wrapped line */
   list-style: none;
   color: var(--muted-fg);
   font-size: 13px;
 }
-.stats li + li::before {
+.stats li { position: relative; }
+.stats li::before {
   content: "";
-  display: inline-block;
+  position: absolute;
+  top: calc(50% - 1.5px);
+  left: -11.5px;
   width: 3px;
   height: 3px;
-  margin: 0 20px 3px -11.5px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -258,7 +261,15 @@ html:not(.js) .filter { display: none; }
   .filter-input { flex-basis: 100%; }
   .filter .select { flex: 1; width: auto; }
   .group-head, .row { padding-inline: 16px; }
-  .image { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .image {
+    grid-template-areas: "registry copy" "code copy";
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0;
+    padding-block: 4px;
+  }
+  .image-registry { grid-area: registry; font-size: 11px; }
+  .image code { grid-area: code; }
+  .image .copy { grid-area: copy; }
 }
 
 .tree, .tree ul { margin: 0; padding: 0; list-style: none; }
@@ -416,7 +427,18 @@ html:not(.js) .filter { display: none; }
 .prose .category-tool-title a { text-decoration: none; }
 .prose .category-tool-title a:hover { color: var(--accent); }
 .category-tool-desc { flex: 1; color: var(--muted-fg); }
-.prose .category-tool .images { margin: 0; }
+.prose .category-tool .images { margin: 0; padding: 4px; }
+/* In a narrow card the registry sits above its reference, which drops the prose code chrome. */
+.prose .category-tool .image {
+  grid-template-areas: "registry copy" "code copy";
+  grid-template-columns: minmax(0, 1fr) auto;
+  row-gap: 0;
+  margin: 0;
+  padding-block: 4px;
+}
+.prose .category-tool .image-registry { grid-area: registry; font-size: 11px; }
+.prose .category-tool .image code { grid-area: code; padding: 0; border: 0; background: none; font-size: 12.5px; }
+.prose .category-tool .image .copy { grid-area: copy; }
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -541,13 +563,16 @@ html:not(.js) .filter { display: none; }
   border-bottom: 1px solid var(--border);
   color: var(--muted-fg);
 }
-.search-box input {
+/* The dialog is the field: its input drops the shared control chrome. */
+.search-box input,
+.search-box input:is(:hover, :focus-visible) {
   flex: 1;
   min-width: 0;
   height: 100%;
   border: 0;
   outline: 0;
   background: none;
+  box-shadow: none;
   color: var(--fg);
   font-size: 16px;
 }

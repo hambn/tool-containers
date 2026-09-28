@@ -27,7 +27,7 @@ export function externalLink(href, content, { icon, className = "" } = {}) {
 export function imageList(images, icon) {
   return html`<ul class="images" aria-label="Images">${images.map(
     (image) =>
-      html`<li class="image" data-copy-source><span class="image-registry">${registryLabel(image)}</span><code>${image}</code>${copyButton(icon, `Copy ${image}`)}</li>`,
+      html`<li class="image" data-copy-source><span class="image-registry">${registryLabel(image)}</span><code title="${image}">${image}</code>${copyButton(icon, `Copy ${image}`)}</li>`,
   )}</ul>`;
 }
 
