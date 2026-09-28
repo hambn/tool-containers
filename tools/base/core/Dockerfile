@@ -9,8 +9,8 @@ ARG UBUNTU_IMAGE=docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12
 # renovate: datasource=docker depName=docker.io/chainguard/wolfi-base
 ARG WOLFI_IMAGE=docker.io/chainguard/wolfi-base:latest@sha256:fac38d12efdb4bf43ac9e599a31db10a27ad5dd71e5f1618790962eda8d66180
 
-# Changing this date rebuilds the OS package layers; maintenance.yml bumps it when
-# published images have fixable OS vulnerabilities.
+# Changing this date rebuilds the OS package layers; tool-image.yml overrides it
+# with the build date when a published image has fixable OS vulnerabilities.
 ARG OS_REFRESH=2026-09-25
 
 FROM ${ALPINE_IMAGE} AS alpine-payload
