@@ -1,21 +1,21 @@
 # Contributing
 
-Create a focused branch from the latest `main` and use a Conventional Commit title for
-the pull request, such as `fix(agentimg): preserve runtime ownership`.
+Create a branch from the latest `main` and give the pull request a Conventional Commit
+title, such as `fix(codex): forward CODEX_API_KEY in the Docker recipe`.
 
-Before opening a pull request:
+Before you open the pull request:
 
-1. Read [`AGENTS.md`](../AGENTS.md) and follow the routed repository guidance.
+1. Read [`AGENTS.md`](../AGENTS.md) and follow the repository guidance it routes to.
 2. Keep credentials and generated runtime state out of the repository.
-3. Update affected documentation and agent guidance when a reusable repository
-   contract changes. Every category README (`tools/<category>/README.md`), tool
+3. Update the affected documentation and agent guidance when a shared repository
+   convention changes. Every category README (`tools/<category>/README.md`), tool
    README, and platform doc needs the YAML frontmatter defined in the
-   [documentation skill](../.agents/skills/documentation/SKILL.md); a new tool also
+   [documentation skill](../.agents/skills/documentation/SKILL.md). A new tool also
    needs an `order` and a bullet in its category README's `## Tools` section.
 4. Run `bash .agents/skills/repository-changes/scripts/validate-change.sh`.
 
-Describe the change and list exact validation in the pull request body. The
-`Pull request gate` check validates PR metadata, dependency changes, and repository
-contracts; the `Lint` check and, for image changes, the affected `<category>-<tool>` image workflows must pass
-too. Resolve review threads and require these checks to pass before squash merging so
-`main` retains a concise history.
+In the pull request body, describe the change and list the validation you ran. The
+`Pull request gate` check validates the metadata, dependency changes, and repository
+contracts. The `Lint` check must also pass, and for image changes, so must the
+affected `<category>-<tool>` image workflows. Resolve review threads before squash
+merging, so `main` keeps a concise history.
