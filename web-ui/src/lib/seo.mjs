@@ -1,7 +1,8 @@
 import { SITE_NAME } from "./config.mjs";
 import { DESCRIPTION_LENGTH } from "./frontmatter.mjs";
-import { escapeHtml, fitClauses, fitSentences, html, sentences } from "./html.mjs";
+import { escapeHtml, html } from "./html.mjs";
 import { toolRoute } from "./site.mjs";
+import { fitClauses, fitSentences, sentences } from "./text.mjs";
 
 const TITLE_MAX = 60;
 const SEPARATOR = " — ";
@@ -21,7 +22,11 @@ const withSiteName = (text) => (`${text}${SEPARATOR}${SITE_NAME}`.length <= TITL
 export function describePages(site, readme) {
   const lead = sentences(readme.lead);
   const home = fitSentences(lead, DESCRIPTION_LENGTH.max);
-  const docs = fitSentences(lead, DESCRIPTION_LENGTH.max, home.end);
+  // Distinct from home by construction: the sentences home did not use in
+  // full, or else a summary of the README's sections.
+  const rest = fitSentences(lead, DESCRIPTION_LENGTH.max, home.end).text;
+  const sections = readme.headings.length ? `: ${readme.headings.join(", ")}` : "";
+  const docs = rest && rest !== home.text ? rest : `${fitClauses(`The ${SITE_NAME} documentation${sections}`, DESCRIPTION_LENGTH.max - 1) || `The ${SITE_NAME} documentation`}.`;
   const summary = fitClauses(lead[0] ?? "", TITLE_MAX - SEPARATOR.length - SITE_NAME.length);
   const imageCount = `${site.catalog.tools.length} images`;
 
@@ -33,7 +38,7 @@ export function describePages(site, readme) {
         meta.set(page, { title: summary ? `${SITE_NAME}${SEPARATOR}${summary}` : SITE_NAME, description: home.text });
         break;
       case "docs":
-        meta.set(page, { title: withSiteName(page.heading), description: docs.text || home.text });
+        meta.set(page, { title: withSiteName(page.heading), description: docs });
         break;
       case "category":
         meta.set(page, { title: withSiteName(`${page.category.meta.title} Docker images`), description: page.category.meta.description });

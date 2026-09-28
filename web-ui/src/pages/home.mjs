@@ -1,5 +1,6 @@
 import { PLATFORMS } from "../lib/frontmatter.mjs";
-import { html, raw, sentences } from "../lib/html.mjs";
+import { html, raw } from "../lib/html.mjs";
+import { sentences } from "../lib/text.mjs";
 import { copyButton } from "../lib/markdown.mjs";
 import { categoryAnchor, platformLabel, platformRoute, toolRoute } from "../lib/site.mjs";
 
