@@ -5,23 +5,23 @@ usecase: CI job with the full toolchain on GitLab
 keywords: [pipeline, docker executor, toolchain]
 ---
 
-# devbox · GitLab CI
+# Run devbox with GitLab CI
 
 [`gitlab-ci.yml`](./gitlab-ci.yml) defines a job that runs in [devbox](../../README.md)
 on a GitLab Runner with the
 [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/).
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
 
 ## Prerequisites
 
 - A GitLab project with a runner that uses the Docker executor, such as GitLab.com
   hosted Linux runners.
 
-## Commands
+## Set up
 
 Add the `devbox-check` job to your project's `.gitlab-ci.yml` and replace the check
 commands with your own. It runs in every pipeline.
+
+The job runs `ghcr.io/hambn/devbox:ubuntu-full`. Replace the tag with `@sha256:<digest>` to pin one build.
 
 ## Variables
 
@@ -36,14 +36,8 @@ line marks it as a Git safe directory.
 
 ## Files
 
-- [`gitlab-ci.yml`](./gitlab-ci.yml) — a job that runs in the devbox full tier
-
-## Cleanup
-
-The runner removes the job container when the job ends.
+- [`gitlab-ci.yml`](./gitlab-ci.yml): a job that runs in the devbox full tier.
 
 ## Limitations
 
 - The runner pulls the image for each job unless its pull policy reuses a cached copy.
-- `ubuntu-full` is a moving tag; pin a digest (`ghcr.io/hambn/devbox@sha256:<digest>`)
-  for repeatable jobs.

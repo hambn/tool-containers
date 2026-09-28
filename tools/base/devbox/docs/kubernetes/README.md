@@ -5,15 +5,16 @@ usecase: Disposable cluster development pod
 keywords: [kubectl exec, kubectl cp, pod, emptydir]
 ---
 
-# devbox · Kubernetes
+# Run devbox with Kubernetes
 
-Run [devbox](../../README.md) as a disposable development pod and exec into it.
+[`pod.yaml`](./pod.yaml) runs [devbox](../../README.md) as a single non-root pod that
+sleeps until you open a shell in it with `kubectl exec`.
 
 ## Prerequisites
 
-- A Kubernetes cluster and `kubectl`
+- A Kubernetes cluster and `kubectl` configured for it.
 
-## Commands
+## Open a shell
 
 ```bash
 kubectl apply -f pod.yaml
@@ -21,7 +22,7 @@ kubectl wait --for=condition=Ready pod/devbox
 kubectl exec -it devbox -- zsh -l
 ```
 
-Copy files in and out:
+Copy files in and out with `kubectl cp`:
 
 ```bash
 kubectl cp ./src devbox:/workspace/src
@@ -30,21 +31,19 @@ kubectl cp devbox:/workspace/out ./out
 
 ## Workspace
 
-`/workspace` is an `emptyDir` and disappears with the pod; replace it with a
-PersistentVolumeClaim to keep work.
+`/workspace` is an `emptyDir` and is deleted with the pod. Replace it with a
+PersistentVolumeClaim to keep your work, or use the [Helm](../helm/) recipe.
+
+The pod runs as UID 1000 with every capability dropped and
+`allowPrivilegeEscalation: false`, so `sudo` and `ping` fail. No Docker daemon runs in
+the pod; set `DOCKER_HOST` to use a remote one.
 
 ## Files
 
-- [`pod.yaml`](./pod.yaml) — non-root pod with all capabilities dropped
+- [`pod.yaml`](./pod.yaml) defines the pod, its security context, and resource limits.
 
 ## Cleanup
 
 ```bash
 kubectl delete -f pod.yaml
 ```
-
-## Limitations
-
-- `allowPrivilegeEscalation: false` disables `sudo` and the `ping` capability.
-- There is no Docker daemon; point `DOCKER_HOST` at a remote one if needed.
-- systemd does not run here; `systemctl` needs a privileged container with `/sbin/init`.
