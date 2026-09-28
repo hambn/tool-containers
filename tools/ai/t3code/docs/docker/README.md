@@ -1,55 +1,77 @@
 ---
 name: Docker
-description: Serve the T3 Code web GUI on 127.0.0.1:3773 in Docker over the current directory, or from a saved image on air-gapped hosts.
+description: Serve the T3 Code web GUI on 127.0.0.1:3773 in Docker with the current directory as its workspace, or from a saved image tarball offline.
 usecase: Local GUI over a checkout
 keywords: [web gui, port 3773, air-gapped]
 ---
 
-# t3code · Docker
+# Run T3 Code with Docker
 
-[`run.sh`](./run.sh) serves the T3 Code web GUI on `http://127.0.0.1:3773`, mounting the current directory at `/workspace`.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) serves [T3 Code](../../README.md) on `http://127.0.0.1:3773` with
+the current directory mounted at `/workspace`. [`airgapped.run.sh`](./airgapped.run.sh)
+does the same from a saved image on a host that cannot pull.
 
 ## Prerequisites
 
-- Docker Engine 23 or newer.
-- Authenticate the agents from inside the T3 Code UI.
+- Docker Engine 23 or later.
 
-## Commands
+## Run T3 Code
 
 ```bash
 ./run.sh
-./airgapped.run.sh t3code.tar
 ```
 
-For an air-gapped host, save the image on a connected machine first:
+The server prints a `Token:` line when it is ready. Open
+`http://127.0.0.1:3773/pair#token=<token>` to pair your browser, then add
+`/workspace` as a project and sign in to an agent from the UI. The printed pairing URL
+uses the container's IP address, which the host may not reach. Press Ctrl-C to stop
+the server; the container, T3 Code's state, and the agent logins are removed with it.
+
+The token expires after five minutes. To pair later, run
+`docker exec <container> t3 auth pairing create --base-url http://127.0.0.1:3773`
+with the container ID from `docker ps`, and open the `Pair URL` it prints.
+
+To let agents run Docker commands, set `T3CODE_DOCKER_SOCKET` to the host socket.
+`run.sh` mounts it at `/var/run/docker.sock` and adds its group:
+
+```bash
+T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
+```
+
+Access to the socket gives the container root on the host.
+
+## Run without registry access
+
+On a machine that can pull, save the image:
 
 ```bash
 docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
 ```
 
+Copy the tar to the offline host and pass its path:
+
+```bash
+./airgapped.run.sh t3code.tar
+```
+
+The script loads the tar and runs `T3CODE_IMAGE` with `--pull=never`. It does not
+support `T3CODE_DOCKER_SOCKET`.
+
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `T3CODE_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
-| `T3CODE_DOCKER_SOCKET` | no | Host Docker socket path to mount at `/var/run/docker.sock`. |
+| `T3CODE_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/t3code:ubuntu-browser`; set `ghcr.io/hambn/t3code@sha256:<digest>` to pin one build. |
+| `T3CODE_DOCKER_SOCKET` | no | Host Docker socket for `run.sh` to mount at `/var/run/docker.sock`. |
 
 ## Workspace
 
-The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
+The current directory is mounted at `/workspace`. T3 Code and its agents run as
+`sysadmin` (UID 1000), so new files belong to UID 1000 on the host. The port is bound
+to `127.0.0.1`; put an authenticating reverse proxy in front before you expose it
+further.
 
 ## Files
 
-- [`run.sh`](./run.sh) — pull and run the published image.
-- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
-
-## Cleanup
-
-Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/t3code:ubuntu-browser`.
-
-## Limitations
-
-- The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/t3code@sha256:<digest>`) for repeatable runs.
+- [`run.sh`](./run.sh) pulls the image if needed and serves T3 Code on port 3773.
+- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.

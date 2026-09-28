@@ -1,16 +1,21 @@
 ---
 name: t3code
 title: T3 Code
-description: T3 Code web GUI over coding agents on the agentbloat image, serving on port 3773 with Codex, Claude Code, and other CLIs ready.
+description: T3 Code, a web GUI for Codex, Claude Code, and other coding agents, served on port 3773 from the agentbloat image with every agent CLI installed.
 upstream: https://github.com/pingdotgg/t3code
 order: 7
 images: [ghcr.io/hambn/t3code, docker.io/hambn/t3code]
 keywords: [web gui, coding agents, agentbloat, codex, claude code, cursor, opencode]
 ---
 
-# t3code
+# T3 Code
 
-[T3 Code](https://github.com/pingdotgg/t3code), a web GUI over coding agents, on the [`agentbloat`](../agentbloat/) image so Codex, Claude Code, Cursor, OpenCode, and the other bundled CLIs are ready to drive. The entrypoint is `t3 serve --host=0.0.0.0 --port=3773` and port `3773` is exposed.
+[T3 Code](https://github.com/pingdotgg/t3code) is a web GUI for coding agents. This image
+adds it to [agentbloat](../agentbloat/), so Codex, Claude Code, Cursor, OpenCode, and
+the other agent CLIs it drives are already installed. The entrypoint is
+`t3 serve --host=0.0.0.0 --port=3773`, and the container starts in `/home/sysadmin` as
+`sysadmin` (UID 1000). The recipes mount your project at `/workspace`. No credentials
+are stored in the image.
 
 - **Source:** [`tools/ai/t3code/`](https://github.com/hambn/tool-containers/tree/main/tools/ai/t3code)
 - **Docs:** [tool-containers.hgh.dev/docs/ai/t3code/](https://tool-containers.hgh.dev/docs/ai/t3code/)
@@ -19,43 +24,68 @@ keywords: [web gui, coding agents, agentbloat, codex, claude code, cursor, openc
 
 - [Images](#images)
 - [Included software](#included-software)
+- [Pairing and access](#pairing-and-access)
 - [Use cases](#use-cases)
 - [Sources](#sources)
 
 ## Images
 
-- **`ubuntu-browser`** — T3 Code plus every agentbloat CLI; Ubuntu, headless Chromium
-  - Base: [`agentbloat:ubuntu-browser`](../agentbloat/)
-  - Tags: `ubuntu-browser`
-  - Included software: [t3code](#included-software) + [agentbloat](../agentbloat/#included-software)
-- **`ubuntu`** — T3 Code plus every agentbloat CLI; Ubuntu, no browser
+- **`ubuntu`**: Ubuntu 24.04 without a browser. `latest` points here.
   - Base: [`agentbloat:ubuntu`](../agentbloat/)
   - Tags: `ubuntu`, `latest`, `t3code-<version>`
-  - Included software: [t3code](#included-software) + [agentbloat](../agentbloat/#included-software)
+  - Included software: [T3 Code](#included-software) and the [agentbloat CLIs](../agentbloat/#included-software)
+- **`ubuntu-browser`**: Ubuntu 24.04 with headless Chromium, the default in the recipes.
+  - Base: [`agentbloat:ubuntu-browser`](../agentbloat/)
+  - Tags: `ubuntu-browser`
+  - Included software: [T3 Code](#included-software) and the [agentbloat CLIs](../agentbloat/#included-software)
 
-No Alpine variants: upstream publishes only glibc builds of the `t3` binary, which gcompat cannot run.
+There are no Alpine variants: upstream publishes only glibc builds of the `t3` binary,
+which gcompat cannot run. The old `alpine` and `alpine-browser` tags are still in both
+registries but are no longer rebuilt.
 
-Pull from `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `t3code-<version>` for the pinned T3 Code npm release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `t3code-stable-v<version>` and `t3code-nightly-v<version>` tags are frozen and deprecated.
-
-The image runs as `sysadmin` (UID 1000) in its home directory, `/home/sysadmin`, with projects mounted at `/workspace`; credentials are supplied at runtime and never baked in. Authenticate agents from the T3 Code UI; the server itself has no built-in network authentication, so keep it on loopback or behind an authenticating proxy.
-
-The Browser item in T3 Code's served web interface is disabled. It uses a desktop client browser view; the `ubuntu-browser` image's headless Chromium is available to command-line tools but does not enable that interface item. Use the T3 Code desktop client for its Browser view.
+Pull `ghcr.io/hambn/t3code:<tag>` or `docker.io/hambn/t3code:<tag>`.
+`t3code-<version>` names the npm release in the current `ubuntu` build. All tags move
+when the image is rebuilt; pin a digest to keep one build.
 
 ## Included software
 
 - **T3 Code**
-  - Commands: `t3`
-  - Source: npm `t3`
-  - Pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults
-- **Everything else** comes from [agentbloat](../agentbloat/#included-software): every agent CLI plus the devbox toolset
+  - Command: `t3`
+  - Source: npm packages `t3` and `@t3code/t3-linux-<arch>`, version pinned in the [`Dockerfile`](./Dockerfile)
+
+The agent CLIs and the devbox toolset come from
+[agentbloat](../agentbloat/#included-software).
+
+## Pairing and access
+
+Each time the server starts, it prints a one-time token and a pairing URL. The URL
+uses the container's own IP address, so from the host open
+`http://127.0.0.1:3773/pair#token=<token>` instead. The token expires after five
+minutes. For a new one, run this in the container:
+
+```bash
+t3 auth pairing create --base-url http://127.0.0.1:3773
+```
+
+After pairing, the browser keeps a session cookie. Sign in to each agent from the T3
+Code UI.
+
+T3 Code keeps its state in `/home/sysadmin/.t3`, and the agents keep their logins in
+the same home directory. None of the recipes mount it, so both last only as long as the
+container.
+
+The Browser item in the web interface stays disabled: it needs the T3 Code desktop
+client. The headless Chromium in `ubuntu-browser` is for command-line tools.
 
 ## Use cases
 
-- **Local GUI over a checkout** — [`docs/docker/`](./docs/docker/), then open `http://127.0.0.1:3773`.
-- **Persistent local instance** — [`docs/docker-compose/`](./docs/docker-compose/).
-- **Rootless local instance** — [`docs/podman/`](./docs/podman/).
-- **Shared cluster instance** — Deployment and Service in [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
+- **Local GUI over a checkout** with [Docker](./docs/docker/), including hosts that
+  load the image from a saved tar.
+- **Persistent local instance** with [Docker Compose](./docs/docker-compose/), with an
+  air-gapped Compose file.
+- **Rootless local instance** with [Podman](./docs/podman/).
+- **Shared cluster instance** from plain manifests with [Kubernetes](./docs/kubernetes/)
+  or from a Helm chart with [Helm](./docs/helm/).
 
 ## Sources
 
