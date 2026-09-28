@@ -5,13 +5,11 @@ usecase: Code review in CI on GitLab merge requests
 keywords: [merge request review, ocr review, masked variable]
 ---
 
-# open-code-review · GitLab CI
+# Run Open Code Review with GitLab CI
 
 [`gitlab-ci.yml`](./gitlab-ci.yml) defines a job that reviews each merge request with
-Open Code Review on a GitLab Runner with the [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/). It
+[Open Code Review](../../README.md) on a GitLab Runner with the [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/). It
 saves the `anthropic` provider and the `OCR_MODEL` model with `ocr config set`, then runs `ocr review --from <base> --to HEAD`.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
 
 ## Prerequisites
 
@@ -19,10 +17,12 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
   hosted Linux runners.
 - A masked `ANTHROPIC_API_KEY` [CI/CD variable](https://docs.gitlab.com/ci/variables/) and an unmasked `OCR_MODEL` variable.
 
-## Commands
+## Set up
 
 Add the `open-code-review` job to your project's `.gitlab-ci.yml`. It runs only in merge
 request pipelines.
+
+The job runs `ghcr.io/hambn/open-code-review:ubuntu`. Replace the tag with `@sha256:<digest>` to pin one build.
 
 ## Variables
 
@@ -41,11 +41,7 @@ review covers `$CI_MERGE_REQUEST_DIFF_BASE_SHA` to `HEAD`.
 
 ## Files
 
-- [`gitlab-ci.yml`](./gitlab-ci.yml) — merge request review job
-
-## Cleanup
-
-The runner removes the job container when the job ends.
+- [`gitlab-ci.yml`](./gitlab-ci.yml): merge request review job.
 
 ## Limitations
 
@@ -53,4 +49,3 @@ The runner removes the job container when the job ends.
 - The review is advisory: the job does not comment on the merge request or fail on findings. Read it in the job log.
 - The diff is untrusted model input, and the job environment, including `CI_JOB_TOKEN`, is visible to any command the agent runs.
 - `ocr review` exits 0 even when it reports findings. The upstream [CI guide](https://github.com/alibaba/open-code-review/blob/main/pages/src/content/docs/en/integrations/ci.md) shows how to post findings as review comments.
-- `ubuntu` is a moving tag; pin a digest (`ghcr.io/hambn/open-code-review@sha256:<digest>`) for repeatable reviews.

@@ -1,45 +1,50 @@
 ---
 name: Podman
-description: Run the Open Code Review CLI (ocr) under rootless Podman against the current checkout with a configured LLM provider.
+description: Run the Open Code Review CLI under rootless Podman on the current checkout, keeping file ownership with keep-id and relabeling for SELinux.
 usecase: Rootless reviews on a workstation
 keywords: [ocr review, rootless, keep-id, selinux]
 ---
 
-# open-code-review · Podman
+# Run Open Code Review with Podman
 
-[`run.sh`](./run.sh) runs the Open Code Review CLI (`ocr`) with the arguments you pass, for example `review` under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) starts [Open Code Review](../../README.md) under rootless Podman on
+the current directory, passing any arguments to `ocr`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e <VAR>` added to the `podman run` command in [`run.sh`](./run.sh).
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
+- An API key for an LLM provider `ocr` supports, such as `ANTHROPIC_API_KEY`.
 
-## Commands
+## Review your changes
+
+`run.sh` passes no environment, and the provider settings `ocr` saves in the container
+are removed with it. Start a shell with your key instead:
 
 ```bash
-./run.sh
+podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -e ANTHROPIC_API_KEY \
+  -v "$PWD:/workspace:Z" --entrypoint zsh ghcr.io/hambn/open-code-review:ubuntu-browser
+```
+
+Then configure and review inside it:
+
+```bash
+ocr config set provider anthropic
+ocr config set model <model>
+ocr review
 ```
 
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `OPEN_CODE_REVIEW_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`. |
+| `OPEN_CODE_REVIEW_IMAGE` | no | Image `run.sh` runs. Defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files the container writes stay owned by you.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/open-code-review:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/open-code-review@sha256:<digest>`) for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.
