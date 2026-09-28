@@ -1,185 +1,251 @@
-// Checks the built `dist/` against the repository. Run after `npm run build`
-// with the same SITE_URL and BASE_PATH the build used.
 import assert from "node:assert/strict";
-import test from "node:test";
-import fs from "node:fs";
-import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { gzipSync } from "node:zlib";
-import { resolveConfig, repoRoot, uiRoot } from "../src/lib/config.mjs";
-import { buildSite } from "../src/lib/site.mjs";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import path from "node:path";
+import { after, before, describe, test } from "node:test";
+import { parse } from "node-html-parser";
+import { build } from "../src/build.mjs";
+import { repoRoot } from "../src/lib/config.mjs";
+import { ContentError } from "../src/lib/content.mjs";
+import { DESCRIPTION, fixtureRepo, platformReadme, tempDir, toolReadme } from "./helpers.mjs";
 
-/** Transfer budgets, gzip. Raise them deliberately, not incidentally. */
-const BUDGET = { css: 12 * 1024, js: 6 * 1024, searchIndex: 40 * 1024, page: 40 * 1024 };
+// Raw bytes, about twice the size at the time of writing: loose enough for
+// content growth, tight enough to catch an accidental bundle or inlined asset.
+const BUDGETS = { page: 50_000, css: 40_000, js: 25_000, json: 160_000, svg: 8_000 };
 
-const distRoot = path.join(uiRoot, "dist");
-const config = resolveConfig();
-const { siteUrl, basePath } = config;
-const site = buildSite(config);
-
-const distFiles = (function walk(dir, out = []) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const abs = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(abs, out);
-    else out.push(path.relative(distRoot, abs).split(path.sep).join("/"));
-  }
-  return out;
-})(distRoot);
-const read = (file) => fs.readFileSync(path.join(distRoot, file), "utf8");
-const pages = [
-  ...site.pages.map((page) => ({ page, html: read(path.join(page.route, "index.html")) })),
-  { page: { kind: "404", route: "/404.html", indexable: false }, html: read("404.html") },
+const MODES = [
+  { name: "default hosting", env: {}, siteUrl: "https://tool-containers.hgh.dev", basePath: "" },
+  {
+    name: "project subpath hosting",
+    env: { SITE_URL: "https://example.com/tool-containers", BASE_PATH: "/tool-containers" },
+    siteUrl: "https://example.com/tool-containers",
+    basePath: "/tool-containers",
+  },
 ];
-const indexable = pages.filter(({ page }) => page.indexable);
-const gz = (file) => gzipSync(fs.readFileSync(path.join(distRoot, file))).length;
 
-test("pages match the tracked markdown inventory exactly", () => {
-  // Read Git independently so a discovery bug cannot hide itself.
-  const tracked = execFileSync("git", ["ls-files", "tools"], { cwd: repoRoot, encoding: "utf8" })
-    .split("\n")
-    .filter((file) => /^tools\/[^/]+\/[^/]+\/(?:docs\/[^/]+\/)?README\.md$/.test(file));
-  const expected = new Set([
-    "/",
-    "/docs/",
-    "/search/",
-    ...tracked.map((file) => `/docs/${file.replace(/^tools\//, "").replace("docs/", "").replace(/README\.md$/, "")}`),
-  ]);
-  const built = new Set(
-    distFiles.filter((file) => file.endsWith("index.html")).map((file) => `/${file.slice(0, -"index.html".length)}`),
-  );
-  assert.deepEqual([...built].sort(), [...expected].sort());
-  assert.ok(distFiles.includes("404.html"));
-  assert.ok(!tracked.some((file) => file.includes("/examples/")), "stale examples/ directory still tracked");
-});
+const walk = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(full) : [full];
+  });
 
-test("every page has one h1, a unique title, and a unique description", () => {
-  const titles = new Set();
-  const descriptions = new Set();
-  for (const { page, html } of pages) {
-    assert.equal((html.match(/<h1[\s>]/g) ?? []).length, 1, `${page.route}: h1 count`);
-    assert.match(html, /^<!doctype html>\n<html lang="en">/, `${page.route}: doctype/lang`);
-    const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
-    const description = html.match(/<meta name="description" content="([^"]+)">/)?.[1];
-    assert.ok(title && !titles.has(title), `${page.route}: missing or duplicate title "${title}"`);
-    assert.ok(description && !descriptions.has(description), `${page.route}: missing or duplicate description`);
-    assert.ok(description.length <= 170, `${page.route}: description too long (${description.length})`);
-    assert.doesNotMatch(description, /[-–—]$/, `${page.route}: description ends on a dash`);
-    titles.add(title);
-    descriptions.add(description);
-  }
-});
+const routeOf = (file) => `/${file.replace(/(^|\/)index\.html$/, "$1")}`;
+const fileOf = (route) => (route.endsWith("/") ? `${route}index.html` : route).slice(1);
 
-test("tool and recipe pages use their frontmatter", () => {
-  for (const { page, html } of pages.filter(({ page }) => page.tool)) {
-    const meta = page.platform?.meta ?? page.tool.meta;
-    assert.ok(html.includes(`<meta name="description" content="${escape(meta.description)}">`), `${page.route}: description`);
-    if (page.platform) assert.ok(html.includes(escape(meta.usecase)), `${page.route}: use case not shown`);
-    else if (meta.image) assert.ok(html.includes(`docker pull ${meta.image}`), `${page.route}: pull command`);
-    assert.doesNotMatch(html, /<article[^>]*>\s*<p>---/, `${page.route}: frontmatter leaked into the body`);
-  }
-});
-const escape = (text) => text.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("'", "&#39;").replaceAll("<", "&lt;");
+/** A built site: every HTML page parsed once, keyed by route. */
+async function buildSite(options) {
+  const outDir = tempDir("web-ui-site-");
+  await build({ outDir, ...options });
+  const files = walk(outDir).map((file) => path.relative(outDir, file).split(path.sep).join("/"));
+  const pages = new Map(files.filter((file) => file.endsWith(".html")).map((file) => [routeOf(file), parse(readFileSync(path.join(outDir, file), "utf8"))]));
+  const ids = new Map();
+  const idsOf = (file) => {
+    if (!ids.has(file)) ids.set(file, new Set(parse(readFileSync(path.join(outDir, file), "utf8")).querySelectorAll("[id]").map((node) => node.id)));
+    return ids.get(file);
+  };
+  return { outDir, files, pages, idsOf, read: (file) => readFileSync(path.join(outDir, file), "utf8") };
+}
 
-test("SEO: canonical, robots, Open Graph, and JSON-LD", () => {
-  for (const { page, html } of pages) {
-    const label = page.route;
-    if (!page.indexable) {
-      assert.match(html, /<meta name="robots" content="noindex, follow">/, `${label}: noindex`);
-      continue;
-    }
-    const canonical = html.match(/<link rel="canonical" href="([^"]+)">/)?.[1];
-    assert.equal(canonical, `${siteUrl}${page.route}`, `${label}: canonical`);
-    assert.match(html, /<meta name="robots" content="index, follow/, `${label}: robots`);
-    assert.equal(html.match(/<meta property="og:url" content="([^"]+)">/)?.[1], canonical, `${label}: og:url`);
-    for (const tag of ["og:title", "og:description", "og:image"]) assert.match(html, new RegExp(`property="${tag}" content="[^"]+"`), `${label}: ${tag}`);
-    assert.match(html, /<meta name="twitter:card" content="summary_large_image">/, `${label}: twitter:card`);
+const meta = (dom, name) => dom.querySelector(`meta[name="${name}"]`)?.getAttribute("content");
+const jsonLd = (dom) => dom.querySelectorAll('script[type="application/ld+json"]').flatMap((script) => JSON.parse(script.text)["@graph"]);
 
-    const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
-    const types = new Set(ld["@graph"].map((node) => node["@type"]));
-    const website = ld["@graph"].find((node) => node["@type"] === "WebSite");
-    assert.equal(website.potentialAction.target.urlTemplate, `${siteUrl}/search/?q={search_term_string}`);
-    if (page.kind === "home") assert.ok(types.has("CollectionPage"), `${label}: CollectionPage`);
-    else {
-      assert.ok(types.has("TechArticle") && types.has("BreadcrumbList"), `${label}: TechArticle + BreadcrumbList`);
-    }
-    for (const invented of ["totalTime", "aggregateRating", "offers", "publisher"]) {
-      assert.ok(!JSON.stringify(ld).includes(`"${invented}"`), `${label}: invented ${invented}`);
-    }
-  }
-});
+for (const mode of MODES) {
+  describe(`generated site, ${mode.name}`, () => {
+    let site;
+    before(async () => {
+      site = await buildSite({ env: mode.env });
+    });
+    after(() => rmSync(site.outDir, { recursive: true, force: true }));
 
-test("internal links and fragments resolve, honouring BASE_PATH", () => {
-  const byRoute = new Map(pages.map((entry) => [entry.page.route, entry.html]));
-  for (const { page, html } of pages) {
-    for (const [, url] of html.matchAll(/(?:href|src|data-search-index)="([^"]+)"/g)) {
-      if (/^(?:https?:|mailto:|data:|\/\/)/.test(url)) continue;
-      const [target, fragment] = url.split("#");
-      if (target) {
-        assert.ok(target.startsWith(`${basePath}/`), `${page.route}: "${url}" is relative or lacks BASE_PATH`);
-        const clean = target.slice(basePath.length).split("?")[0];
-        const file = path.join(distRoot, clean, clean.endsWith("/") ? "index.html" : "");
-        assert.ok(fs.existsSync(file), `${page.route}: broken link ${url}`);
+    const canonical = (route) => `${mode.siteUrl}${route}`;
+    const indexable = () => [...site.pages].filter(([, dom]) => !meta(dom, "robots").includes("noindex"));
+
+    test("the page set equals the tracked Markdown inventory", () => {
+      const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" }).split("\n");
+      const expected = ["/", "/docs/", "/search/", "/404.html"];
+      for (const file of tracked) {
+        const match = file.match(/^tools\/([^/]+)\/([^/]+)\/(?:docs\/([^/]+)\/)?README\.md$/);
+        if (match) expected.push(`/docs/${match[1]}/${match[2]}/${match[3] ? `${match[3]}/` : ""}`);
       }
-      if (!fragment) continue;
-      const route = target ? target.slice(basePath.length) : page.route;
-      const targetHtml = byRoute.get(route);
-      if (targetHtml && !fragment.startsWith("i-")) {
-        assert.ok(targetHtml.includes(`id="${decodeURIComponent(fragment)}"`), `${page.route}: broken fragment ${url}`);
+      assert.deepEqual([...site.pages.keys()].sort(), expected.sort());
+    });
+
+    test("every page has exactly one h1 and a unique title and description", () => {
+      const titles = new Set();
+      const descriptions = new Set();
+      for (const [route, dom] of site.pages) {
+        assert.equal(dom.querySelectorAll("h1").length, 1, route);
+        const title = dom.querySelector("title").text;
+        const description = meta(dom, "description");
+        assert.ok(title.length <= 60, `${route}: title is ${title.length} characters`);
+        assert.ok(description.length > 0 && description.length <= 160, `${route}: description is ${description.length} characters`);
+        assert.ok(!titles.has(title), `${route}: duplicate title ${title}`);
+        assert.ok(!descriptions.has(description), `${route}: duplicate description`);
+        titles.add(title);
+        descriptions.add(description);
       }
+    });
+
+    test("internal links, assets, and fragments resolve inside BASE_PATH", () => {
+      const problems = [];
+      for (const [route, dom] of site.pages) {
+        for (const node of dom.querySelectorAll("[href], [src], [action], [data-search-index]")) {
+          const url = node.getAttribute("href") ?? node.getAttribute("src") ?? node.getAttribute("action") ?? node.getAttribute("data-search-index");
+          if (/^(https?|mailto):/.test(url)) continue;
+          const [pathPart, hash = ""] = url.split("#");
+          let file = fileOf(route);
+          if (pathPart) {
+            if (!pathPart.startsWith(`${mode.basePath}/`)) {
+              problems.push(`${route}: ${url} is outside ${mode.basePath || "/"}`);
+              continue;
+            }
+            file = fileOf(pathPart.slice(mode.basePath.length).split("?")[0]);
+            if (!site.files.includes(file)) {
+              problems.push(`${route}: ${url} is missing`);
+              continue;
+            }
+          }
+          if (hash && /\.(html|svg)$/.test(file) && !site.idsOf(file).has(decodeURIComponent(hash))) problems.push(`${route}: ${url} has no #${hash}`);
+        }
+      }
+      assert.deepEqual(problems, []);
+    });
+
+    test("canonical URLs and the sitemap list exactly the indexable pages", () => {
+      for (const [route, dom] of site.pages) {
+        const link = dom.querySelector('link[rel="canonical"]')?.getAttribute("href");
+        const noindex = meta(dom, "robots").includes("noindex");
+        assert.equal(link, noindex ? undefined : canonical(route), route);
+        assert.equal(dom.querySelector('meta[property="og:url"]')?.getAttribute("content"), link, route);
+      }
+      assert.ok(!indexable().some(([route]) => route === "/search/" || route === "/404.html"));
+      const locs = parse(site.read("sitemap.xml")).querySelectorAll("loc").map((loc) => loc.text);
+      assert.deepEqual(locs.sort(), indexable().map(([route]) => canonical(route)).sort());
+      assert.match(site.read("robots.txt"), new RegExp(`^Sitemap: ${canonical("/sitemap.xml")}$`, "m"));
+    });
+
+    test("JSON-LD parses, its headline is the h1, and its breadcrumb matches the visible one", () => {
+      for (const [route, dom] of site.pages) {
+        const nodes = jsonLd(dom);
+        const indexed = !meta(dom, "robots").includes("noindex");
+        assert.equal(nodes.length > 0, indexed, route);
+        const article = nodes.find((node) => node["@type"] === "TechArticle");
+        if (article) assert.equal(article.headline, dom.querySelector("h1").text.trim(), route);
+
+        const visible = dom.querySelectorAll("nav.crumbs li").map((item) => {
+          const link = item.querySelector("a");
+          return { name: item.text.trim(), item: link ? `${mode.siteUrl}${link.getAttribute("href").slice(mode.basePath.length)}` : canonical(route) };
+        });
+        const breadcrumb = nodes.find((node) => node["@type"] === "BreadcrumbList");
+        if (visible.length < 2) {
+          assert.equal(breadcrumb, undefined, route);
+          continue;
+        }
+        assert.deepEqual(breadcrumb.itemListElement.map(({ name, item }) => ({ name, item })), visible, route);
+        assert.deepEqual(breadcrumb.itemListElement.map((entry) => entry.position), visible.map((_, index) => index + 1), route);
+      }
+    });
+
+    test("the search index covers every reading page", () => {
+      const index = JSON.parse(site.read(site.files.find((file) => /^assets\/search-.*\.json$/.test(file))));
+      const routes = index.pages.map((page) => page.u.slice(mode.basePath.length));
+      assert.deepEqual(routes.sort(), [...site.pages.keys()].filter((route) => route.startsWith("/docs/")).sort());
+    });
+
+    test("favicon.ico is an icon and the manifest shares the theme colour", () => {
+      const ico = readFileSync(path.join(site.outDir, "favicon.ico"));
+      assert.deepEqual([...ico.subarray(0, 4)], [0, 0, 1, 0]);
+      const manifest = JSON.parse(site.read("site.webmanifest"));
+      const dark = site.pages.get("/").querySelector('meta[name="theme-color"][media="(prefers-color-scheme: dark)"]').getAttribute("content");
+      assert.equal(manifest.theme_color, dark);
+      assert.equal(manifest.start_url, `${mode.basePath}/`);
+    });
+
+    test("output stays within size budgets", () => {
+      const size = (file) => statSync(path.join(site.outDir, file)).size;
+      const total = (pattern) => site.files.filter((file) => pattern.test(file)).reduce((sum, file) => sum + size(file), 0);
+      for (const file of site.files.filter((name) => name.endsWith(".html"))) assert.ok(size(file) <= BUDGETS.page, `${file}: ${size(file)} bytes`);
+      for (const [kind, budget] of Object.entries(BUDGETS).filter(([kind]) => kind !== "page")) {
+        const bytes = total(new RegExp(`^assets/.*\\.${kind}$`));
+        assert.ok(bytes > 0 && bytes <= budget, `${kind}: ${bytes} bytes`);
+      }
+    });
+  });
+}
+
+describe("hostile content", () => {
+  const keyword = `</script><script>alert("k")</script>`;
+  const title = `Tom's "Tool" & Co`;
+  const files = {
+    "README.md": "# Fixture\n\nA fixture catalog for tests. It has one tool.\n\n## Images\n\n- [Demo](tools/ai/demo/README.md)\n",
+    "tools/ai/demo/README.md": toolReadme("demo", {
+      title,
+      keywords: [keyword, `a"b'c&d`, "plain"],
+      upstream: `https://example.com/?a=1&b="x"`,
+    }).concat("\n## Run \\<img src=x onerror=alert(1)\\>\n\nText.\n"),
+    "tools/ai/demo/docs/helm/README.md": platformReadme("Helm"),
+    "tools/ai/demo/docs/helm/chart/values.yaml": "key: </details><script>alert(1)</script>\n",
+  };
+  let site;
+  let root;
+  before(async () => {
+    root = fixtureRepo(files);
+    site = await buildSite({ root, env: {} });
+  });
+  after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(site.outDir, { recursive: true, force: true });
+  });
+
+  test("frontmatter and headings reach pages as text, never markup", () => {
+    for (const [route, dom] of site.pages) {
+      // Only the theme script, the module entry, and JSON-LD: an injected tag would add a fourth kind.
+      const inline = dom.querySelectorAll("script").filter((script) => !script.hasAttribute("src") && script.getAttribute("type") !== "application/ld+json");
+      assert.equal(inline.length, 1, route);
+      assert.ok(!inline[0].text.includes("alert"), route);
+      jsonLd(dom);
+      assert.equal(dom.querySelectorAll("img").length, 0, route);
     }
-  }
+    const tool = site.pages.get("/docs/ai/demo/");
+    assert.equal(tool.querySelector("title").text, `${title} Docker image — tool-containers`);
+    assert.equal(tool.querySelector("h1").text.trim(), title);
+    assert.ok(tool.querySelectorAll("h2").some((heading) => heading.text.includes("Run <img src=x onerror=alert(1)>")));
+    assert.ok(tool.querySelector("main").text.includes(keyword));
+    assert.ok(tool.querySelectorAll("a").some((link) => link.getAttribute("href") === new URL(`https://example.com/?a=1&b="x"`).href));
+    const article = jsonLd(tool).find((node) => node["@type"] === "TechArticle");
+    assert.equal(article.keywords, `${keyword}, a"b'c&d, plain`);
+    assert.equal(article.headline, title);
+
+    const helm = site.pages.get("/docs/ai/demo/helm/");
+    assert.ok(helm.querySelector("details.file").text.includes("</details><script>alert(1)</script>"));
+  });
+
+  test("attributes and generated files round-trip hostile values", () => {
+    const row = site.pages.get("/").querySelector(".row");
+    assert.ok(row.getAttribute("data-text").includes(keyword));
+    const index = JSON.parse(site.read(site.files.find((file) => /^assets\/search-.*\.json$/.test(file))));
+    assert.ok(index.pages.some((page) => page.w.includes(keyword)));
+    assert.ok(site.read("llms.txt").includes(title));
+  });
 });
 
-test("recipe pages render every sibling text file inline", () => {
-  for (const { page, html } of pages.filter(({ page }) => page.kind === "platform")) {
-    const textFiles = page.platform.files.filter((name) => !/\.(png|jpe?g|gif|ico|tgz|gz)$/.test(name));
-    for (const name of textFiles) {
-      assert.ok(html.includes(`<code>${name}</code></a></h3>`), `${page.route}: ${name} not inline`);
+describe("invalid content", () => {
+  test("an orphan platform README fails the build, naming the file", async () => {
+    const root = fixtureRepo({
+      "README.md": "# Fixture\n\nLead.\n",
+      "tools/ai/demo/README.md": toolReadme("demo"),
+      "tools/ai/ghost/docs/helm/README.md": platformReadme("Helm", { description: DESCRIPTION("A ghost") }),
+    });
+    const outDir = path.join(tempDir("web-ui-invalid-"), "dist");
+    try {
+      await assert.rejects(build({ root, outDir, env: {} }), (error) => error instanceof ContentError && error.message.includes("tools/ai/ghost/docs/helm/README.md"));
+      assert.equal(existsSync(outDir), false, "a failed build writes nothing");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
-  }
-});
+  });
 
-test("sitemap, robots.txt, and llms.txt cover the indexable pages", () => {
-  const sitemap = read("sitemap.xml");
-  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  assert.deepEqual(locs.sort(), indexable.map(({ page }) => `${siteUrl}${page.route}`).sort());
-  // Uncommitted documents have no Git date, so lastmod is optional but must be well-formed.
-  for (const [, date] of sitemap.matchAll(/<lastmod>([^<]*)<\/lastmod>/g)) assert.match(date, /^\d{4}-\d{2}-\d{2}/);
-  assert.ok(read("robots.txt").includes(`Sitemap: ${siteUrl}/sitemap.xml`));
-  const llms = read("llms.txt");
-  for (const tool of site.tools) assert.ok(llms.includes(`[${tool.meta.name}](${siteUrl}/docs/${tool.category}/${tool.slug}/)`), `llms.txt: ${tool.slug}`);
-  assert.ok(distFiles.includes(".nojekyll"));
-});
-
-test("search index covers tools, recipes, headings, and frontmatter", () => {
-  const file = distFiles.find((name) => /^assets\/search\.[0-9a-f]{8}\.json$/.test(name));
-  assert.ok(file, "missing search index");
-  const { pages: entries } = JSON.parse(read(file));
-  const docPages = site.pages.filter((page) => ["docs", "tool", "platform"].includes(page.kind));
-  assert.equal(entries.length, docPages.length);
-  for (const page of docPages.filter((page) => page.tool)) {
-    const entry = entries.find((item) => item.u === `${basePath}${page.route}`);
-    assert.ok(entry, `index lacks ${page.route}`);
-    const meta = page.platform?.meta ?? page.tool.meta;
-    for (const word of meta.keywords) assert.ok(entry.k.includes(word), `${page.route}: keyword ${word}`);
-    if (page.platform) assert.ok(entry.k.includes(meta.usecase), `${page.route}: use case`);
-    assert.ok(entry.s.length > 0, `${page.route}: no sections`);
-  }
-  console.log(`search index: ${entries.length} pages, ${gz(file)} B gzip`);
-});
-
-test("assets stay within budget and are shared by every page", () => {
-  const css = distFiles.filter((file) => /^assets\/site\.[0-9a-f]{8}\.css$/.test(file));
-  const js = distFiles.filter((file) => /^assets\/site\.[0-9a-f]{8}\.js$/.test(file));
-  const index = distFiles.find((file) => /^assets\/search\./.test(file));
-  assert.equal(css.length, 1);
-  assert.equal(js.length, 1);
-  for (const { page, html } of pages) {
-    assert.ok(html.includes(`href="${basePath}/${css[0]}"`) && html.includes(`src="${basePath}/${js[0]}"`), `${page.route}: shared assets`);
-    assert.ok(gzipSync(html).length < BUDGET.page, `${page.route}: HTML over budget`);
-  }
-  const sizes = { css: gz(css[0]), js: gz(js[0]), searchIndex: gz(index) };
-  for (const [name, size] of Object.entries(sizes)) assert.ok(size <= BUDGET[name], `${name}: ${size} B gzip exceeds ${BUDGET[name]}`);
-  assert.ok(!distFiles.some((file) => /\.(woff2?|ttf|otf)$/.test(file)), "unexpected web font");
-  console.log(`assets (gzip): css ${sizes.css} B, js ${sizes.js} B, search index ${sizes.searchIndex} B`);
+  test("an invalid SITE_URL fails the build", async () => {
+    await assert.rejects(build({ env: { SITE_URL: "" }, outDir: tempDir("web-ui-invalid-") }), /SITE_URL must be an absolute http\(s\) URL/);
+  });
 });
