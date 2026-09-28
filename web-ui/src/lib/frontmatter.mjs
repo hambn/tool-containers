@@ -16,6 +16,9 @@ export const PLATFORMS = new Map([
   ["podman", "Podman"],
   ["kubernetes", "Kubernetes"],
   ["helm", "Helm"],
+  ["github-actions", "GitHub Actions"],
+  ["gitlab-ci", "GitLab CI"],
+  ["devcontainer", "Dev Container"],
 ]);
 
 /** Registries a tool image may be listed on; the first is required and listed first. */

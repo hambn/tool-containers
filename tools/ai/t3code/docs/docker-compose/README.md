@@ -1,31 +1,50 @@
 ---
 name: Docker Compose
-description: Serve the T3 Code web GUI on 127.0.0.1:3773 as a persistent Docker Compose service, with an air-gapped compose file.
+description: Serve the T3 Code web GUI on 127.0.0.1:3773 as a Docker Compose service that keeps its state until you remove it, with an air-gapped Compose file.
 usecase: Persistent local instance
 keywords: [web gui, port 3773, air-gapped]
 ---
 
-# t3code · Docker Compose
+# Run T3 Code with Docker Compose
 
-The `t3code` service serves the T3 Code web GUI on `http://127.0.0.1:3773`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs `docker compose` from this directory.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+The `t3code` service serves [T3 Code](../../README.md) on `http://127.0.0.1:3773` with
+the directory in `WORKSPACE` mounted at `/workspace`. [`compose.sh`](./compose.sh)
+checks that `WORKSPACE` is an absolute path, because Compose would resolve a relative
+one against this directory, then runs `docker compose` here.
 
 ## Prerequisites
 
 - Docker Engine with the Compose v2 plugin.
-- Authenticate the agents from inside the T3 Code UI.
 
-## Commands
+## Run T3 Code
 
 ```bash
-WORKSPACE="$PWD" ./compose.sh up
+WORKSPACE="$PWD" ./compose.sh up -d
+WORKSPACE="$PWD" ./compose.sh logs t3code | grep Token:
 ```
 
-Air-gapped host, after `docker load -i t3code.tar`:
+Open `http://127.0.0.1:3773/pair#token=<token>` to pair your browser, then add
+`/workspace` as a project and sign in to an agent from the UI. The token expires after
+five minutes; for a new pair URL, run:
 
 ```bash
-WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
+WORKSPACE="$PWD" ./compose.sh exec t3code t3 auth pairing create --base-url http://127.0.0.1:3773
+```
+
+`./compose.sh stop` and `./compose.sh start` keep the container, so T3 Code's state and
+the agent logins survive. Each start prints a new token. `./compose.sh down` removes
+the container and that state. The service has no restart policy, so it does not start
+again after a host reboot until you run `up` or `start`.
+
+## Run without registry access
+
+On a connected machine, run `docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar`.
+On the offline host, load it and use the air-gapped file, which sets
+`pull_policy: never`:
+
+```bash
+docker load -i t3code.tar
+WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up -d
 ```
 
 ## Variables
@@ -33,25 +52,16 @@ WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
 | Variable | Required | Purpose |
 |---|---|---|
 | `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
-| `T3CODE_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
+| `T3CODE_IMAGE` | no | Image for both Compose files. Defaults to `ghcr.io/hambn/t3code:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-`WORKSPACE` is bind-mounted at `/workspace`; the container runs as UID 1000.
+`WORKSPACE` is mounted at `/workspace`. T3 Code runs as UID 1000, so new files belong
+to UID 1000 on the host. The port is bound to `127.0.0.1`; put an authenticating
+reverse proxy in front before you expose it further.
 
 ## Files
 
-- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`.
-- [`docker-compose.yml`](./docker-compose.yml) — pulls the published image.
-- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) — uses a pre-loaded image with `pull_policy: never`.
-
-## Cleanup
-
-```bash
-WORKSPACE="$PWD" ./compose.sh down
-```
-
-## Limitations
-
-- The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- [`compose.sh`](./compose.sh) validates `WORKSPACE` and passes its arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) runs the published image.
+- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) runs a loaded image and never pulls.

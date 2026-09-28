@@ -12,6 +12,7 @@ enough.
 | “Update the Codex Dockerfile's alpine stage and its tests.” | `repository-changes` + `container-images` |
 | “Bump Claude Code to the latest release.” | `container-images` versions guide; edit the `ARG` pin in `tools/ai/claude-code/Dockerfile` only |
 | “Add a Helm example for pi-agent.” | `container-images` (Job, not Deployment) + `documentation` |
+| “Add a GitLab CI recipe for codex.” | `container-images` GitLab guide (clear the CLI entrypoint, `CODEX_API_KEY`) + `documentation` |
 | “Rewrite the codex README Images section.” | `documentation`; `container-images` only for tag facts |
 | “Scaffold the empty web app.” | `repository-changes` + `web-ui`, then maintainer audit |
 | “Explain this Dockerfile without editing it.” | `container-images`; no mutation or publishing |

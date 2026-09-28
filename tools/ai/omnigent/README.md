@@ -1,16 +1,20 @@
 ---
 name: omnigent
 title: Omnigent
-description: Omnigent, an open-source AI agent meta-harness, on the agentbloat image so every bundled agent CLI is ready to orchestrate.
+description: Omnigent, the open-source meta-harness that runs Claude Code, Codex, Pi and other agents in one session, on the agentbloat image with every CLI.
 upstream: https://github.com/omnigent-ai/omnigent
 order: 4
 images: [ghcr.io/hambn/omnigent, docker.io/hambn/omnigent]
 keywords: [agent meta-harness, multi-agent, agent orchestration, coding agents, agentbloat]
 ---
 
-# omnigent
+# Omnigent
 
-[Omnigent](https://github.com/omnigent-ai/omnigent), an open-source AI agent meta-harness, on the [`agentbloat`](../agentbloat/) image so every bundled agent CLI is available to it. The entrypoint is `omnigent`.
+[Omnigent](https://github.com/omnigent-ai/omnigent) is an open-source meta-harness: one
+session can drive Claude Code, Codex, Pi, OpenCode and other agents. This image adds it
+to [agentbloat](../agentbloat/), so the agent CLIs it launches are already installed.
+The entrypoint is `omnigent`, and the container starts in `/workspace` as `sysadmin`
+(UID 1000). No credentials are stored in the image.
 
 - **Source:** [`tools/ai/omnigent/`](https://github.com/hambn/tool-containers/tree/main/tools/ai/omnigent)
 - **Docs:** [tool-containers.hgh.dev/docs/ai/omnigent/](https://tool-containers.hgh.dev/docs/ai/omnigent/)
@@ -24,44 +28,49 @@ keywords: [agent meta-harness, multi-agent, agent orchestration, coding agents, 
 
 ## Images
 
-- **`ubuntu-browser`** — Omnigent plus every agentbloat CLI; Ubuntu, headless Chromium
-  - Base: [`agentbloat:ubuntu-browser`](../agentbloat/)
-  - Tags: `ubuntu-browser`
-  - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
-- **`ubuntu`** — Omnigent plus every agentbloat CLI; Ubuntu, no browser
+- **`ubuntu`**: Ubuntu 24.04 without a browser. `latest` points here.
   - Base: [`agentbloat:ubuntu`](../agentbloat/)
   - Tags: `ubuntu`, `latest`, `omnigent-<version>`
-  - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
-- **`alpine-browser`** — Omnigent plus every agentbloat CLI; Alpine, Chromium
-  - Base: [`agentbloat:alpine-browser`](../agentbloat/)
-  - Tags: `alpine-browser`
-  - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
-- **`alpine`** — Omnigent plus every agentbloat CLI; Alpine, no browser
+  - Included software: [Omnigent](#included-software) and the [agentbloat CLIs](../agentbloat/#included-software)
+- **`ubuntu-browser`**: Ubuntu 24.04 with headless Chromium, the default in the recipes.
+  - Base: [`agentbloat:ubuntu-browser`](../agentbloat/)
+  - Tags: `ubuntu-browser`
+  - Included software: [Omnigent](#included-software) and the [agentbloat CLIs](../agentbloat/#included-software)
+- **`alpine`**: Alpine 3.24 without a browser.
   - Base: [`agentbloat:alpine`](../agentbloat/)
   - Tags: `alpine`
-  - Included software: [omnigent](#included-software) + [agentbloat](../agentbloat/#included-software)
+  - Included software: [Omnigent](#included-software) and the [agentbloat CLIs](../agentbloat/#included-software)
+- **`alpine-browser`**: Alpine 3.24 with Chromium.
+  - Base: [`agentbloat:alpine-browser`](../agentbloat/)
+  - Tags: `alpine-browser`
+  - Included software: [Omnigent](#included-software) and the [agentbloat CLIs](../agentbloat/#included-software)
 
-Pull from `ghcr.io/hambn/omnigent:<tag>` or `docker.io/hambn/omnigent:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `omnigent-<version>` for the pinned Omnigent PyPI release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `omnigent-v<version>` tags are frozen and deprecated.
-
-The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Omnigent lives in a uv tool environment under `/opt/uv-tools/omnigent` with `omni` and `omnigent` launchers in `/usr/local/bin`, usable by any UID. On Alpine its `google-re2` dependency is compiled in a separate build stage, so only the `re2` runtime library ships in the image.
+Pull `ghcr.io/hambn/omnigent:<tag>` or `docker.io/hambn/omnigent:<tag>`.
+`omnigent-<version>` names the PyPI release in the current `ubuntu` build. All tags
+move when the image is rebuilt; pin a digest to keep one build.
 
 ## Included software
 
 - **Omnigent**
-  - Commands: `omni`, `omnigent`
-  - Source: PyPI `omnigent` in `/opt/uv-tools/omnigent`
-  - Pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults
-- **Everything else** comes from [agentbloat](../agentbloat/#included-software): every agent CLI plus the devbox toolset
+  - Commands: `omnigent`, `omni`
+  - Source: PyPI package `omnigent`, version pinned in the [`Dockerfile`](./Dockerfile)
+
+Omnigent is installed as a uv tool in `/opt/uv-tools/omnigent`, with its launchers in
+`/usr/local/bin` so any UID can run them. On Alpine, its `google-re2` dependency is
+compiled in a build stage and only the `re2` runtime library ships. The agent CLIs come
+from [agentbloat](../agentbloat/#included-software); tmux and bubblewrap, which
+Omnigent's terminal wrappers use, come from the [devbox full tier](../../base/devbox/#full).
 
 ## Use cases
 
-- **Orchestrate agents over a local checkout** — [`docs/docker/`](./docs/docker/).
-- **Rootless agent orchestration on a workstation** — [`docs/podman/`](./docs/podman/).
-- **Repeatable local orchestration sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
+- **Orchestrate agents over a local checkout** with [Docker](./docs/docker/), including
+  hosts that load the image from a saved tar.
+- **Repeatable local orchestration sessions** with
+  [Docker Compose](./docs/docker-compose/), with an air-gapped Compose file.
+- **Rootless agent orchestration on a workstation** with [Podman](./docs/podman/).
 
 ## Sources
 
 - [Omnigent repository](https://github.com/omnigent-ai/omnigent)
 - [PyPI package `omnigent`](https://pypi.org/project/omnigent/)
-- [Omnigent documentation](https://omnigent.ai/quickstart/install)
+- [Omnigent install guide](https://omnigent.ai/quickstart/install)

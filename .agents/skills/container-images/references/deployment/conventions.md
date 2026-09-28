@@ -12,16 +12,25 @@ The `references/deployment/` path is this skill's grouping; image projects alway
 | Rootless Podman | [podman.md](podman.md) |
 | Raw Kubernetes | [kubernetes.md](kubernetes.md) |
 | Helm | [helm.md](helm.md) |
+| GitHub Actions | [github-actions.md](github-actions.md) |
+| GitLab CI | [gitlab-ci.md](gitlab-ci.md) |
+| Dev Container | [devcontainer.md](devcontainer.md) |
 
-Docker Swarm is not a supported platform.
+Docker Swarm is not a supported platform. The directory name fixes the doc's `name`;
+`check-repo.py` and `web-ui/src/lib/frontmatter.mjs` reject any other directory.
 
 ## Execution model
 
 - **One-shot CLIs** (claude-code, codex, pi-agent, open-code-review): interactive
-  `run --rm` locally; a Kubernetes `batch/v1` Job (raw or Helm) in clusters. Never model
-  them as long-lived Deployments or services.
+  `run --rm` locally; a Kubernetes `batch/v1` Job (raw or Helm) in clusters; a
+  non-interactive review job in GitHub Actions and GitLab CI. Never model them as
+  long-lived Deployments or services.
 - **Services** (t3code, omnigent): may use Compose services, Deployments, and a Service.
+  They have no CI recipe: t3code is a web GUI, and Omnigent documents no
+  non-interactive mode.
 - **Base images** (core, devbox, agentbloat): platform docs show interactive or CI use.
+  devbox is the CI job image; devbox and agentbloat, which people work inside, have Dev
+  Container recipes.
 
 ## Shared contract
 
@@ -42,5 +51,5 @@ Docker Swarm is not a supported platform.
 
 README structure is owned by `$documentation`. Render or lint each artifact with the
 platform tooling (`bash -n`, `docker compose config`, `helm lint`/`helm template`,
-`kubectl --dry-run=client`) when available; never start containers without user
+`kubectl --dry-run=client`, actionlint) when available; never start containers without user
 authorization.

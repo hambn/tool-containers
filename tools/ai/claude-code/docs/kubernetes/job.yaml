@@ -20,6 +20,7 @@ spec:
         - name: claude
           image: ghcr.io/hambn/claude-code:ubuntu-browser
           imagePullPolicy: Always
+          args: ["-p", "review the workspace"]
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -31,7 +32,6 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
-          args: ["-p", "review the workspace"]
           env:
             - name: ANTHROPIC_API_KEY
               valueFrom:

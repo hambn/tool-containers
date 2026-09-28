@@ -1,10 +1,10 @@
 # Offline: docker load -i t3code.tar first, then
-# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
+# WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up -d
 name: t3code
 
 services:
   t3code:
-    image: ghcr.io/hambn/t3code:ubuntu-browser
+    image: ${T3CODE_IMAGE:-ghcr.io/hambn/t3code:ubuntu-browser}
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

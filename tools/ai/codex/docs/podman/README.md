@@ -1,46 +1,45 @@
 ---
 name: Podman
-description: Run the OpenAI Codex CLI under rootless Podman with OPENAI_API_KEY, mounting the current directory with SELinux relabeling.
+description: Run the Codex CLI under rootless Podman on the current directory, keeping file ownership with keep-id and relabeling the mount for SELinux.
 usecase: Rootless sessions on a workstation
 keywords: [rootless, keep-id, selinux, openai api key]
 ---
 
-# codex · Podman
+# Run Codex CLI with Podman
 
-[`run.sh`](./run.sh) runs the Codex CLI (`codex`) with the arguments you pass under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) starts [Codex CLI](../../README.md) under rootless Podman on the
+current directory, passing any arguments to `codex`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- `OPENAI_API_KEY` exported in your shell.
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
+- An OpenAI API key in `OPENAI_API_KEY`.
 
-## Commands
+## Run Codex
 
 ```bash
+export OPENAI_API_KEY=sk-...
 ./run.sh
 ```
+
+Codex opens its sign-in screen with the key detected; choose the API key option. The
+login is removed with the container when you exit. For `./run.sh exec "..."`, add
+`-e CODEX_API_KEY` to the `podman run` line and export the key under that name, since
+`codex exec` does not read `OPENAI_API_KEY`.
 
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
-| `CODEX_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/codex:ubuntu-browser`. |
+| `OPENAI_API_KEY` | yes | Forwarded to the container and offered at the Codex sign-in screen. |
+| `CODEX_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/codex:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files Codex writes stay owned by you.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/codex:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.

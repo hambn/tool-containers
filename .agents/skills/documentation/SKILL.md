@@ -47,7 +47,8 @@ Keep `tools/<category>/<tool>/README.md` direct and operational. Keep these core
 sections in this relative order; add a focused tool-specific section only when it
 materially helps operation:
 
-1. **Title and one-line description** identifying and linking the upstream tool,
+1. **Title and one-line description**: `# <title>`, then a lead sentence that says what
+   the image holds and who it is for, identifying and linking the upstream tool,
    followed by a **Source** link to the tool directory on GitHub
    (`https://github.com/hambn/tool-containers/tree/main/tools/<category>/<tool>`) and a
    **Docs** link to its site page (`https://tool-containers.hgh.dev/docs/<category>/<tool>/`).
@@ -57,12 +58,13 @@ materially helps operation:
    any version tag where owned), and **Included software** items; the last
    links this README's Included software section and the parent image's tier or
    section. Use no tables. State the GHCR (`ghcr.io/hambn/<repo>`) and Docker Hub
-   (`docker.io/hambn/<repo>`) pull paths. Previous-layout tags get at most a one-line
-   deprecation note.
+   (`docker.io/hambn/<repo>`) pull paths and, once, that a digest pins a moving tag.
+   Mention tags that are no longer published only when they still exist in a registry,
+   in one line.
 4. **Included software** as nested lists (grouped by tier or by tool, with commands and
    sources), and what comes from the parent image. Base images without a bundle may
    use a focused section such as Hardening instead.
-5. **Use cases** with three to five concrete scenarios, each a bold scenario name and
+5. **Use cases** with three to seven concrete scenarios, each a bold scenario name and
    links to the platform docs that serve it. The scenario name is the `usecase` of the
    platform doc it links; when one scenario links two platform docs, each `usecase`
    extends the name to stay unique (for example "… from plain manifests" and
@@ -77,9 +79,17 @@ supported build/update path.
 
 ## Platform doc
 
-Each present platform README explains, in this order where applicable: prerequisites,
-exact commands, required variables or secrets, workspace behavior, a **Files** section
-listing every file in its directory, cleanup, and limitations. Keep commands
+Title the document `# Run <tool title> with <platform name>`, the heading the web-ui
+shows. Open with one or two sentences that say what the recipe does and link the tool
+README, `../../README.md`, by the tool title; that link is the way back
+to variants and tags, so do not add a separate "see the tool overview" line.
+
+Then cover, in this order where applicable: prerequisites, exact commands, required
+variables or secrets, workspace behavior, a **Files** section listing every file in its
+directory, cleanup, and limitations. Write Cleanup and Limitations only when they hold
+something specific to this recipe; omit them rather than restate `--rm`, generic
+`docker image rm`, or tag drift. Say once, in the image variable's row or the sentence
+that introduces the default image, that a digest pins the moving tag. Keep commands
 copy-pasteable and consistent with the Dockerfile and tool README; technical
 conventions live in `$container-images`.
 
@@ -140,7 +150,7 @@ Platform doc (`tools/<category>/<tool>/docs/<platform>/README.md`):
 
 | Key | Required | Rule |
 |---|---|---|
-| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm; any other directory fails |
+| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm, `github-actions` → GitHub Actions, `gitlab-ci` → GitLab CI, `devcontainer` → Dev Container; any other directory fails |
 | `description` | yes | Plain string, 110–160 characters, unique across all documents |
 | `usecase` | yes | Plain string of at most 80 characters, unique within the tool, matching its Use cases scenario name |
 | `keywords` | no | Flow list of 2–6 unique plain strings |
@@ -157,7 +167,9 @@ content; the `# Title` heading and body stay unchanged below the frontmatter:
   category README's `## Tools` section in the same change.
 
 When a rule changes, change `check-repo.py`, `web-ui/src/lib/frontmatter.mjs` (and
-`content.mjs` for cross-document rules), and the shared fixture cases together.
+`content.mjs` for cross-document rules), and the shared fixture cases together. A new
+platform also needs a group in `PLATFORM_GROUPS` (`web-ui/src/pages/doc.mjs`), or the
+site's platform switcher lists it under "More".
 
 ## Cross-linking contract
 
@@ -166,8 +178,8 @@ orphan pages:
 
 - Catalog → every category README and tool README; category README → every tool README
   through its Tools section; tool README → every platform doc through its Use cases;
-  platform doc → its tool README through the "tool overview" link, and → every file in
-  its directory through its Files section (`check-repo.py` enforces the latter).
+  platform doc → its tool README through the tool-name link in its intro, and → every
+  file in its directory through its Files section (`check-repo.py` enforces the latter).
 - Update the Files section in the same change that adds, moves, or removes a file in
   the platform directory, and the Use cases in the same change that adds or removes a
   platform doc.
@@ -188,6 +200,26 @@ Documents are rendered verbatim by the web-ui showcase, so author for both surfa
   on being viewed inside a specific UI.
 - Each document answers "what is this, how do I use it, where do I go next" without
   requiring another tab open first.
+
+## Writing style
+
+Write the way the Docker, Tailscale, or Fly.io docs read: plain, direct, and specific.
+
+- Use the second person and the imperative for instructions ("Run", "Set", "Mount"),
+  not "You can…". Keep paragraphs short and prefer concrete nouns, numbers, and
+  pasteable commands. Use tables for variables and settings.
+- Write each page for its own tool and platform. Do not copy a paragraph across pages
+  with only the tool name swapped; if a sentence would read the same on every page, it
+  belongs once in the tool README or nowhere.
+- Cut filler and marketing words ("many purposes", "and more", "seamless", "powerful",
+  "easily", "simply") and vague catch-alls ("everything else comes from…"). Name the
+  thing instead.
+- Use plain bullets. Do not chain clauses with em dashes or open every bullet with a
+  bold lead; bold is for the Images variant names and Use cases scenario names.
+- Frontmatter descriptions and keywords describe the page in a sentence and a few
+  search terms, not a keyword list.
+- State only facts checked against the Dockerfile, bake file, workflow, or upstream docs,
+  and remove a claim when it stops being true.
 
 When editing an image project, load `$container-images` for mechanics and apply this
 skill for everything written down. Run `$maintain-agent-workspace` after the change.

@@ -3,6 +3,7 @@
 #   docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
 set -euo pipefail
 
+image=${T3CODE_IMAGE:-ghcr.io/hambn/t3code:ubuntu-browser}
 tar=${1:-t3code.tar}
 shift $(($# > 0 ? 1 : 0))
 [[ -f "$tar" ]] || {
@@ -14,4 +15,4 @@ docker load -i "$tar"
 docker run -it --rm --pull=never \
     -p 127.0.0.1:3773:3773 \
     -v "$PWD:/workspace" \
-    ghcr.io/hambn/t3code:ubuntu-browser "$@"
+    "$image" "$@"

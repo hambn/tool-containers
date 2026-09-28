@@ -1,0 +1,17 @@
+# Add this job to your project's .gitlab-ci.yml and set ANTHROPIC_API_KEY as a masked CI/CD variable.
+claude-code-review:
+  image:
+    name: ghcr.io/hambn/claude-code:ubuntu
+    # The runner passes a shell as the command, so clear the image's CLI entrypoint.
+    entrypoint: [""]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    # A full clone keeps the merge request's diff base commit available.
+    GIT_DEPTH: "0"
+  timeout: 30m
+  script:
+    # The runner clones as a different user than sysadmin, so Git needs the path marked safe.
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - ': "${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY as a masked CI/CD variable}"'
+    - git diff "$CI_MERGE_REQUEST_DIFF_BASE_SHA" HEAD | claude -p --max-turns 10 "Review this merge request diff for bugs, security issues, and missing tests."

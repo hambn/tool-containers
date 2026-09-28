@@ -122,19 +122,6 @@ function revealHash() {
 addEventListener("hashchange", revealHash);
 revealHash();
 
-// Keep the current platform tab in view, and fade the edges that hide more tabs.
-const strip = document.querySelector(".tabs-scroll");
-if (strip) {
-  const currentTab = strip.querySelector("[aria-current=page]");
-  if (currentTab) strip.scrollLeft = currentTab.offsetLeft - (strip.clientWidth - currentTab.offsetWidth) / 2;
-  const fade = () => {
-    strip.toggleAttribute("data-more-start", strip.scrollLeft > 1);
-    strip.toggleAttribute("data-more-end", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
-  };
-  strip.addEventListener("scroll", fade, { passive: true });
-  new ResizeObserver(fade).observe(strip);
-}
-
 // "On this page" marks the section being read: the last heading above the top third.
 const tocLinks = new Map([...document.querySelectorAll(".toc a")].map((link) => [fragmentId(link.hash), link]));
 const headings = [...tocLinks.keys()].map((id) => id !== null && document.getElementById(id)).filter(Boolean);

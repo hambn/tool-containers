@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run Codex against the current directory.
 set -euo pipefail
-: "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
+: "${OPENAI_API_KEY:?Set OPENAI_API_KEY}"
 
 image=${CODEX_IMAGE:-ghcr.io/hambn/codex:ubuntu-browser}
 docker run -it --rm \

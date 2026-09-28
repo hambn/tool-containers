@@ -6,7 +6,7 @@ import { fitClauses, fitSentences, sentences } from "./text.mjs";
 
 const TITLE_MAX = 60;
 const SEPARATOR = " — ";
-export const THEME_COLORS = { light: "#ffffff", dark: "#09090b" };
+export const THEME_COLORS = { light: "#fcfcfc", dark: "#0a0a0a" };
 export const OG_IMAGE = { path: "/og.png", width: 1200, height: 630 };
 
 const withSiteName = (text) => (`${text}${SEPARATOR}${SITE_NAME}`.length <= TITLE_MAX ? `${text}${SEPARATOR}${SITE_NAME}` : text);

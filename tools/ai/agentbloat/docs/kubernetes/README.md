@@ -1,46 +1,43 @@
 ---
 name: Kubernetes
-description: Keep one agentbloat pod running with a Kubernetes Deployment and kubectl exec into a shell with every agent CLI.
+description: Keep one agentbloat pod running as a Kubernetes Deployment and open a shell in it with kubectl exec to run any of its eight agent CLIs.
 usecase: Long-lived cluster workspace from plain manifests
 keywords: [coding agents, deployment, kubectl exec]
 ---
 
-# agentbloat · Kubernetes
+# Run agentbloat with Kubernetes
 
-[`deployment.yaml`](./deployment.yaml) keeps one agentbloat pod running (`sleep infinity`) so you can `kubectl exec` into a shell with every bundled agent CLI.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`deployment.yaml`](./deployment.yaml) keeps one [agentbloat](../../README.md) pod
+running with `sleep infinity`, so you can open shells in it with `kubectl exec`.
 
 ## Prerequisites
 
 - A Kubernetes cluster and `kubectl` configured for it.
 
-## Commands
+## Open a shell
 
 ```bash
 kubectl apply -f deployment.yaml
 kubectl exec -it deploy/agentbloat -- zsh -l
 ```
 
-## Variables
-
-None. Sign in to each agent CLI inside the pod, or add `env` entries backed by `secretKeyRef` for API keys.
+Run `cd /workspace`, then any agent, and sign in from its prompt. To supply API keys
+instead, add `env` entries that read them from a Secret with `secretKeyRef`.
 
 ## Workspace
 
-`/workspace` is an `emptyDir`: it survives container restarts but not pod replacement. Use a PVC for persistent work.
+`/workspace` is an `emptyDir`: it survives container restarts but not a new pod. Agent
+logins are in the container's home directory and reset whenever the container restarts.
+Mount a PersistentVolumeClaim at `/workspace`, and at an agent's config directory,
+such as `/home/sysadmin/.codex`, to keep its login. A volume over all of
+`/home/sysadmin` would hide the shell configuration in the image. The pod runs as UID 1000 with all capabilities dropped.
 
 ## Files
 
-- [`deployment.yaml`](./deployment.yaml) — single-replica, non-root Deployment with dropped capabilities and resource limits.
+- [`deployment.yaml`](./deployment.yaml) defines the single-replica Deployment with resource limits.
 
 ## Cleanup
 
 ```bash
 kubectl delete -f deployment.yaml
 ```
-
-## Limitations
-
-- Agent logins stored in the home directory are lost when the pod is replaced.
-- `ubuntu-browser` is a moving tag; pin a `ubuntu-browser-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.

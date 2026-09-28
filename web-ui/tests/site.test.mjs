@@ -7,12 +7,12 @@ import { parse } from "node-html-parser";
 import { build } from "../src/build.mjs";
 import { repoRoot } from "../src/lib/config.mjs";
 import { ContentError } from "../src/lib/content.mjs";
-import { contrast } from "../src/lib/highlight.mjs";
+import { CODE_BG, contrast } from "../src/lib/highlight.mjs";
 import { DESCRIPTION, categoryReadme, fixtureRepo, platformReadme, tempDir, toolReadme } from "./helpers.mjs";
 
 // Raw bytes, about twice the size at the time of writing: loose enough for
 // content growth, tight enough to catch an accidental bundle or inlined asset.
-const BUDGETS = { page: 50_000, css: 40_000, js: 25_000, json: 160_000, svg: 8_000 };
+const BUDGETS = { page: 50_000, css: 40_000, js: 25_000, json: 160_000, svg: 8_000, woff2: 70_000 };
 
 const MODES = [
   { name: "default hosting", env: {}, siteUrl: "https://tool-containers.hgh.dev", basePath: "" },
@@ -253,8 +253,8 @@ for (const mode of MODES) {
       const tokens = [...css.matchAll(/\.t[\da-z]+\{color:light-dark\((#[\da-f]+),(#[\da-f]+)\)\}/gi)];
       assert.ok(tokens.length > 0);
       for (const [rule, light, dark] of tokens) {
-        assert.ok(contrast(long(light), "#fafafa") >= 4.5, rule);
-        assert.ok(contrast(long(dark), "#151518") >= 4.5, rule);
+        assert.ok(contrast(long(light), CODE_BG.light) >= 4.5, rule);
+        assert.ok(contrast(long(dark), CODE_BG.dark) >= 4.5, rule);
       }
     });
 
@@ -264,6 +264,23 @@ for (const mode of MODES) {
         const imported = [...site.read(entry.slice(mode.basePath.length + 1)).matchAll(/(?:^|[;}])import\s*[^"(]*?"\.\/([^"]+)"/g)].map((match) => `${mode.basePath}/assets/${match[1]}`);
         assert.ok(imported.length > 0, route);
         assert.deepEqual(dom.querySelectorAll('link[rel="modulepreload"]').map((link) => link.getAttribute("href")), imported, route);
+      }
+    });
+
+    test("fonts are self-hosted, preloaded, and licensed", () => {
+      const fonts = site.files.filter((file) => /^assets\/.*\.woff2$/.test(file));
+      assert.equal(fonts.length, 2, "Geist and Geist Mono");
+      assert.ok(site.files.includes("assets/fonts-OFL.txt"), "the OFL ships beside the fonts");
+      const css = site.read(site.files.find((file) => /^assets\/.*\.css$/.test(file)));
+      for (const font of fonts) assert.ok(css.includes(`${mode.basePath}/${font}`), `${font}: referenced by @font-face`);
+      assert.match(css, /font-display:\s*swap/);
+      assert.match(css, /size-adjust/, "metric-matched fallback");
+      for (const [route, dom] of site.pages) {
+        const preloads = dom.querySelectorAll('link[rel="preload"][as="font"]');
+        assert.equal(preloads.length, 1, `${route}: only the sans face is preloaded`);
+        assert.equal(preloads[0].getAttribute("type"), "font/woff2", route);
+        assert.ok(preloads[0].hasAttribute("crossorigin"), route);
+        assert.ok(fonts.map((font) => `${mode.basePath}/${font}`).includes(preloads[0].getAttribute("href")), route);
       }
     });
 

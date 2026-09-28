@@ -4,7 +4,7 @@ name: agentbloat
 
 services:
   agentbloat:
-    image: ghcr.io/hambn/agentbloat:ubuntu-browser
+    image: ${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:ubuntu-browser}
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

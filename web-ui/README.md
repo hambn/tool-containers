@@ -2,8 +2,9 @@
 
 A static catalog and documentation site generated from the root [README](../README.md)
 and the category, tool, and platform READMEs under `tools/`. Browsers get pre-rendered HTML, one
-CSS file, a small module script, an external icon sprite, and a lazily loaded search
-index. The site needs no framework, API, web fonts, or application server.
+CSS file, a small module script, an external icon sprite, two self-hosted font files,
+and a lazily loaded search index. The site needs no framework, API, or application
+server.
 
 ## Build and preview
 
@@ -98,8 +99,9 @@ content list to update.
 
 ## Features
 
-- **Catalog:** a hero from the root README (title, first sentence, search, and counts),
-  then the images grouped by category. Each row shows the title and description and
+- **Catalog:** a hero from the root README (title, first sentence, a "Read the docs"
+  link, and counts) that ends in the catalog filter, then the images grouped by
+  category. The filter is the page's only field; site-wide search stays in the header. Each row shows the title and description and
   every `images` entry with its registry and a copy button. Platforms are left to the
   docs.
 
@@ -111,13 +113,19 @@ content list to update.
   matching sections nested under each page. The same engine powers the `/search/?q=`
   page, which shows every result.
 - **Docs:**
-  - A sidebar tree whose category labels open the category pages, breadcrumbs, and
-    platform tabs.
+  - A sidebar tree whose category labels open the category pages, and breadcrumbs.
+  - A platform switcher on tool and platform pages: Overview, then the platform pages
+    grouped by use (Run: Docker, Compose, Podman; Deploy: Kubernetes, Helm; CI: GitHub
+    Actions, GitLab CI; Develop: Dev Container). A platform without a group in
+    `PLATFORM_GROUPS` (`src/pages/doc.mjs`) is listed under "More". Groups wrap as
+    units, so any number of platforms fits without scrolling; on phones each group is a
+    row with its label in a column.
   - A category page per category, with a card per tool: images and platform links.
   - A facts panel on tool and platform pages: images, use case, upstream, and source.
   - The page's keywords as "Topics" tags, each a link to a search for that keyword.
-  - A table of contents that highlights the section in view, and becomes a
-    collapsible panel below 1280px.
+  - An "On this page" outline on a thin rail: entries are muted and the same weight,
+    h3 entries are indented and smaller, and the section in view is marked on the rail.
+    It scrolls on its own when long, and becomes a collapsible panel below 1280px.
   - A page footer with an "Edit this page on GitHub" link, the last Git change, and
     previous/next links.
   - Below 1024px the sidebar moves into a menu drawer, which also holds the theme
@@ -136,6 +144,44 @@ content list to update.
     - `robots.txt` and `llms.txt`;
     - `favicon.ico` and `site.webmanifest`;
     - a noindex `404.html`.
+
+### Design tokens and fonts
+
+`src/styles/base.css` holds the tokens:
+
+- a neutral gray ramp `--gray-1` (page) to `--gray-12` (text) per theme, near-white in
+  light and `#0a0a0a` in dark, with one accent (`--accent`);
+- semantic tokens the components use: `--bg`, `--surface`, `--surface-2`, `--code-bg`,
+  `--hover`, `--muted`, `--muted-fg`, `--faint`, `--border`, `--border-strong`,
+  `--input`, `--accent-soft`, `--mark`, `--ring`, and `--success`;
+- a type scale of 12, 13, 14 (UI), 15, and 16px (prose), and radii of 4, 6, 8, and 12px.
+
+The contrast floor is 4.5:1 for text (`--fg`, `--muted-fg`, `--accent`, placeholders)
+and 3:1 for glyphs that carry meaning (`--faint`: separators, icons, list markers) and
+control borders (`--input`). `--border` only divides content and may be calmer.
+
+Text is set in [Geist](https://vercel.com/font) and code in Geist Mono (SIL OFL 1.1;
+`src/fonts/OFL.txt` ships as `assets/fonts-OFL.txt`). `src/lib/fonts.mjs` writes the
+`@font-face` rules with content-addressed URLs and `font-display: swap`, and pages
+preload only the sans file. Each font has a local fallback face (Arial or Courier New)
+scaled to Geist's metrics, so the swap does not shift the layout.
+
+The two files are cut from the `geist` npm package (1.7.2) to the Latin range and the
+weights the CSS uses: Geist 18,208 bytes (400–700), Geist Mono 15,644 bytes (400–600).
+To regenerate them, with `fonttools` and `brotli` installed:
+
+```bash
+U="U+0020-007E,U+00A0-00FF,U+0131,U+0152-0153,U+02C6,U+02DA,U+02DC,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2039-203A,U+20AC,U+2122,U+2190-2193,U+2212"
+fonttools varLib.instancer geist/dist/fonts/geist-sans/Geist-Variable.woff2 wght=400:700 -o sans.ttf
+pyftsubset sans.ttf --unicodes="$U" --layout-features='kern,liga,calt,tnum,case,ss01' \
+  --flavor=woff2 --name-IDs='*' --drop-tables+=DSIG --output-file=src/fonts/Geist-latin.woff2
+fonttools varLib.instancer geist/dist/fonts/geist-mono/GeistMono-Variable.woff2 wght=400:600 -o mono.ttf
+pyftsubset mono.ttf --unicodes="U+0020-007E,U+00A0-00FF,U+2013-2014,U+2018-201D,U+2022,U+2026,U+2190-2193,U+2500-257F" \
+  --layout-features='kern' --flavor=woff2 --name-IDs='*' --output-file=src/fonts/GeistMono-latin.woff2
+```
+
+If the Geist version changes, recompute the fallback overrides in `fonts.mjs` from its
+`hhea` metrics and average advance width.
 
 ### Search ranking
 
@@ -182,6 +228,7 @@ src/shared/       modules used by both the build and the browser (search, escapi
 src/pages/        home, doc, search, and not-found templates
 src/client/       main.js, the lazy search-ui.js, and the pre-paint theme.js
 src/styles/       base, layout, components, and prose CSS
+src/fonts/        subset Geist and Geist Mono woff2 files and their OFL licence
 public/           files copied to dist/ as-is
 tests/            unit tests and site tests
 tests/fixtures/   document cases shared with check-repo.py
@@ -205,6 +252,8 @@ sets `SITE_URL` and `BASE_PATH` for a subpath. The tests parse every page and ch
   sidebar links them;
 - off-site links open in a new tab and say so; keyword tags link to search;
 - code token colours meet 4.5:1 on the code background in both themes;
+- both fonts ship with the OFL, `@font-face` references their hashed files, and every
+  page preloads only the sans file;
 - the favicon and manifest are valid;
 - raw size budgets hold (about twice the current output).
 

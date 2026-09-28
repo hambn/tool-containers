@@ -14,10 +14,12 @@ body:
       options:
         - Docker
         - Docker Compose
-        - Docker Swarm
         - Podman
         - Kubernetes
         - Helm
+        - GitHub Actions
+        - GitLab CI
+        - Dev Container
         - Image runtime
         - Other
     validations:
@@ -27,7 +29,7 @@ body:
     attributes:
       label: Image and tag
       description: Include the registry, image, variant, and tag or digest.
-      placeholder: ghcr.io/hambn/agentimg:ubuntu-browser
+      placeholder: ghcr.io/hambn/codex:ubuntu-browser
     validations:
       required: true
   - type: textarea

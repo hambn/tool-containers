@@ -5,58 +5,61 @@ usecase: Long-running cluster pod with a persistent workspace
 keywords: [kubernetes, statefulset, persistent volume]
 ---
 
-# devbox · Helm
+# Run devbox with Helm
 
-Install [devbox](../../README.md) as a long-running development pod with a persistent
-`/workspace` volume.
+The chart runs [devbox](../../README.md) as a one-replica StatefulSet whose volume
+claim keeps `/workspace` across restarts and upgrades.
 
 ## Prerequisites
 
-- A Kubernetes cluster with a default StorageClass
-- Helm 3 or later
+- A Kubernetes cluster with a default StorageClass, or set `workspace.storageClassName`.
+- Helm 3 or later.
 
-## Commands
+## Open a shell
 
 ```bash
 helm install devbox ./chart
 kubectl exec -it devbox-0 -- zsh -l
 ```
 
-Switch variant or resize the workspace:
+To use a larger workspace, set its size when you install:
 
 ```bash
-helm upgrade devbox ./chart --set image.tag=alpine-full --set workspace.size=20Gi
+helm install devbox ./chart --set workspace.size=20Gi
 ```
 
-## Variables
+Kubernetes does not let an upgrade change a StatefulSet's volume claim template, so
+change only the image on an existing release:
 
-Chart values in [`chart/values.yaml`](./chart/values.yaml):
+```bash
+helm upgrade devbox ./chart --reuse-values --set image.tag=alpine-full
+```
+
+## Values
 
 | Value | Default | Purpose |
 |---|---|---|
-| `image.tag` | `ubuntu-full` | Any variant from the [image table](../../README.md#images) or an immutable tag |
-| `workspace.size` | `10Gi` | Size of the `/workspace` PersistentVolumeClaim |
-| `workspace.storageClassName` | cluster default | StorageClass for the workspace |
-| `resources` | 250m/512Mi requests, 2/4Gi limits | Container resources |
+| `image.tag` | `ubuntu-full` | Any [variant](../../README.md#images). |
+| `workspace.size` | `10Gi` | Size of the `/workspace` claim. |
+| `workspace.storageClassName` | cluster default | StorageClass for the claim. |
+| `resources` | 250m and 512Mi requested, 2 CPUs and 4Gi limit | Container resources. |
 
 ## Workspace
 
-A StatefulSet volume claim keeps `/workspace` across pod restarts and upgrades.
+The pod runs as UID 1000 with every capability dropped and
+`allowPrivilegeEscalation: false`, so `sudo` and `ping` fail. It runs no Docker daemon.
 
 ## Files
 
-- [`chart/Chart.yaml`](./chart/Chart.yaml) — chart metadata
-- [`chart/values.yaml`](./chart/values.yaml) — defaults
-- [`chart/templates/statefulset.yaml`](./chart/templates/statefulset.yaml) — the pod and its volume claim
+- [`chart/Chart.yaml`](./chart/Chart.yaml) holds the chart metadata.
+- [`chart/values.yaml`](./chart/values.yaml) holds the defaults above.
+- [`chart/templates/statefulset.yaml`](./chart/templates/statefulset.yaml) defines the StatefulSet and its volume claim.
 
 ## Cleanup
+
+Uninstalling leaves the volume claim. Delete it to remove the workspace:
 
 ```bash
 helm uninstall devbox
 kubectl delete pvc workspace-devbox-0
 ```
-
-## Limitations
-
-- `allowPrivilegeEscalation: false` disables `sudo` and the `ping` capability.
-- No Docker daemon or systemd inside the pod.

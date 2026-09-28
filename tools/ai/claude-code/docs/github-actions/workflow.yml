@@ -1,0 +1,40 @@
+# Copy to .github/workflows/claude-code-review.yml and add an ANTHROPIC_API_KEY repository secret.
+name: claude-code review
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review with Claude Code
+    # GitHub does not pass secrets to workflows triggered from forks, so skip those pull requests.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The pull request merge commit and its first parent, the base branch, cover the diff.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Review
+        # An explicit bash shell adds pipefail, so a failed git diff fails the step.
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # --max-turns bounds how many agent turns, and so how much API usage, one review takes.
+          git diff HEAD^1 HEAD |
+            docker run --rm -i -e ANTHROPIC_API_KEY \
+              -v "$GITHUB_WORKSPACE:/workspace:ro" \
+              ghcr.io/hambn/claude-code:ubuntu \
+              -p --max-turns 10 "Review this pull request diff for bugs, security issues, and missing tests. Reply in Markdown." \
+            >> "$GITHUB_STEP_SUMMARY"

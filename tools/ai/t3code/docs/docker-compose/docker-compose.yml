@@ -1,4 +1,4 @@
-# WORKSPACE="$PWD" ./compose.sh up
+# WORKSPACE="$PWD" ./compose.sh up -d
 name: t3code
 
 services:

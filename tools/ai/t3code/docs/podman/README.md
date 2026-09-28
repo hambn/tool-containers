@@ -1,46 +1,43 @@
 ---
 name: Podman
-description: Serve the T3 Code web GUI on 127.0.0.1:3773 under rootless Podman, mounting the current directory as the workspace.
+description: Serve the T3 Code web GUI on 127.0.0.1:3773 under rootless Podman, with the current directory as its workspace and your own file ownership.
 usecase: Rootless local instance
 keywords: [web gui, rootless, keep-id, selinux]
 ---
 
-# t3code · Podman
+# Run T3 Code with Podman
 
-[`run.sh`](./run.sh) serves the T3 Code web GUI on `http://127.0.0.1:3773` under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) serves [T3 Code](../../README.md) on `http://127.0.0.1:3773` under
+rootless Podman, with the current directory mounted at `/workspace`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Authenticate the agents from inside the T3 Code UI.
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
 
-## Commands
+## Run T3 Code
 
 ```bash
 ./run.sh
 ```
 
+When the server prints its `Token:` line, open
+`http://127.0.0.1:3773/pair#token=<token>` to pair your browser. Add `/workspace` as a
+project and sign in to an agent from the UI. The token expires after five minutes; run
+`podman exec <container> t3 auth pairing create --base-url http://127.0.0.1:3773` for
+a new pair URL. The container and its state are removed when you stop it.
+
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `T3CODE_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
+| `T3CODE_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/t3code:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files the agents write stay owned by you. The port is bound to `127.0.0.1`.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/t3code:ubuntu-browser`.
-
-## Limitations
-
-- The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.

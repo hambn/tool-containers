@@ -1,16 +1,20 @@
 ---
 name: open-code-review
 title: Open Code Review
-description: Alibaba's Open Code Review AI code review CLI (ocr) on the devbox image, with Ubuntu and Alpine variants and optional Chromium.
+description: Alibaba's Open Code Review CLI, ocr, which reviews Git changes with an LLM, on the devbox image for Ubuntu and Alpine, with or without a browser.
 upstream: https://github.com/alibaba/open-code-review
 order: 5
 images: [ghcr.io/hambn/open-code-review, docker.io/hambn/open-code-review]
 keywords: [ocr, alibaba, ai code review, llm, devbox]
 ---
 
-# open-code-review
+# Open Code Review
 
-[Open Code Review](https://github.com/alibaba/open-code-review), Alibaba's AI code review CLI, on the [`devbox`](../../base/devbox/) development image. The entrypoint is `ocr`.
+Alibaba's [Open Code Review](https://github.com/alibaba/open-code-review) CLI, `ocr`, on
+the [devbox](../../base/devbox/) development image. `ocr` sends your uncommitted changes,
+a commit, or a branch range to the LLM provider you configure and prints review
+findings. The entrypoint is `ocr`, and the container starts in `/workspace` as
+`sysadmin` (UID 1000). No credentials are stored in the image.
 
 - **Source:** [`tools/ai/open-code-review/`](https://github.com/hambn/tool-containers/tree/main/tools/ai/open-code-review)
 - **Docs:** [tool-containers.hgh.dev/docs/ai/open-code-review/](https://tool-containers.hgh.dev/docs/ai/open-code-review/)
@@ -24,44 +28,52 @@ keywords: [ocr, alibaba, ai code review, llm, devbox]
 
 ## Images
 
-- **`ubuntu-browser`** — Open Code Review CLI; Ubuntu, headless Chromium
-  - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
-  - Tags: `ubuntu-browser`
-  - Included software: [open-code-review](#included-software) + [devbox browser tier](../../base/devbox/#browser)
-- **`ubuntu`** — Open Code Review CLI; Ubuntu, no browser
+- **`ubuntu`**: Ubuntu 24.04 without a browser. `latest` points here, and the CI recipes use it.
   - Base: [`devbox:ubuntu-full`](../../base/devbox/)
   - Tags: `ubuntu`, `latest`, `open-code-review-<version>`
-  - Included software: [open-code-review](#included-software) + [devbox full tier](../../base/devbox/#full)
-- **`alpine-browser`** — Open Code Review CLI; Alpine, Chromium
-  - Base: [`devbox:alpine-browser`](../../base/devbox/)
-  - Tags: `alpine-browser`
-  - Included software: [open-code-review](#included-software) + [devbox browser tier](../../base/devbox/#browser)
-- **`alpine`** — Open Code Review CLI; Alpine, no browser
+  - Included software: [Open Code Review](#included-software) and the [devbox full tier](../../base/devbox/#full)
+- **`ubuntu-browser`**: Ubuntu 24.04 with headless Chromium, the default in the local recipes.
+  - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
+  - Tags: `ubuntu-browser`
+  - Included software: [Open Code Review](#included-software) and the [devbox browser tier](../../base/devbox/#browser)
+- **`alpine`**: Alpine 3.24 without a browser.
   - Base: [`devbox:alpine-full`](../../base/devbox/)
   - Tags: `alpine`
-  - Included software: [open-code-review](#included-software) + [devbox full tier](../../base/devbox/#full)
+  - Included software: [Open Code Review](#included-software) and the [devbox full tier](../../base/devbox/#full)
+- **`alpine-browser`**: Alpine 3.24 with Chromium.
+  - Base: [`devbox:alpine-browser`](../../base/devbox/)
+  - Tags: `alpine-browser`
+  - Included software: [Open Code Review](#included-software) and the [devbox browser tier](../../base/devbox/#browser)
 
-Pull from `ghcr.io/hambn/open-code-review:<tag>` or `docker.io/hambn/open-code-review:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant), which also carries `open-code-review-<version>` for the pinned Open Code Review npm release. Every tag moves on each rebuild; pin a digest for reproducibility. Earlier `<version>-<variant>` and `<version>` tags are no longer published. The old `ocr-v<version>` tags are frozen and deprecated.
-
-The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplied at runtime and never baked in. Configure an LLM provider with `ocr config` or its environment variables.
+Pull `ghcr.io/hambn/open-code-review:<tag>` or `docker.io/hambn/open-code-review:<tag>`.
+`open-code-review-<version>` names the npm release in the current `ubuntu` build. All
+tags move when the image is rebuilt; pin a digest to keep one build.
 
 ## Included software
 
 - **Open Code Review**
-  - Commands: `ocr`
-  - Source: npm `@alibaba-group/open-code-review`
-  - Pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults
-- **Everything else** comes from [devbox](../../base/devbox/#included-software): the full tier, plus the browser tier on `*-browser` variants
+  - Command: `ocr`
+  - Source: npm package `@alibaba-group/open-code-review`, version pinned in the [`Dockerfile`](./Dockerfile)
+
+Git, Node.js, Python, Go, the Docker CLI, and the other devbox tools come from the
+[devbox full tier](../../base/devbox/#full). The `*-browser` variants add the
+[browser tier](../../base/devbox/#browser).
 
 ## Use cases
 
-- **Review the current checkout** — `./run.sh review` in [`docs/docker/`](./docs/docker/).
-- **Rootless reviews on a workstation** — [`docs/podman/`](./docs/podman/).
-- **Repeatable local reviews** — [`docs/docker-compose/`](./docs/docker-compose/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
+- **Review the current checkout** with [Docker](./docs/docker/), including hosts that
+  load the image from a saved tar.
+- **Repeatable local reviews** with [Docker Compose](./docs/docker-compose/), with an
+  air-gapped Compose file.
+- **Rootless reviews on a workstation** with [Podman](./docs/podman/).
+- **Code review in CI** on GitHub pull requests with
+  [GitHub Actions](./docs/github-actions/) or on GitLab merge requests with
+  [GitLab CI](./docs/gitlab-ci/).
 
 ## Sources
 
 - [Open Code Review repository](https://github.com/alibaba/open-code-review)
 - [npm package `@alibaba-group/open-code-review`](https://www.npmjs.com/package/@alibaba-group/open-code-review)
-- [Open Code Review documentation](https://open-codereview.ai/docs)
+- [Open Code Review website](https://open-codereview.ai)
+- [Configuration reference](https://github.com/alibaba/open-code-review/blob/main/pages/src/content/docs/en/configuration.md)
+- [CLI reference](https://github.com/alibaba/open-code-review/blob/main/pages/src/content/docs/en/cli-reference.md)

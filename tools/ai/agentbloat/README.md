@@ -1,7 +1,7 @@
 ---
 name: agentbloat
 title: agentbloat
-description: Codex, Claude Code, Cursor Agent, Gemini CLI, Copilot, and other coding-agent CLIs in one interactive devbox image, with Ubuntu and Alpine variants.
+description: Codex, Claude Code, Cursor Agent, Gemini CLI, Copilot, and three more coding-agent CLIs in one interactive devbox shell, for Ubuntu or Alpine.
 order: 1
 images: [ghcr.io/hambn/agentbloat, docker.io/hambn/agentbloat]
 keywords: [coding agents, codex, claude code, cursor agent, gemini cli, github copilot, opencode, grok]
@@ -9,7 +9,12 @@ keywords: [coding agents, codex, claude code, cursor agent, gemini cli, github c
 
 # agentbloat
 
-Every current command-line coding agent in one interactive image, built on the [`devbox`](../../base/devbox/) development image. It starts a Zsh login shell and is also the base of [`omnigent`](../omnigent/) and [`t3code`](../t3code/).
+Eight command-line coding agents in one interactive image, built on the
+[devbox](../../base/devbox/) development image, for trying agents side by side or
+switching between them in one project. It is also the base of [Omnigent](../omnigent/)
+and [T3 Code](../t3code/). The image starts a Zsh login shell in `/home/sysadmin` as
+`sysadmin` (UID 1000); the recipes mount your project at `/workspace`. No credentials
+are stored in the image.
 
 - **Source:** [`tools/ai/agentbloat/`](https://github.com/hambn/tool-containers/tree/main/tools/ai/agentbloat)
 - **Docs:** [tool-containers.hgh.dev/docs/ai/agentbloat/](https://tool-containers.hgh.dev/docs/ai/agentbloat/)
@@ -23,30 +28,30 @@ Every current command-line coding agent in one interactive image, built on the [
 
 ## Images
 
-- **`ubuntu-browser`** — All agent CLIs; Ubuntu, headless Chromium
-  - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
-  - Tags: `ubuntu-browser`
-  - Included software: [agent CLIs](#included-software) + [devbox browser tier](../../base/devbox/#browser)
-- **`ubuntu`** — All agent CLIs; Ubuntu, no browser
+- **`ubuntu`**: Ubuntu 24.04 without a browser. `latest` points here.
   - Base: [`devbox:ubuntu-full`](../../base/devbox/)
   - Tags: `ubuntu`, `latest`
-  - Included software: [agent CLIs](#included-software) + [devbox full tier](../../base/devbox/#full)
-- **`alpine-browser`** — All agent CLIs; Alpine, Chromium
-  - Base: [`devbox:alpine-browser`](../../base/devbox/)
-  - Tags: `alpine-browser`
-  - Included software: [agent CLIs](#included-software) + [devbox browser tier](../../base/devbox/#browser)
-- **`alpine`** — All agent CLIs; Alpine, no browser
+  - Included software: [agent CLIs](#included-software) and the [devbox full tier](../../base/devbox/#full)
+- **`ubuntu-browser`**: Ubuntu 24.04 with headless Chromium, the default in the recipes.
+  - Base: [`devbox:ubuntu-browser`](../../base/devbox/)
+  - Tags: `ubuntu-browser`
+  - Included software: [agent CLIs](#included-software) and the [devbox browser tier](../../base/devbox/#browser)
+- **`alpine`**: Alpine 3.24 without a browser.
   - Base: [`devbox:alpine-full`](../../base/devbox/)
   - Tags: `alpine`
-  - Included software: [agent CLIs](#included-software) + [devbox full tier](../../base/devbox/#full)
+  - Included software: [agent CLIs](#included-software) and the [devbox full tier](../../base/devbox/#full)
+- **`alpine-browser`**: Alpine 3.24 with Chromium.
+  - Base: [`devbox:alpine-browser`](../../base/devbox/)
+  - Tags: `alpine-browser`
+  - Included software: [agent CLIs](#included-software) and the [devbox browser tier](../../base/devbox/#browser)
 
-Pull from `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the lightest Ubuntu variant); every tag moves on each rebuild. Pin a digest for reproducibility. Earlier dated `<variant>-<YYYYMMDD>-<sha7>` tags are no longer published. Old per-agent tags such as `claude-code-v<version>` are frozen and deprecated.
-
-The image runs as `sysadmin` (UID 1000) in its home directory, `/home/sysadmin`, with projects mounted at `/workspace`; credentials are supplied at runtime and never baked in.
+Pull `ghcr.io/hambn/agentbloat:<tag>` or `docker.io/hambn/agentbloat:<tag>`. agentbloat
+has no version tag, because it bundles several tools. All tags move when the image is
+rebuilt; pin a digest to keep one build.
 
 ## Included software
 
-Every variant pins and installs:
+Every variant installs the same versions, pinned in the [`Dockerfile`](./Dockerfile):
 
 - **OpenAI Codex**
   - Commands: `codex`
@@ -74,16 +79,23 @@ Every variant pins and installs:
   - Source: npm `@earendil-works/pi-coding-agent`
 - **ACP Agent**
   - Commands: `acp-agent`
-  - Source: PyPI `acp-agent` in `/opt/uv-tools`, with `agent-client-protocol` held at a compatible release
+  - Source: PyPI `acp-agent` in `/opt/uv-tools`, with `agent-client-protocol` held at a release compatible with the distro Python packages
 
-Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as `io.github.hambn.containers.tool.<name>.version` image labels. Cursor publishes no checksum for its tarball, so that download is pinned by version only. Everything else — Git, GitHub/GitLab CLIs, Docker tooling, Python, Go, Node.js, and the optional browser — comes from [`devbox`](../../base/devbox/).
+Cursor publishes no checksum for its tarball, so that download is pinned by version
+only. Git, the GitHub and GitLab CLIs, the Docker CLI, Python, Go, and Node.js come
+from the [devbox full tier](../../base/devbox/#full); the `*-browser` variants add the
+[browser tier](../../base/devbox/#browser).
 
 ## Use cases
 
-- **Interactive multi-agent workspace** — [`docs/docker/`](./docs/docker/).
-- **Rootless multi-agent workstation** — [`docs/podman/`](./docs/podman/).
-- **Repeatable local multi-agent workspace** — [`docs/docker-compose/`](./docs/docker-compose/).
-- **Long-lived cluster workspace** — [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
+- **Interactive multi-agent workspace** with [Docker](./docs/docker/).
+- **Repeatable local multi-agent workspace** with
+  [Docker Compose](./docs/docker-compose/).
+- **Rootless multi-agent workstation** with [Podman](./docs/podman/).
+- **Long-lived cluster workspace** from plain manifests with
+  [Kubernetes](./docs/kubernetes/) or from a Helm chart with [Helm](./docs/helm/).
+- **Multi-agent workspace inside the editor** with
+  [Dev Container](./docs/devcontainer/).
 
 ## Sources
 

@@ -1,24 +1,24 @@
 ---
 name: Podman
-description: Run Claude Code under rootless Podman with ANTHROPIC_API_KEY, mounting the current directory with SELinux relabeling.
+description: Run Claude Code under rootless Podman on the current directory, keeping file ownership with keep-id and relabeling the mount for SELinux.
 usecase: Rootless sessions on a workstation
 keywords: [rootless, keep-id, selinux, anthropic api key]
 ---
 
-# claude-code · Podman
+# Run Claude Code with Podman
 
-[`run.sh`](./run.sh) runs Claude Code (`claude`) with the arguments you pass under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) starts [Claude Code](../../README.md) under rootless Podman on the
+current directory, passing any arguments to `claude`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- `ANTHROPIC_API_KEY` exported in your shell.
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
+- An Anthropic API key in `ANTHROPIC_API_KEY`.
 
-## Commands
+## Run Claude Code
 
 ```bash
+export ANTHROPIC_API_KEY=sk-ant-...
 ./run.sh
 ```
 
@@ -26,21 +26,15 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
-| `CLAUDE_CODE_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
+| `ANTHROPIC_API_KEY` | yes | Forwarded to the container; the script stops if it is unset. |
+| `CLAUDE_CODE_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files Claude Code writes stay owned by you.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/claude-code:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.

@@ -4,7 +4,7 @@ name: open-code-review
 
 services:
   open-code-review:
-    image: ghcr.io/hambn/open-code-review:ubuntu-browser
+    image: ${OPEN_CODE_REVIEW_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-browser}
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

@@ -1,35 +1,60 @@
-/* Design tokens (shadcn zinc). `light-dark()` follows the OS preference unless
-   the stored choice pins `.light` or `.dark` on <html>; no JavaScript needed.
-   Text pairs hold 4.5:1 and control borders (--input) 3:1 in both themes;
-   highlight.mjs keeps code colours readable on --code-bg. */
+/* Design tokens. A neutral gray ramp (1 = page, 12 = text) per theme, then the
+   semantic tokens the components use. `light-dark()` follows the OS preference
+   unless the stored choice pins `.light` or `.dark` on <html>; no JavaScript needed.
+   Contrast floor, checked on every surface below: text (--fg, --muted-fg, --accent)
+   4.5:1; glyphs that carry meaning (--faint: separators, icons, markers) and
+   control borders (--input) 3:1. --border only divides and may be calmer.
+   highlight.mjs keeps code colours at 4.5:1 on --code-bg. */
 :root {
   color-scheme: light dark;
-  --bg: light-dark(#ffffff, #09090b);
-  --fg: light-dark(#09090b, #fafafa);
-  --surface: light-dark(#ffffff, #0f0f12);
-  --surface-2: light-dark(#fafafa, #151518);
-  --code-bg: light-dark(#fafafa, #151518);
-  --muted: light-dark(#f4f4f5, #1f1f23);
-  --hover: light-dark(#f7f7f8, #18181c);
-  --muted-fg: light-dark(#63636b, #a1a1aa);
-  --border: light-dark(#e4e4e7, #34343b);
-  --input: light-dark(#8a8a93, #6b6b75);
-  --accent: light-dark(#2563eb, #60a5fa);
-  --accent-soft: light-dark(#eff6ff, #172554);
-  --mark: light-dark(#dbeafe, #1e3a8a);
-  --success: light-dark(#15803d, #4ade80);
-  --ring: 0 0 0 3px light-dark(rgb(37 99 235 / 0.25), rgb(96 165 250 / 0.35));
-  --overlay: rgb(0 0 0 / 0.5);
-  --shadow-sm: 0 1px 2px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.5));
-  --shadow: 0 16px 48px -12px light-dark(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.7));
+  --gray-1: light-dark(#fcfcfc, #0a0a0a);
+  --gray-2: light-dark(#f7f7f7, #111111);
+  --gray-3: light-dark(#f1f1f1, #161616);
+  --gray-4: light-dark(#ebebeb, #1c1c1c);
+  --gray-5: light-dark(#e5e5e5, #232323);
+  --gray-6: light-dark(#dcdcdc, #2a2a2a);
+  --gray-7: light-dark(#c8c8c8, #3a3a3a);
+  --gray-8: light-dark(#838383, #6e6e6e);
+  --gray-9: light-dark(#7a7a7a, #7b7b7b);
+  --gray-10: light-dark(#6b6b6b, #8f8f8f);
+  --gray-11: light-dark(#636363, #a1a1a1);
+  --gray-12: light-dark(#171717, #ededed);
+
+  --bg: var(--gray-1);
+  --fg: var(--gray-12);
+  --surface: light-dark(#ffffff, #111111); /* cards and controls, lifted off the page */
+  --surface-2: light-dark(#f7f7f7, #161616); /* card headers, table heads, callouts */
+  --code-bg: light-dark(#f7f7f7, #161616);
+  --hover: var(--gray-3);
+  --muted: light-dark(#f0f0f0, #232323); /* hover and selected fills */
+  --muted-fg: var(--gray-11);
+  --faint: var(--gray-9);
+  --border: light-dark(#e5e5e5, #2a2a2a);
+  --border-strong: var(--gray-7);
+  --input: var(--gray-8);
+  --accent: light-dark(#0062d1, #52a8ff);
+  --accent-soft: light-dark(#ebf3ff, #0d2140);
+  --mark: light-dark(#d6e8ff, #173a6b);
+  --success: light-dark(#107a3b, #4ade80);
+  --ring: 0 0 0 3px light-dark(rgb(0 98 209 / 0.22), rgb(82 168 255 / 0.3));
+  --overlay: light-dark(rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.7));
+  --shadow-sm: 0 1px 2px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.6));
+  --shadow-card: 0 1px 2px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.5)), 0 2px 6px -2px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.4));
+  --shadow: 0 0 0 1px light-dark(rgb(0 0 0 / 0.04), rgb(255 255 255 / 0.04)), 0 24px 64px -16px light-dark(rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.8));
 
   --radius: 8px;
   --radius-sm: 6px;
   --radius-xs: 4px;
   --radius-lg: 12px;
 
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* Geist, with a metric-matched local fallback (fonts.mjs) so the swap never shifts text. */
+  --font: "Geist", "Geist Fallback", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-ui: 14px;
+  --text-md: 15px;
+  --text-prose: 16px;
   --header: 56px;
   --control: 36px;
 }
@@ -52,14 +77,18 @@ body {
   flex-direction: column;
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.5 var(--font);
+  font: var(--text-ui)/1.5 var(--font);
+  font-feature-settings: "liga", "calt";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 body:has(dialog[open]) { overflow: hidden; }
 main { flex: 1; }
 
 h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
-h1, h2, h3, h4 { font-weight: 600; }
+h1, h2, h3, h4 { font-weight: 600; text-wrap: balance; }
+::selection { background: var(--mark); }
 a { color: inherit; text-decoration: none; }
 img, svg { display: block; }
 button, input, select { font: inherit; color: inherit; }
@@ -85,7 +114,7 @@ a > .i-external {
   height: 0.75em;
   margin-left: 0.2em;
   vertical-align: -0.02em;
-  color: var(--muted-fg);
+  color: var(--faint);
 }
 
 .sr-only {

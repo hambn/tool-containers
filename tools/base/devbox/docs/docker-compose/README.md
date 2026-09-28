@@ -5,45 +5,48 @@ usecase: Reusable shell with a persistent home
 keywords: [persistent home, named volume, zsh]
 ---
 
-# devbox · Docker Compose
+# Run devbox with Docker Compose
 
-Run [devbox](../../README.md) as a reusable Compose service with a persistent home
-directory.
+The `devbox` service runs [devbox](../../README.md) with your workspace mounted and a
+named volume for `/home/sysadmin`, so shell history, tool caches, and `~/.kube` survive
+between runs. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path,
+because Compose would resolve a relative one against this directory, then runs
+`docker compose` here.
 
 ## Prerequisites
 
-- Docker with the Compose v2 plugin
+- Docker Engine with the Compose v2 plugin.
 
-## Commands
+## Open a shell
 
 ```bash
-WORKSPACE="$PWD" docker compose run --rm devbox
+WORKSPACE="$PWD" ./compose.sh run --rm devbox
 ```
+
+The shell starts in `/workspace`.
 
 ## Variables
 
-| Variable | Default | Purpose |
+| Variable | Required | Purpose |
 |---|---|---|
-| `WORKSPACE` | required | Absolute host path mounted at `/workspace` |
-| `DEVBOX_VARIANT` | `ubuntu-full` | Any variant from the [image table](../../README.md#images) |
+| `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
+| `DEVBOX_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/devbox:ubuntu-full`; use any [variant](../../README.md#images), or a digest reference to pin one build. |
 
 ## Workspace
 
-`WORKSPACE` is bind-mounted at `/workspace`. The `home` volume keeps `/home/sysadmin`
-(shell history, tool caches, `~/.kube`) across runs; Docker seeds it from the image on
-first use.
+`WORKSPACE` is mounted at `/workspace`. Docker fills the `home` volume from the image
+the first time, and keeps it afterwards. Later images do not update it, so remove the
+volume to pick up new shell defaults.
 
 ## Files
 
-- [`docker-compose.yml`](./docker-compose.yml) — the `devbox` service and `home` volume
+- [`compose.sh`](./compose.sh) validates `WORKSPACE` and passes its arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) defines the `devbox` service and the `home` volume.
 
 ## Cleanup
 
+Remove the containers and the `home` volume:
+
 ```bash
-docker compose down --volumes
+WORKSPACE="$PWD" ./compose.sh down --volumes
 ```
-
-## Limitations
-
-- The `home` volume keeps the dotfiles from the image it was first created with; remove
-  it to pick up changed defaults from a newer image.

@@ -1,45 +1,42 @@
 ---
 name: Podman
-description: Open an agentbloat Zsh shell with every bundled agent CLI under rootless Podman, mapping your UID with keep-id.
+description: Open an agentbloat Zsh shell with every agent CLI under rootless Podman, keeping file ownership with keep-id and relabeling for SELinux.
 usecase: Rootless multi-agent workstation
 keywords: [coding agents, rootless, keep-id, selinux]
 ---
 
-# agentbloat · Podman
+# Run agentbloat with Podman
 
-[`run.sh`](./run.sh) opens an interactive Zsh login shell with every bundled agent CLI under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) opens a Zsh login shell in [agentbloat](../../README.md) under
+rootless Podman, with the current directory mounted at `/workspace`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e`.
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
 
-## Commands
+## Open a shell
 
 ```bash
 ./run.sh
+cd /workspace
 ```
+
+Run any agent and sign in from its prompt. To pass an API key instead, add
+`-e OPENAI_API_KEY` or another variable to the `podman run` line in `run.sh`. Logins
+are removed with the container when you exit.
 
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `AGENTBLOAT_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/agentbloat:ubuntu-browser`. |
+| `AGENTBLOAT_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/agentbloat:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files the agents write stay owned by you.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/agentbloat:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a `<variant>-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.

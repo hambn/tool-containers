@@ -1,9 +1,9 @@
-# WORKSPACE="$PWD" docker compose run --rm devbox
+# WORKSPACE="$PWD" ./compose.sh run --rm devbox
 name: devbox
 
 services:
   devbox:
-    image: ghcr.io/hambn/devbox:${DEVBOX_VARIANT:-ubuntu-full}
+    image: ${DEVBOX_IMAGE:-ghcr.io/hambn/devbox:ubuntu-full}
     working_dir: /workspace
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

@@ -52,13 +52,13 @@ ${catalog.categories.map(
 function header(page, site, icon) {
   const { config } = site;
   return html`<header class="header"><div class="container header-inner">
+<button class="icon-btn menu-open" type="button" data-menu-open aria-label="Open menu" aria-haspopup="dialog" aria-controls="menu">${raw(icon("menu"))}</button>
 <a class="brand" href="${config.href("/")}">${LOGO}<span>${SITE_NAME}</span></a>
 <nav class="nav" aria-label="Main">${mainNav(page, site, "tab")}</nav>
 <div class="actions">
 <a class="search-trigger" href="${config.href("/search/")}" data-search-open aria-label="Search docs" aria-keyshortcuts="Control+K Meta+K">${raw(icon("search"))}<span class="search-label">Search docs…</span><kbd data-hotkey>Ctrl K</kbd></a>
 <a class="icon-btn" href="${config.repoUrl}"${NEW_TAB} aria-label="${SITE_NAME} on GitHub (opens in new tab)">${raw(icon("github"))}</a>
 <button class="icon-btn theme" type="button" data-theme-toggle aria-label="Toggle dark theme">${raw(icon("sun"))}${raw(icon("moon"))}</button>
-<button class="icon-btn menu-open" type="button" data-menu-open aria-label="Open menu" aria-haspopup="dialog" aria-controls="menu">${raw(icon("menu"))}</button>
 </div>
 </div></header>`;
 }
@@ -110,7 +110,8 @@ ${raw(headTags(page, site, seo))}
 <link rel="icon" href="${config.href("/favicon.svg")}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${config.href("/apple-touch-icon.png")}">
 <link rel="manifest" href="${config.href("/site.webmanifest")}">
-<link rel="stylesheet" href="${assets.css}">
+${assets.fonts.map((href) => html`<link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin>
+`)}<link rel="stylesheet" href="${assets.css}">
 <script>${raw(assets.theme)}</script>
 <script type="module" src="${assets.js.src}"></script>
 ${assets.js.preload.map((href) => html`<link rel="modulepreload" href="${href}">

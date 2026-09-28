@@ -4,7 +4,7 @@ name: omnigent
 
 services:
   omnigent:
-    image: ghcr.io/hambn/omnigent:ubuntu-browser
+    image: ${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:ubuntu-browser}
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

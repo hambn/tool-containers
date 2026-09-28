@@ -23,14 +23,19 @@ function hero(site, readme, icon) {
     plural(catalog.categories.length, "category", "categories"),
     plural(site.recipeCount, "recipe"),
   ];
+  // The page has one field: the catalog filter. Site-wide search stays in the header.
   return html`<section class="hero">
 <h1>${readme.title}</h1>
 <p class="hero-lead">${sentences(readme.lead)[0] ?? ""}</p>
-<div class="hero-actions">
-<a class="search-trigger hero-search" href="${config.href("/search/")}" data-search-open aria-keyshortcuts="Control+K Meta+K">${raw(icon("search"))}<span class="search-label">Search images and recipes…</span><kbd data-hotkey>Ctrl K</kbd></a>
-<a class="button ghost" href="${config.href(site.docs.route)}">Read the docs</a>
-</div>
+<div class="hero-meta">
+<a class="button secondary" href="${config.href(site.docs.route)}">Read the docs${raw(icon("chevron"))}</a>
 <ul class="stats">${stats.map((stat) => html`<li>${stat}</li>`)}${registries.length ? html`<li>Published to ${registries.join(" and ")}</li>` : ""}</ul>
+</div>
+<form class="filter" role="search" aria-label="Filter images" data-filter>
+<div class="filter-input">${raw(icon("search"))}<input type="search" name="q" placeholder="Filter ${plural(catalog.tools.length, "image")}…" aria-label="Filter images" autocomplete="off" spellcheck="false"></div>
+<span class="select"><select name="category" aria-label="Category"><option value="">All categories</option>${catalog.categories.map(({ slug, meta }) => html`<option value="${slug}">${meta.title}</option>`)}</select>${raw(icon("chevron"))}</span>
+</form>
+<p class="filter-status" role="status" data-filter-status></p>
 </section>`;
 }
 
@@ -39,11 +44,6 @@ export function homePage({ site, readme, icon }) {
   const { catalog, config } = site;
   return html`<div class="container home">
 ${hero(site, readme, icon)}
-<form class="filter" role="search" aria-label="Filter images" data-filter>
-<div class="filter-input">${raw(icon("search"))}<input type="search" name="q" placeholder="Filter images…" aria-label="Filter images" autocomplete="off" spellcheck="false"></div>
-<span class="select"><select name="category" aria-label="Category"><option value="">All categories</option>${catalog.categories.map(({ slug, meta }) => html`<option value="${slug}">${meta.title}</option>`)}</select>${raw(icon("chevron"))}</span>
-</form>
-<p class="filter-status" role="status" data-filter-status></p>
 ${catalog.categories.map(
   (category) => html`<section class="group" id="${categoryAnchor(category.slug)}" aria-labelledby="${categoryAnchor(category.slug)}-title" data-group>
 <header class="group-head">
@@ -53,6 +53,6 @@ ${catalog.categories.map(
 <ul class="rows">${category.tools.map((tool) => toolRow(tool, site, icon))}</ul>
 </section>`,
 )}
-<div class="empty" data-filter-empty hidden><p>No images match these filters.</p><button type="button" class="button" data-filter-reset>Clear filters</button></div>
+<div class="empty" data-filter-empty hidden><p>No images match these filters.</p><button type="button" class="button secondary" data-filter-reset>Clear filters</button></div>
 </div>`;
 }
