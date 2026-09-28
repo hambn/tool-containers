@@ -1,9 +1,9 @@
-# Platform example conventions
+# Platform doc conventions
 
-Each supported platform lives at `tools/<category>/<tool>/examples/<platform>/` with a
+Each supported platform lives at `tools/<category>/<tool>/docs/<platform>/` with a
 README plus runnable files. Add only platforms that serve the tool's real use cases.
 The `references/deployment/` path is this skill's grouping; image projects always use
-`examples/`.
+`docs/`.
 
 | Platform | Guide |
 |---|---|
@@ -13,7 +13,7 @@ The `references/deployment/` path is this skill's grouping; image projects alway
 | Raw Kubernetes | [kubernetes.md](kubernetes.md) |
 | Helm | [helm.md](helm.md) |
 
-Docker Swarm is not a supported example platform.
+Docker Swarm is not a supported platform.
 
 ## Execution model
 
@@ -21,7 +21,7 @@ Docker Swarm is not a supported example platform.
   `run --rm` locally; a Kubernetes `batch/v1` Job (raw or Helm) in clusters. Never model
   them as long-lived Deployments or services.
 - **Services** (t3code, omnigent): may use Compose services, Deployments, and a Service.
-- **Base images** (core, devbox, agentbloat): examples show interactive or CI use.
+- **Base images** (core, devbox, agentbloat): platform docs show interactive or CI use.
 
 ## Shared contract
 
@@ -31,9 +31,9 @@ Docker Swarm is not a supported example platform.
   where the platform expands a host bind mount.
 - Keep credentials external (environment, mounted files, native secret stores) and fail
   loudly when a required value is missing.
-- Connected examples use a moving tag from `ghcr.io/hambn/<repo>` (for example
+- Connected recipes use a moving tag from `ghcr.io/hambn/<repo>` (for example
   `ghcr.io/hambn/codex:ubuntu-browser`) and explain that a digest pins
-  it ([tags](../registries-and-tags.md)). Air-gapped examples load a saved image and
+  it ([tags](../registries-and-tags.md)). Air-gapped recipes load a saved image and
   never pull.
 - Grant the least privilege and resources compatible with the tool; do not copy
   security fields between orchestrators that do not support them.

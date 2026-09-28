@@ -1,3 +1,13 @@
+---
+name: pi-agent
+title: Pi Coding Agent
+description: Pi, a minimal and extensible terminal coding agent, on the devbox image with Ubuntu and Alpine variants and optional Chromium.
+upstream: https://github.com/earendil-works/pi
+order: 6
+images: [ghcr.io/hambn/pi-agent, docker.io/hambn/pi-agent]
+keywords: [terminal coding agent, earendil works, devbox, ubuntu, alpine, headless chromium]
+---
+
 # pi-agent
 
 [Pi](https://github.com/earendil-works/pi), a minimal, extensible terminal coding agent, on the [`devbox`](../../base/devbox/) development image. The entrypoint is `pi`.
@@ -45,10 +55,10 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 
 ## Use cases
 
-- **Interactive coding on a local checkout** — [`examples/docker/`](./examples/docker/).
-- **Rootless workstation** — [`examples/podman/`](./examples/podman/).
-- **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
+- **Interactive coding on a local checkout** — [`docs/docker/`](./docs/docker/).
+- **Rootless sessions on a workstation** — [`docs/podman/`](./docs/podman/).
+- **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 
 ## Sources
 

@@ -7,7 +7,7 @@ Keep connected and offline cases separate:
 | `docker-compose.yml` | published image with normal registry access |
 | `airgapped.docker-compose.yml` | preloaded image or local build with no pull |
 | `compose.sh` | validates host inputs and invokes Compose consistently |
-| `README.md` | prerequisites, commands, variables, file map, and cleanup |
+| `README.md` | prerequisites, commands, variables, Files section, and cleanup |
 
 ## Compose rules
 

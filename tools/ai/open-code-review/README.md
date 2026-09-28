@@ -1,3 +1,13 @@
+---
+name: open-code-review
+title: Open Code Review
+description: Alibaba's Open Code Review AI code review CLI (ocr) on the devbox image, with Ubuntu and Alpine variants and optional Chromium.
+upstream: https://github.com/alibaba/open-code-review
+order: 5
+images: [ghcr.io/hambn/open-code-review, docker.io/hambn/open-code-review]
+keywords: [ocr, alibaba, ai code review, llm, devbox]
+---
+
 # open-code-review
 
 [Open Code Review](https://github.com/alibaba/open-code-review), Alibaba's AI code review CLI, on the [`devbox`](../../base/devbox/) development image. The entrypoint is `ocr`.
@@ -45,10 +55,10 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 
 ## Use cases
 
-- **Review the current checkout** — `./run.sh review` in [`examples/docker/`](./examples/docker/).
-- **Rootless reviews** — [`examples/podman/`](./examples/podman/).
-- **Repeatable local reviews** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
+- **Review the current checkout** — `./run.sh review` in [`docs/docker/`](./docs/docker/).
+- **Rootless reviews on a workstation** — [`docs/podman/`](./docs/podman/).
+- **Repeatable local reviews** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 
 ## Sources
 

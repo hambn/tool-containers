@@ -6,7 +6,7 @@ Use executable Bash scripts for connected and air-gapped plain Docker use:
 |---|---|
 | `run.sh` | pull and run the published image |
 | `airgapped.run.sh` | load a saved tar and run without pulling |
-| `README.md` | prerequisites, file map, commands, variables, and cleanup |
+| `README.md` | prerequisites, commands, variables, Files section, and cleanup |
 
 ## Script rules
 

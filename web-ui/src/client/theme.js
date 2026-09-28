@@ -1,10 +1,13 @@
-// Apply theme before paint. Controls stay hidden until JavaScript is available.
-(function () {
-  document.documentElement.classList.add("js");
-  var dark = matchMedia("(prefers-color-scheme: dark)").matches;
+// Runs in <head> before first paint. Without a stored choice no class is set
+// and the stylesheet follows the OS preference, with or without JavaScript.
+(() => {
+  const root = document.documentElement;
+  root.classList.add("js");
   try {
-    var stored = localStorage.getItem("theme");
-    if (stored === "dark" || stored === "light") dark = stored === "dark";
+    const theme = localStorage.getItem("theme");
+    if (theme === "light" || theme === "dark") root.classList.add(theme);
   } catch {}
-  document.documentElement.classList.toggle("dark", dark);
+  // A shared catalog link carries filters: keep the list unpainted until they
+  // apply, so rows never visibly jump (see .filtering in the stylesheet).
+  if (/[?&](q|category)=/.test(location.search)) root.classList.add("filtering");
 })();

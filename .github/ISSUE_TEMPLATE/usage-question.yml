@@ -1,5 +1,5 @@
 name: Usage question
-description: Ask for help using an image or one of its deployment examples.
+description: Ask for help using an image or one of its platform docs.
 title: "[Question]: "
 labels:
   - question

@@ -7,7 +7,7 @@ on:
       - "web-ui/**"
       - "README.md"
       - "tools/**/README.md"
-      - "tools/**/examples/**"
+      - "tools/**/docs/**"
   push:
     branches: [main]
     paths:
@@ -15,7 +15,7 @@ on:
       - "web-ui/**"
       - "README.md"
       - "tools/**/README.md"
-      - "tools/**/examples/**"
+      - "tools/**/docs/**"
 
 concurrency:
   group: web-ui-${{ github.workflow }}-${{ github.ref }}
@@ -40,20 +40,13 @@ jobs:
       - name: Install dependencies
         working-directory: web-ui
         run: npm ci
-      - name: Verify subpath deployment
+      # The tests build their own sites in both hosting modes.
+      - name: Test
         working-directory: web-ui
-        env:
-          SITE_URL: https://example.com/tool-containers
-          BASE_PATH: /tool-containers
-        run: |
-          npm run build
-          npm test
+        run: npm test
       - name: Build site
         working-directory: web-ui
         run: npm run build
-      - name: Verify generated site
-        working-directory: web-ui
-        run: npm test
       - name: Configure GitHub Pages
         if: github.event_name == 'push'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

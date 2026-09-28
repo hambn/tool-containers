@@ -1,279 +1,286 @@
-import fs from "node:fs";
 import path from "node:path";
-import { Marked } from "marked";
-import { repoRoot } from "./config.mjs";
-import { icon } from "./icons.mjs";
-import { highlight } from "./highlight.mjs";
+import { Marked, Renderer } from "marked";
+import { fileLanguage, languageLabel } from "./highlight.mjs";
+import { html, raw } from "./html.mjs";
+import { NEW_TAB, NEW_TAB_TEXT, copyButton, isExternal } from "./ui.mjs";
 
-const ESCAPES = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-export function escapeHtml(text) {
-  return String(text).replace(/[&<>"']/g, (char) => ESCAPES[char]);
-}
-
-/* ------------------------------------------------------------------ text */
-
-/** Markdown inline syntax removed, for text that lands in meta tags and titles. */
-function stripInline(text) {
-  return text
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/[*_`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function truncate(text, max) {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
-}
-
-const isHeading = (line) => /^#{1,6}\s/.test(line);
-const isBlockSyntax = (line) =>
-  /^[>|]/.test(line) ||
-  /^[-*+]\s/.test(line) ||
-  /^\d+\.\s/.test(line) ||
-  /^```/.test(line);
+// Longer recipe files start collapsed so the page stays scannable.
+const COLLAPSE_LINES = 40;
+const FILES_HEADING = "File contents";
 
 /**
- * The document's lead paragraph as a single line. Source READMEs hard-wrap
- * prose, so consecutive lines are joined until the paragraph ends — reading
- * only the first line would cut descriptions mid-sentence.
+ * GitHub's heading slug algorithm, so fragments written against GitHub's
+ * rendering (`#included-software`) resolve on the site too.
  */
-export function leadParagraph(markdown) {
-  const lines = markdown.split("\n");
-  const start = lines.findIndex(isHeading);
-  const paragraph = [];
-  for (let i = start + 1; i < lines.length; i += 1) {
-    const line = lines[i].trim();
-    if (paragraph.length && (!line || isHeading(line) || isBlockSyntax(line)))
-      break;
-    if (!line || isHeading(line) || isBlockSyntax(line)) continue;
-    paragraph.push(line);
-  }
-  return stripInline(paragraph.join(" "));
-}
-
-/** The `# ` title of a document, or a fallback when it has none. */
-export function documentTitle(markdown, fallback = "tool-containers") {
-  const heading = markdown.split("\n").find(isHeading);
-  return heading ? stripInline(heading.replace(/^#+\s+/, "")) : fallback;
-}
-
-/** Tool descriptions from the root README catalog tables, keyed by directory. */
-export function catalogDescriptions(readme) {
-  const descriptions = new Map();
-  for (const line of readme.split("\n")) {
-    const row = line.match(/^\|\s*\[[^\]]+\]\(([^)]+)\)\s*\|\s*(.+?)\s*\|$/);
-    if (!row) continue;
-    const dir = row[1].replace(/^\.\//, "").replace(/\/+$/, "");
-    if (dir.startsWith("tools/")) descriptions.set(dir, stripInline(row[2]));
-  }
-  return descriptions;
-}
-
-/* ------------------------------------------------------------- rendering */
-
-/**
- * Rewrite repository-relative links: to an in-page anchor when the target is
- * a file (or directory of files) rendered inline, to a site route when it is a
- * published page, to GitHub for any other repository path, and untouched when
- * it is external or a bare fragment.
- */
-function rewriteTarget(target, sourceDir, site, anchors, image = false) {
-  if (/^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i.test(target)) return target;
-  const [relative, fragment = ""] = target.split("#", 2);
-  const resolved = path.posix.normalize(
-    path.posix.join(sourceDir, decodeURI(relative)),
-  );
-  const anchor = anchors.get(resolved.replace(/\/$/, ""));
-  if (anchor && !image) return `#${anchor}`;
-  const hash = fragment ? `#${fragment}` : "";
-  const page =
-    site.bySource.get(resolved) ??
-    site.bySource.get(`${resolved.replace(/\/$/, "")}/README.md`);
-  if (page && !image) return `${site.config.href(page.route)}${hash}`;
-  if (resolved.startsWith("../")) return target;
-  const absolute = path.join(repoRoot, resolved);
-  if (!fs.existsSync(absolute))
-    return `${site.config.blobUrl(resolved)}${hash}`;
-  if (image) return `${site.config.repoUrl}/raw/HEAD/${resolved}${hash}`;
-  return `${fs.statSync(absolute).isDirectory() ? site.config.treeUrl(resolved) : site.config.blobUrl(resolved)}${hash}`;
-}
-
-function slugify(text) {
+export function slugify(text) {
   return (
     text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
       .trim()
-      .replace(/\s+/g, "-") || "section"
+      .toLowerCase()
+      .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, "")
+      .replace(/\s/g, "-") || "section"
   );
 }
 
+/** `chart/values.yaml` → `file-chart-values-yaml`. */
+const fileId = (name) => `file-${(name.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? ["file"]).join("-")}`;
+
 /** An id generator that never hands out the same id twice on one page. */
-function uniqueIds() {
-  const seen = new Set();
+function uniqueIds(reserved = []) {
+  const seen = new Set(reserved);
   return (base) => {
     let id = base;
-    for (let n = 2; seen.has(id); n += 1) id = `${base}-${n}`;
+    for (let n = 1; seen.has(id); n += 1) id = `${base}-${n}`;
     seen.add(id);
     return id;
   };
 }
 
-const anchoredHeading = (level, id, inner) =>
-  `<h${level} id="${id}"><a class="heading-anchor" href="#${id}">${inner}</a></h${level}>`;
+const BLOCKS = new Set(["paragraph", "heading", "list", "list_item", "table", "blockquote", "code", "html", "space", "hr"]);
+const UNINDEXED = new Set(["code", "html", "space", "hr"]);
 
-/** Stable, unique ids on headings so the TOC and deep links can target them. */
-function addHeadingAnchors(html, unique) {
-  return html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g, (_match, level, inner) =>
-    anchoredHeading(
-      level,
-      unique(slugify(inner.replace(/<[^>]+>/g, ""))),
-      inner,
-    ),
-  );
-}
-
-/** Heading outline for the on-page table of contents. */
-export function tableOfContents(html) {
-  return [...html.matchAll(/<h([23]) id="([^"]+)">([\s\S]*?)<\/h\1>/g)].map(
-    (match) => ({
-      level: Number(match[1]),
-      id: match[2],
-      text: match[3].replace(/<[^>]+>/g, "").trim(),
-    }),
-  );
-}
-
-const LANGUAGE_LABELS = {
-  shellscript: "shell",
-  bash: "shell",
-  dockerfile: "Dockerfile",
-  yaml: "YAML",
-  json: "JSON",
-  toml: "TOML",
-  markdown: "Markdown",
-  text: "text",
-};
-
-const EXTENSION_LANGUAGES = {
-  sh: "bash",
-  bash: "bash",
-  yml: "yaml",
-  yaml: "yaml",
-  json: "json",
-  toml: "toml",
-  md: "markdown",
-  txt: "text",
-};
-
-/** Highlighting grammar for an inline file, chosen by its name. */
-export function fileLanguage(name) {
-  const base = path.posix.basename(name);
-  if (/^Dockerfile|\.Dockerfile$/i.test(base)) return "dockerfile";
-  return (
-    EXTENSION_LANGUAGES[path.posix.extname(base).slice(1).toLowerCase()] ??
-    "text"
-  );
-}
-
-function codeCard({ label, html }) {
-  return `<figure class="code-card">
-<figcaption class="code-head">
-<span class="code-name">${escapeHtml(label)}</span>
-<button type="button" class="copy-btn" data-copy aria-label="Copy code to clipboard">${icon("copy", "i-copy")}${icon("check", "i-check")}</button>
-</figcaption>
-<div class="code-body">${html}</div>
-</figure>`;
-}
-
-/** Wrap tables so wide catalog tables scroll instead of breaking the layout. */
-function wrapTables(html) {
-  return html.replace(
-    /<table>([\s\S]*?)<\/table>/g,
-    (_match, inner) =>
-      `<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table class="doc-table">${inner}</table></div>`,
-  );
-}
-
-/** Every inline file as a heading plus highlighted code, after the document. */
-async function filesSection(files, unique, theme) {
-  if (!files.length) return "";
-  const id = unique("file-contents");
-  const blocks = [];
-  for (const file of files) {
-    const lang = fileLanguage(file.name);
-    blocks.push(
-      anchoredHeading(3, file.id, `<code>${escapeHtml(file.name)}</code>`),
-      codeCard({
-        label: LANGUAGE_LABELS[lang] ?? lang,
-        html: await highlight(file.text.replace(/\n$/, ""), lang, theme),
-      }),
-    );
-  }
-  return `<section class="file-contents" aria-labelledby="${id}">
-${anchoredHeading(2, id, "File contents")}
-${blocks.join("\n")}
-</section>`;
+/** Visible text of inline or block tokens, without markup or code blocks. */
+export function plainText(tokens = []) {
+  const text = tokens
+    .map((token) => {
+      let value;
+      if (UNINDEXED.has(token.type)) value = "";
+      else if (token.type === "list") value = plainText(token.items);
+      else if (token.type === "table") value = [...token.header, ...token.rows.flat()].map((cell) => plainText(cell.tokens)).join(" ");
+      else if (token.type === "br") value = " ";
+      else if (token.tokens) value = plainText(token.tokens);
+      else value = token.text ?? "";
+      return BLOCKS.has(token.type) ? ` ${value} ` : value;
+    })
+    .join("");
+  return text.replace(/\s+/g, " ").trim();
 }
 
 /**
- * Render one repository document to the HTML shown on its page. `files` are
- * sibling files (`{ name, text }`, relative to `sourceDir`) rendered inline
- * after the document; links to them, or to directories holding them, become
- * in-page anchors.
+ * @typedef {object} Rendered
+ * @property {string} title    plain text of the document's `# ` heading
+ * @property {string} leadHtml inline HTML of the opening paragraph, moved out of the body
+ * @property {string} lead     plain text of that paragraph
+ * @property {string} html     the body without its title and lead; with a slot, the part up to and including its heading
+ * @property {string} tail     with a slot, the body after the slot's section; otherwise ""
+ * @property {{ level: number, id: string, text: string }[]} toc
+ * @property {{ id: string, heading: string, text: string }[]} sections searchable prose, never code
+ * @property {string[]} headings plain text of every h2 in the body
+ * @property {string[]} problems content errors (raw HTML, bad links), each naming the source
  */
-export async function renderDocument(
-  markdown,
-  { sourceDir, site, theme, files = [] },
-) {
-  const unique = uniqueIds();
-  const anchors = new Map();
-  const inline = files.map((file) => {
-    const id = unique(
-      `file-${slugify(file.name.replace(/[^a-z0-9]+/gi, " "))}`,
+
+/**
+ * The markdown pipeline. Everything structural (heading ids, the page title,
+ * the lead, removed sections, link targets) is decided on marked's tokens
+ * before rendering, so no rendered HTML is ever re-parsed.
+ * @param {object} options
+ * @param {{ render(code: string, lang?: string): string }} options.highlighter
+ * @param {ReturnType<import("./links.mjs").createLinkResolver>} options.resolveLink
+ * @param {(name: string) => string} options.icon
+ * @param {string[]} [options.reservedIds] ids the page template already uses
+ */
+export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [] }) {
+  // Code scrolls sideways inside a focusable region, like tables, so keyboards can reach it.
+  const pre = (highlighted, label) => highlighted.replace(/^<pre>/, String(html`<pre tabindex="0" role="region" aria-label="${label}">`));
+  const codeBlock = (code, lang) => {
+    const label = languageLabel(lang);
+    return String(
+      html`<div class="code" data-copy-source><div class="code-head"><span class="code-lang">${label}</span>${copyButton(icon, "Copy code")}</div>${raw(pre(highlighter.render(code, lang), `${label} code`))}</div>`,
     );
-    let target = path.posix.join(sourceDir, file.name);
-    while (target !== sourceDir && !anchors.has(target)) {
-      anchors.set(target, id);
-      target = path.posix.dirname(target);
-    }
-    return { ...file, id };
-  });
-  const parser = new Marked({
-    async: true,
-    async walkTokens(token) {
-      if (token.type === "link" || token.type === "image") {
-        token.href = rewriteTarget(
-          token.href,
-          sourceDir,
-          site,
-          anchors,
-          token.type === "image",
-        );
-      }
-      if (token.type === "code") {
-        const lang = (token.lang ?? "text").split(/\s+/)[0].toLowerCase();
-        token.card = codeCard({
-          label: LANGUAGE_LABELS[lang] ?? lang,
-          html: await highlight(token.text, lang, theme),
-        });
-      }
-    },
+  };
+  // The copy button sits beside the summary, never inside it: a summary is itself a control.
+  const recipeFile = (file) => {
+    const text = file.text.replace(/\n$/, "");
+    const lines = text.split("\n").length;
+    const code = pre(highlighter.render(text, fileLanguage(file.name)), file.name);
+    return String(
+      html`<div class="file" data-copy-source><details id="${file.id}"${raw(lines <= COLLAPSE_LINES ? " open" : "")}><summary>${raw(icon("chevron"))}<span class="file-name">${file.name}</span><span class="file-lines">${lines} ${lines === 1 ? "line" : "lines"}</span></summary><div class="code">${raw(code)}</div></details>${copyButton(icon, `Copy ${file.name}`)}</div>`,
+    );
+  };
+  const marked = new Marked({
+    gfm: true,
     renderer: {
-      code(token) {
-        return token.card;
+      heading({ tokens, depth, id }) {
+        return `<h${depth} id="${id}">${this.parser.parseInline(tokens)}<a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a></h${depth}>\n`;
+      },
+      code({ text, lang }) {
+        return codeBlock(text.replace(/\n$/, ""), (lang ?? "").split(/\s+/)[0]);
+      },
+      // Off-site links open in a new tab, marked by an icon and hidden text.
+      link({ href, title, tokens }) {
+        if (!isExternal(href)) return false;
+        const titleAttr = title ? html` title="${title}"` : "";
+        return String(html`<a class="external" href="${href}"${titleAttr}${NEW_TAB}>${raw(this.parser.parseInline(tokens))}${raw(icon("external"))}${NEW_TAB_TEXT}</a>`);
+      },
+      // Wide tables scroll inside their own focusable region instead of the page.
+      table(token) {
+        return String(html`<div class="table" role="region" tabindex="0" aria-label="${token.label}">${raw(Renderer.prototype.table.call(this, token))}</div>`);
       },
     },
   });
-  const article = addHeadingAnchors(await parser.parse(markdown), unique);
-  return wrapTables(article) + (await filesSection(inline, unique, theme));
+
+  /**
+   * @param {string} markdown document body without frontmatter
+   * @param {{ source: string, isSelfLink: (href: string) => boolean, files?: { name: string, text: string }[], slot?: string }} context
+   *   `isSelfLink` names hrefs that stand for the page itself (its own URL, or a
+   *   source link the page shows elsewhere): list items that only link there are dropped.
+   *   `slot` names an h2 section whose content the page generates instead: its
+   *   heading stays at the end of `html`, and the rest of the body is `tail`.
+   * @returns {Rendered} rendered even when `problems` is not empty, so one build reports everything
+   */
+  return function render(markdown, { source, isSelfLink, files = [], slot }) {
+    const nextId = uniqueIds(reservedIds);
+    const sourceDir = path.posix.dirname(source);
+    const problems = [];
+
+    const inline = files.map((file) => ({ ...file, id: nextId(fileId(file.name)) }));
+    const anchors = new Map();
+    for (const file of inline) {
+      // A link to a directory of inline files jumps to its first file.
+      for (let target = path.posix.join(sourceDir, file.name); target !== sourceDir && !anchors.has(target); ) {
+        anchors.set(target, file.id);
+        target = path.posix.dirname(target);
+      }
+    }
+
+    const tokens = marked.lexer(markdown);
+    marked.walkTokens(tokens, (token) => {
+      if (token.type === "html") problems.push(`raw HTML is not published; use Markdown instead of ${JSON.stringify(token.raw.trim().slice(0, 40))}`);
+      if (token.type === "link" || token.type === "image") {
+        try {
+          token.href = resolveLink(token.href, { source, anchors, image: token.type === "image" });
+        } catch (error) {
+          problems.push(error.message);
+        }
+      }
+    });
+
+    const blocks = tokens.filter((token) => token.type !== "space");
+    const title = blocks[0]?.type === "heading" && blocks[0].depth === 1 ? blocks.shift() : null;
+    const lead = blocks[0]?.type === "paragraph" ? blocks.shift() : null;
+    let body = dropSelfLinks(dropContents(blocks), isSelfLink);
+    let after = [];
+    if (slot) {
+      const isH2 = (token) => token.type === "heading" && token.depth === 2;
+      const start = body.findIndex((token) => isH2(token) && plainText(token.tokens) === slot);
+      // A missing slot is reported by content discovery, which checks the section's bullets.
+      if (start !== -1) {
+        const end = body.findIndex((token, index) => index > start && isH2(token));
+        after = end === -1 ? [] : body.slice(end);
+        body = body.slice(0, start + 1);
+      }
+    }
+
+    const toc = [];
+    const headings = [];
+    let label = "";
+    marked.walkTokens([...body, ...after], (token) => {
+      if (token.type === "heading") {
+        token.depth = Math.max(token.depth, 2);
+        label = plainText(token.tokens);
+        token.id = nextId(slugify(label));
+        if (token.depth <= 3) toc.push({ level: token.depth, id: token.id, text: label });
+        if (token.depth === 2) headings.push(label);
+      } else if (token.type === "table") {
+        token.label = label ? `${label} table` : "Table";
+      }
+    });
+
+    const sections = [...splitSections(body), ...splitSections(after)];
+    let bodyHtml = marked.parser(body);
+    const tail = after.length ? marked.parser(after) : "";
+    if (inline.length) {
+      const id = nextId(slugify(FILES_HEADING));
+      toc.push({ level: 2, id, text: FILES_HEADING });
+      const items = inline.map((file) => {
+        toc.push({ level: 3, id: file.id, text: file.name });
+        sections.push({ id: file.id, heading: file.name, text: "" });
+        return recipeFile(file);
+      });
+      bodyHtml += `<section class="files" aria-labelledby="${id}"><h2 id="${id}">${FILES_HEADING}<a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a></h2>${items.join("")}</section>`;
+    }
+
+    const leadText = lead ? plainText(lead.tokens) : "";
+    return {
+      title: title ? plainText(title.tokens) : "",
+      leadHtml: lead ? marked.parser([lead]).trim().replace(/^<p>|<\/p>$/g, "") : "",
+      lead: leadText,
+      html: bodyHtml,
+      tail,
+      toc,
+      headings,
+      sections: withLead(sections, leadText),
+      problems: problems.map((problem) => `${source}: ${problem}`),
+    };
+  };
+}
+
+/**
+ * Drop a `## Contents` section whose only content is a list of same-page
+ * links: the site's "On this page" navigation replaces it.
+ */
+function dropContents(blocks) {
+  const index = blocks.findIndex((token) => token.type === "heading" && token.depth === 2 && /^contents$/i.test(plainText(token.tokens)));
+  if (index === -1) return blocks;
+  const list = blocks[index + 1];
+  const next = blocks[index + 2];
+  const onlyAnchors =
+    list?.type === "list" &&
+    (!next || next.type === "heading") &&
+    list.items.every((item) => {
+      const links = allLinks(item.tokens);
+      return links.length > 0 && links.every((link) => link.href.startsWith("#"));
+    });
+  return onlyAnchors ? [...blocks.slice(0, index), ...blocks.slice(index + 2)] : blocks;
+}
+
+/**
+ * Drop list items whose only link points at the page itself, such as a
+ * README's "Docs:" line linking to its own published URL.
+ */
+function dropSelfLinks(blocks, isSelfLink) {
+  const keep = (list) => {
+    list.items = list.items.filter((item) => {
+      item.tokens = item.tokens.filter((token) => token.type !== "list" || keep(token));
+      const links = allLinks(item.tokens.filter((token) => token.type !== "list"));
+      return !(links.length === 1 && isSelfLink(links[0].href.split("#")[0]));
+    });
+    return list.items.length > 0;
+  };
+  return blocks.filter((token) => token.type !== "list" || keep(token));
+}
+
+function allLinks(tokens = []) {
+  return tokens.flatMap((token) => {
+    if (token.type === "link") return [token];
+    if (token.type === "list") return token.items.flatMap((item) => allLinks(item.tokens));
+    return allLinks(token.tokens);
+  });
+}
+
+/** Split top-level blocks at h2/h3 into searchable sections; code is never indexed. */
+function splitSections(blocks) {
+  const sections = [];
+  let current = { id: "", heading: "", parts: [] };
+  const flush = () => {
+    const text = current.parts.join(" ").replace(/\s+/g, " ").trim();
+    if (current.heading || text) sections.push({ id: current.id, heading: current.heading, text });
+  };
+  for (const token of blocks) {
+    if (token.type === "heading" && token.depth <= 3) {
+      flush();
+      current = { id: token.id, heading: plainText(token.tokens), parts: [] };
+    } else {
+      current.parts.push(plainText([token]));
+    }
+  }
+  flush();
+  return sections;
+}
+
+/** The lead opens the page's preamble section (text before the first heading). */
+function withLead(sections, lead) {
+  if (!lead) return sections;
+  if (sections[0]?.heading === "") return [{ ...sections[0], text: `${lead} ${sections[0].text}`.trim() }, ...sections.slice(1)];
+  return [{ id: "", heading: "", text: lead }, ...sections];
 }

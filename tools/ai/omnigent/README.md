@@ -1,3 +1,13 @@
+---
+name: omnigent
+title: Omnigent
+description: Omnigent, an open-source AI agent meta-harness, on the agentbloat image so every bundled agent CLI is ready to orchestrate.
+upstream: https://github.com/omnigent-ai/omnigent
+order: 4
+images: [ghcr.io/hambn/omnigent, docker.io/hambn/omnigent]
+keywords: [agent meta-harness, multi-agent, agent orchestration, coding agents, agentbloat]
+---
+
 # omnigent
 
 [Omnigent](https://github.com/omnigent-ai/omnigent), an open-source AI agent meta-harness, on the [`agentbloat`](../agentbloat/) image so every bundled agent CLI is available to it. The entrypoint is `omnigent`.
@@ -45,10 +55,10 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 
 ## Use cases
 
-- **Orchestrate agents over a local checkout** — [`examples/docker/`](./examples/docker/).
-- **Rootless workstation** — [`examples/podman/`](./examples/podman/).
-- **Repeatable local sessions** — [`examples/docker-compose/`](./examples/docker-compose/).
-- **Air-gapped hosts** — the `airgapped.*` files in [`examples/docker/`](./examples/docker/) and [`examples/docker-compose/`](./examples/docker-compose/).
+- **Orchestrate agents over a local checkout** — [`docs/docker/`](./docs/docker/).
+- **Rootless agent orchestration on a workstation** — [`docs/podman/`](./docs/podman/).
+- **Repeatable local orchestration sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 
 ## Sources
 

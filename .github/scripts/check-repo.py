@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import datetime
 import json
+import math
 import os
 import pathlib
 import re
@@ -271,14 +273,20 @@ def check_tool_workflow(tool: pathlib.Path) -> None:
             error(f"{path}: pull_request.paths must include {needed}")
 
 
+def category_dirs() -> list[pathlib.Path]:
+    return sorted(category for category in pathlib.Path("tools").iterdir() if category.is_dir())
+
+
 def tool_dirs() -> list[pathlib.Path]:
-    return sorted(tool for category in pathlib.Path("tools").iterdir() if category.is_dir()
-                  for tool in category.iterdir() if tool.is_dir())
+    return sorted(tool for category in category_dirs() for tool in category.iterdir() if tool.is_dir())
 
 
 def check_tools(all_files: list[pathlib.Path]) -> None:
+    categories = category_dirs()
     tools = tool_dirs()
-    names = {tool.as_posix() for tool in tools}
+    for category in categories:
+        if not (category / "README.md").is_file():
+            error(f"{category}: missing README.md")
     for tool in tools:
         check_tool_workflow(tool)
         for name, target in bake_targets(tool).items():
@@ -289,10 +297,12 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
                 error(f"{tool}: missing {required}")
         if (tool / "images").exists():
             error(f"{tool}: images/ is obsolete; use one Dockerfile per tool")
-        examples = tool / "examples"
-        platforms = sorted(p for p in examples.iterdir() if p.is_dir()) if examples.is_dir() else []
+        if (tool / "examples").exists():
+            error(f"{tool}: examples/ is obsolete; use docs/<platform>/")
+        docs = tool / "docs"
+        platforms = sorted(p for p in docs.iterdir() if p.is_dir()) if docs.is_dir() else []
         if not platforms:
-            error(f"{tool}: missing examples/<platform>/")
+            error(f"{tool}: missing docs/<platform>/")
         for platform in platforms:
             readme = platform / "README.md"
             if not readme.is_file():
@@ -312,12 +322,315 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
             if re.search(r"apk\s+upgrade|apt-get\s+(dist-)?upgrade|apt\s+(full-|dist-)?upgrade", text):
                 error(f"{path}: use OS_REFRESH instead of upgrading packages")
 
-    links = (target.removeprefix("./").rstrip("/") for target in LINK.findall(pathlib.Path("README.md").read_text()))
-    catalog = [link for link in links if re.fullmatch(r"tools/[^/]+/[^/]+", link)]
-    if len(catalog) != len(set(catalog)):
-        error("README.md: duplicate catalog link")
-    if set(catalog) != names:
-        error(f"README.md catalog mismatch: missing={sorted(names - set(catalog))}, unexpected={sorted(set(catalog) - names)}")
+    documents = {
+        path.as_posix(): path.read_text() for path in all_files
+        if path.name == "README.md" and (path.parent == pathlib.Path(".") or path.parts[0] == "tools")
+    }
+    for path, problem in check_documents(documents):
+        error(f"{path}: {problem}")
+
+    links = [target.removeprefix("./").rstrip("/") for target in LINK.findall(documents.get("README.md", ""))]
+    for kind, pattern, expected in (
+        ("category", r"tools/[^/]+", {category.as_posix() for category in categories}),
+        ("catalog", r"tools/[^/]+/[^/]+", {tool.as_posix() for tool in tools}),
+    ):
+        found = [link for link in links if re.fullmatch(pattern, link)]
+        if len(found) != len(set(found)):
+            error(f"README.md: duplicate {kind} link")
+        if set(found) != expected:
+            error(f"README.md {kind} links mismatch: missing={sorted(expected - set(found))}, unexpected={sorted(set(found) - expected)}")
+
+
+# --- documents -----------------------------------------------------------------
+# The document contract (.agents/skills/documentation/SKILL.md): frontmatter the web UI
+# publishes, cross-document uniqueness and order, and category Tools sections.
+# web-ui/src/lib/frontmatter.mjs and content.mjs implement the same rules; both run the
+# shared cases in web-ui/tests/fixtures/documents.yaml (see test_check_repo.py).
+
+FRONTMATTER = re.compile(r"---\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
+CATEGORY_README = re.compile(r"tools/([^/]+)/README\.md")
+TOOL_README = re.compile(r"tools/([^/]+)/([^/]+)/README\.md")
+PLATFORM_README = re.compile(r"tools/([^/]+)/([^/]+)/docs/([^/]+)/README\.md")
+PLATFORM_NAMES = {
+    "docker": "Docker", "docker-compose": "Docker Compose", "podman": "Podman",
+    "kubernetes": "Kubernetes", "helm": "Helm",
+}
+REGISTRIES = ("ghcr.io/hambn/", "docker.io/hambn/")
+DESCRIPTION_LENGTH = (110, 160)
+USECASE_MAX = 80
+# Plain strings reach meta tags and JSON-LD verbatim: no code, emphasis, HTML, links, or headings.
+MARKUP = re.compile(r"[`*<>]|\]\(|^#|(?:^|[^A-Za-z0-9])_|_(?:[^A-Za-z0-9]|$)")
+HTTPS_URL = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:[/?#]\S*)?")
+TOOLS_SECTION = "Tools"
+TOOL_BULLET = re.compile(r"- \[[^\]]+\]\(\./([^/()\s]+)/\) — (\S.*)")
+NOT_PROSE = re.compile(r"\]\(|<")
+
+
+class StrictLoader(yaml.SafeLoader):
+    """SafeLoader that rejects duplicate mapping keys instead of keeping the last."""
+
+
+def _construct_unique_mapping(loader: StrictLoader, node: yaml.MappingNode, deep: bool = False) -> dict:
+    seen = set()
+    for key_node, _ in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        try:
+            duplicate = key in seen
+        except TypeError:
+            continue
+        if duplicate:
+            raise yaml.constructor.ConstructorError(None, None, f"duplicate key {key!r}", key_node.start_mark)
+        seen.add(key)
+    return loader.construct_mapping(node, deep)
+
+
+StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
+
+
+def type_name(value: object) -> str:
+    if value is None:
+        return "null"
+    return {bool: "boolean", int: "integer", float: "float", str: "string", list: "list", dict: "mapping"}.get(
+        type(value), "date" if isinstance(value, (datetime.date, datetime.datetime)) else type(value).__name__)
+
+
+def split_frontmatter(text: str) -> tuple[dict | None, str, str]:
+    """Return (data, body, error); data is None without frontmatter."""
+    match = FRONTMATTER.match(text)
+    if not match:
+        return None, text, ""
+    body = text[match.end():]
+    try:
+        data = yaml.load(match.group(1), Loader=StrictLoader)
+    except yaml.YAMLError as exc:
+        return {}, body, f"invalid YAML frontmatter: {str(exc).splitlines()[0]}"
+    if type(data) is not dict:
+        return {}, body, f"frontmatter must be a YAML mapping, got {type_name(data)}"
+    return data, body, ""
+
+
+def plain_problem(value: object) -> str:
+    if type(value) is not str:
+        return f"expected string, got {type_name(value)}"
+    text = value.strip()
+    if not text:
+        return "must not be empty"
+    if "\n" in text or "\r" in text:
+        return "must be a single line"
+    if MARKUP.search(text):
+        return "must be plain text without Markdown or HTML"
+    return ""
+
+
+def plain(extra=None):
+    def check(value, slug):
+        return plain_problem(value) or (extra(value.strip(), slug) if extra else "")
+    return check, str.strip
+
+
+def plain_list(low: int, high: int, extra=None):
+    def check(value, slug):
+        if type(value) is not list:
+            return f"expected list, got {type_name(value)}"
+        for item in value:
+            if problem := plain_problem(item):
+                return f"items: {problem}"
+        if not low <= len(value) <= high:
+            return f"must list {low}-{high} items, got {len(value)}"
+        seen = set()
+        for item in value:
+            if item.strip().lower() in seen:
+                return f'lists "{item.strip()}" more than once'
+            seen.add(item.strip().lower())
+        return extra([item.strip() for item in value], slug) if extra else ""
+    return check, lambda value: [item.strip() for item in value]
+
+
+def _name(value, slug):
+    return "" if value == slug else f'must equal the directory name "{slug}", got "{value}"'
+
+
+def _description(value, slug):
+    low, high = DESCRIPTION_LENGTH
+    return "" if low <= len(value) <= high else f"must be {low}-{high} characters, got {len(value)}"
+
+
+def _order(value, slug):
+    return "" if type(value) is int and value >= 1 else f"must be an integer of at least 1, got {type_name(value)} {value}"
+
+
+def _images(value, slug):
+    allowed = [f"{registry}{slug}" for registry in REGISTRIES]
+    bad = next((image for image in value if image not in allowed), None)
+    if bad:
+        return f'"{bad}" is not one of {", ".join(allowed)}'
+    return "" if value[0] == allowed[0] else f"must list {allowed[0]} first"
+
+
+def _upstream(value, slug):
+    return "" if HTTPS_URL.fullmatch(value) else f'must be an https URL, got "{value}"'
+
+
+def _platform_name(value, slug):
+    expected = PLATFORM_NAMES.get(slug)
+    return "" if value == expected else f'must be "{expected}" for docs/{slug}/, got "{value}"'
+
+
+def _usecase(value, slug):
+    return "" if len(value) <= USECASE_MAX else f"must be at most {USECASE_MAX} characters, got {len(value)}"
+
+
+# Each key: (required, (check, normalize)).
+SCHEMAS = {
+    "category": {
+        "name": (True, plain(_name)), "title": (True, plain()), "description": (True, plain(_description)),
+        "order": (True, (_order, int)),
+    },
+    "tool": {
+        "name": (True, plain(_name)), "title": (True, plain()), "description": (True, plain(_description)),
+        "order": (True, (_order, int)), "images": (True, plain_list(1, len(REGISTRIES), _images)),
+        "upstream": (False, plain(_upstream)), "keywords": (False, plain_list(3, 8)),
+    },
+    "platform": {
+        "name": (True, plain(_platform_name)), "description": (True, plain(_description)),
+        "usecase": (True, plain(_usecase)), "keywords": (False, plain_list(2, 6)),
+    },
+}
+
+
+def validate_frontmatter(data: dict | None, kind: str, slug: str) -> tuple[dict, list[str]]:
+    if data is None:
+        return {}, ["missing YAML frontmatter"]
+    schema = SCHEMAS[kind]
+    problems = [f'unknown frontmatter key "{key}"; allowed: {", ".join(schema)}' for key in data if key not in schema]
+    meta = {}
+    for key, (required, (check, normalize)) in schema.items():
+        if key not in data:
+            if required:
+                problems.append(f'missing required key "{key}"')
+            continue
+        if problem := check(data[key], slug):
+            problems.append(f"{key}: {problem}")
+        else:
+            meta[key] = normalize(data[key])
+    return meta, problems
+
+
+def tools_section_problems(body: str, expected: list[str], ordered: bool = True) -> list[str]:
+    """Only bullets and blank lines; each bullet links one tool; every tool once, in order.
+
+    Without a valid order on every tool (`ordered` false), only the set of links is checked,
+    so one bad `order` is not reported twice.
+    """
+    lines = re.split(r"\r?\n", body)
+    heading = f"## {TOOLS_SECTION}"
+    start = next((index for index, line in enumerate(lines) if line.rstrip() == heading), None)
+    if start is None:
+        return [f'needs a "{heading}" section listing its tools']
+    problems, linked = [], []
+    for line in lines[start + 1:]:
+        if re.match(r"#{1,2} ", line):
+            break
+        if not line.strip():
+            continue
+        match = TOOL_BULLET.fullmatch(line)
+        if not match or NOT_PROSE.search(match.group(2)):
+            problems.append(f'{heading}: "{line.strip()}" is not a "- [Title](./<tool>/) — description" bullet with prose only')
+        else:
+            linked.append(match.group(1))
+    if (linked if ordered else sorted(linked)) != (expected if ordered else sorted(expected)):
+        problems.append(f"{heading} must link each tool once, in order: expected {', '.join(expected) or 'none'}, "
+                        f"got {', '.join(linked) or 'none'}")
+    return problems
+
+
+def check_documents(documents: dict[str, str]) -> list[tuple[str, str]]:
+    """Every (path, problem) in the root, category, tool, and platform READMEs, keyed by repository path."""
+    problems: list[tuple[str, str]] = []
+
+    def report(path: str, found: list[str]) -> None:
+        problems.extend((path, problem) for problem in found)
+
+    def load(path: str, kind: str, slug: str) -> dict:
+        data, body, parse_error = split_frontmatter(documents[path])
+        if parse_error:
+            report(path, [parse_error])
+            return {"source": path, "body": body, "meta": {}}
+        meta, found = validate_frontmatter(data, kind, slug)
+        report(path, found)
+        return {"source": path, "body": body, "meta": meta}
+
+    paths = sorted(documents)
+    categories: dict[str, dict] = {}
+    for path in paths:
+        if match := CATEGORY_README.fullmatch(path):
+            categories[match[1]] = {"slug": match[1], **load(path, "category", match[1]), "tools": []}
+    tools: dict[str, dict] = {}
+    for path in paths:
+        if not (match := TOOL_README.fullmatch(path)):
+            continue
+        category_slug, slug = match.groups()
+        if category_slug not in categories:
+            report(path, [f"tools need a category README at tools/{category_slug}/README.md"])
+            categories[category_slug] = {"slug": category_slug, "source": None, "body": "", "meta": {}, "tools": []}
+        tool = {"slug": slug, **load(path, "tool", slug), "platforms": []}
+        categories[category_slug]["tools"].append(tool)
+        tools[f"{category_slug}/{slug}"] = tool
+    for path in paths:
+        if not (match := PLATFORM_README.fullmatch(path)):
+            continue
+        category_slug, tool_slug, slug = match.groups()
+        tool = tools.get(f"{category_slug}/{tool_slug}")
+        if tool is None:
+            report(path, [f"platform docs need a tool README at tools/{category_slug}/{tool_slug}/README.md"])
+        elif slug not in PLATFORM_NAMES:
+            report(path, [f"docs/{slug}/ is not a known platform; expected one of {', '.join(PLATFORM_NAMES)}"])
+        else:
+            tool["platforms"].append({"slug": slug, **load(path, "platform", slug)})
+
+    if "README.md" in documents:
+        if split_frontmatter(documents["README.md"])[0] is not None:
+            report("README.md", ["the root README must not have frontmatter"])
+    else:
+        report("README.md", ["the root README is not tracked"])
+
+    # Invalid documents have no order and sort last, by name.
+    def by_order(doc: dict) -> tuple[float, str]:
+        return (doc["meta"].get("order", math.inf), doc["slug"])
+
+    ordered = sorted(categories.values(), key=by_order)
+    rank = list(PLATFORM_NAMES)
+    for category in ordered:
+        category["tools"].sort(key=by_order)
+        for tool in category["tools"]:
+            tool["platforms"].sort(key=lambda platform: rank.index(platform["slug"]))
+    tool_list = [tool for category in ordered for tool in category["tools"]]
+    platforms = [platform for tool in tool_list for platform in tool["platforms"]]
+    documented = [category for category in ordered if category["source"]]
+
+    for category in documented:
+        slugs = [tool["slug"] for tool in category["tools"]]
+        ordered_tools = all("order" in tool["meta"] for tool in category["tools"])
+        report(category["source"], tools_section_problems(category["body"], slugs, ordered_tools))
+
+    def unique(label: str, docs: list[dict], key: str, scope: str) -> None:
+        seen: dict[str, str] = {}
+        for doc in docs:
+            if key not in doc["meta"]:
+                continue
+            value = str(doc["meta"][key]).lower()
+            if value in seen:
+                report(doc["source"], [f"{label} duplicates {seen[value]}; make it unique {scope}"])
+            else:
+                seen[value] = doc["source"]
+
+    unique("description", documented + tool_list + platforms, "description", "across all documents")
+    unique("order", documented, "order", "among categories")
+    for category in ordered:
+        unique("order", category["tools"], "order", f"within tools/{category['slug']}/")
+    for tool in tool_list:
+        unique("usecase", tool["platforms"], "usecase", "within the tool")
+    return problems
 
 
 # Build args that are set per variant or by CI rather than pinned to an upstream release.
@@ -342,7 +655,7 @@ def check_files(all_files: list[pathlib.Path]) -> None:
         posix = path.as_posix()
         must_execute = (
             (posix.startswith(".github/scripts/") and path.suffix == ".sh")
-            or (posix.startswith("tools/") and path.suffix == ".sh" and {"examples", "tests"} & set(path.parts))
+            or (posix.startswith("tools/") and path.suffix == ".sh" and {"docs", "tests"} & set(path.parts))
             or posix.startswith("tools/base/devbox/scripts/")
         )
         if must_execute and not os.access(path, os.X_OK):
@@ -383,6 +696,7 @@ def run_suites() -> None:
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/check-agent-workspace.sh"],
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/test-check-agent-workspace.sh"],
         [sys.executable, "-B", ".github/scripts/test_validate_pr_metadata.py"],
+        [sys.executable, "-B", ".github/scripts/test_check_repo.py"],
     ):
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:

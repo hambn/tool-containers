@@ -2,7 +2,7 @@
 #   docker buildx bake                    # build every variant
 #   docker buildx bake core-alpine        # build one variant
 #   docker buildx bake --print            # show what would be built
-# CI builds one variant per job from this file; see .github/workflows/_image.yml.
+# CI builds one variant per job from this file; see .github/workflows/tool-image.yml.
 
 target "core" {
   name    = "core-${distro}"

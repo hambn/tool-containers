@@ -9,8 +9,9 @@ bash .agents/skills/repository-changes/scripts/validate-change.sh
 The wrapper runs the static repository validator `.github/scripts/check-repo.py` and
 whitespace checks for staged and unstaged changes. The validator covers agent-workspace
 integrity, workflow YAML, Dockerfile and bake contracts, Renovate comments on `ARG` pins,
-per-tool workflows, test layout, executable bits, Markdown links, and Compose/Helm rendering when those tools are
-available. It never builds, pulls, or runs an image.
+per-tool workflows, test layout, executable bits, Markdown links, documentation
+frontmatter, and Compose/Helm rendering when those tools are available. It never builds,
+pulls, or runs an image.
 
 Linters that cannot be verified statically on every machine (for example hadolint,
 shellcheck, shfmt, actionlint) run in the `lint` job of `.github/workflows/pr.yml`. Run
@@ -24,7 +25,7 @@ them locally when installed; otherwise say they are left to CI.
   locally only when the user authorizes it.
 - **Image CI:** after changing `tool-image.yml` or a tool workflow, inspect it against the
   contracts in the `$container-images` CI guide; actionlint runs in the `lint` job.
-- **Deployment examples:** render or lint the affected format and inspect secrets,
+- **Platform docs:** render or lint the affected format and inspect secrets,
   mounts, image references, and offline behavior.
 - **GitHub Actions:** inspect events, path filters, permissions, secrets, concurrency,
   matrix selection, shell, and publication gates.

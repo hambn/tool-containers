@@ -1,3 +1,12 @@
+---
+name: core
+title: core
+description: Hardened minimal base images on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, curl, bash, and a nonroot user.
+order: 1
+images: [ghcr.io/hambn/core, docker.io/hambn/core]
+keywords: [base image, wolfi, alpine, ubuntu, nonroot, hardened]
+---
+
 # core
 
 Hardened minimal base images on [Wolfi](https://github.com/wolfi-dev),
@@ -39,11 +48,12 @@ Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Tags are t
 
 ## Use cases
 
-- Open a throwaway shell with curl and bash with [Docker](examples/docker/).
-- Start a derived application image `FROM ghcr.io/hambn/core:wolfi` with
-  [Docker](examples/docker/).
-- Run a read-only, capability-free shell service with
-  [Docker Compose](examples/docker-compose/).
+- **Throwaway shell** — curl and bash in a disposable container with
+  [Docker](docs/docker/).
+- **Base for your own image** — a derived application image
+  `FROM ghcr.io/hambn/core:wolfi` with [Docker](docs/docker/).
+- **Locked-down read-only shell service** — no capabilities and a read-only root with
+  [Docker Compose](docs/docker-compose/).
 
 ## Sources
 

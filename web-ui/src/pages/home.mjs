@@ -1,77 +1,58 @@
-import {
-  escapeHtml,
-  catalogDescriptions,
-  documentTitle,
-  leadParagraph,
-  truncate,
-} from "../lib/markdown.mjs";
-import { platformLabel } from "../lib/catalog.mjs";
-import { icon } from "../lib/icons.mjs";
+import { html, raw } from "../lib/html.mjs";
+import { categoryAnchor, categoryRoute, registryLabel, toolRoute } from "../lib/site.mjs";
+import { sentences } from "../lib/text.mjs";
+import { imageList } from "../lib/ui.mjs";
 
-function toolCard({ category, tool, platforms, description, config }) {
-  const route = `/docs/${category}/${tool}/`;
-  const search = [tool, category, description, ...platforms]
-    .join(" ")
-    .toLowerCase();
-  return `<li class="tool-card" data-catalog-item data-search="${escapeHtml(search)}">
-<div class="tool-card-body">
-<a class="tool-link" href="${config.href(route)}"><div class="tool-title"><span class="tool-symbol" aria-hidden="true">${icon("box")}</span><h3>${escapeHtml(tool)}</h3></div>${icon("arrow", "tool-arrow")}</a>
-<p class="tool-desc">${escapeHtml(truncate(description, 160))}</p>
-</div>
-<div class="tool-platforms" aria-label="${escapeHtml(tool)} examples">
-${platforms.map((platform) => `<a href="${config.href(`${route}${platform}/`)}">${escapeHtml(platformLabel(platform))}</a>`).join("")}
-${!platforms.length ? "<span>Documentation</span>" : ""}
-</div>
+const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+
+function toolRow(tool, site, icon) {
+  const { meta } = tool;
+  // The filter matches the words the row shows, plus the keywords search would match.
+  const text = [meta.title, meta.description, ...meta.images, tool.category.meta.title, ...meta.keywords].join(" ");
+  return html`<li class="row" data-category="${tool.category.slug}" data-text="${text}">
+<div class="row-main"><h3 class="row-title"><a href="${site.config.href(toolRoute(tool))}">${meta.title}</a></h3><p class="row-desc">${meta.description}</p></div>
+${imageList(meta.images, icon)}
 </li>`;
 }
 
-function categorySection({ category, tools, descriptions, documents, config }) {
-  return `<section class="tool-section" data-catalog-group="${escapeHtml(category)}" aria-labelledby="category-${escapeHtml(category)}">
-<div class="section-head"><h2 id="category-${escapeHtml(category)}">${escapeHtml(category)}</h2><span class="badge badge-secondary">${tools.length}</span></div>
-${
-  tools.length
-    ? `<ul class="tool-grid">${tools
-        .map((entry) =>
-          toolCard({
-            ...entry,
-            description:
-              descriptions.get(`tools/${category}/${entry.tool}`) ||
-              leadParagraph(documents.get(entry.readme)),
-            config,
-          }),
-        )
-        .join("")}</ul>`
-    : '<p class="category-empty">No tools yet.</p>'
-}
+function hero(site, readme, icon) {
+  const { catalog, config } = site;
+  const registries = [...new Set(catalog.tools.flatMap((tool) => tool.meta.images.map(registryLabel)))];
+  const stats = [
+    plural(catalog.tools.length, "image"),
+    plural(catalog.categories.length, "category", "categories"),
+    plural(site.recipeCount, "recipe"),
+  ];
+  return html`<section class="hero">
+<h1>${readme.title}</h1>
+<p class="hero-lead">${sentences(readme.lead)[0] ?? ""}</p>
+<div class="hero-actions">
+<a class="search-trigger hero-search" href="${config.href("/search/")}" data-search-open aria-keyshortcuts="Control+K Meta+K">${raw(icon("search"))}<span class="search-label">Search images and recipes…</span><kbd data-hotkey>Ctrl K</kbd></a>
+<a class="button ghost" href="${config.href(site.docs.route)}">Read the docs</a>
+</div>
+<ul class="stats">${stats.map((stat) => html`<li>${stat}</li>`)}${registries.length ? html`<li>Published to ${registries.join(" and ")}</li>` : ""}</ul>
 </section>`;
 }
 
-export function renderHome({ site, documents }) {
-  const { config, catalog, toolCount, exampleCount } = site;
-  const readme = documents.get("README.md");
-  const descriptions = catalogDescriptions(readme);
-  const intro = leadParagraph(readme);
-  const summary =
-    [
-      ...new Intl.Segmenter("en", { granularity: "sentence" }).segment(intro),
-    ][0]?.segment.trim() || intro;
-
-  return `<main class="content home" id="content" tabindex="-1">
-<div class="content-inner wide">
-<section class="hero" aria-labelledby="catalog-title">
-<p class="eyebrow">${icon("box")}Container catalog</p>
-<h1 id="catalog-title">${escapeHtml(documentTitle(readme))}</h1>
-<p class="lead">${escapeHtml(summary)}</p>
-<div class="hero-bottom"><p class="catalog-count"><strong>${toolCount}</strong> tools<span aria-hidden="true">/</span><strong>${exampleCount}</strong> examples</p>
-<a class="text-link" href="${config.href("/docs/")}">Documentation${icon("arrow")}</a></div>
-</section>
-<div class="catalog-toolbar" data-catalog-controls hidden>
-<div class="catalog-search">${icon("search")}<label class="sr-only" for="catalog-search">Search tools and platforms</label><input id="catalog-search" type="search" placeholder="Search tools, platforms…" autocomplete="off" spellcheck="false"><kbd class="filter-kbd" aria-hidden="true">/</kbd></div>
-<div class="category-filters" role="group" aria-label="Filter by category"><button type="button" data-category="" aria-pressed="true">All tools</button>${catalog.map(({ category }) => `<button type="button" data-category="${escapeHtml(category)}" aria-pressed="false">${escapeHtml(category)}</button>`).join("")}</div>
-</div>
-<p class="sr-only" data-catalog-status role="status"></p>
-${catalog.map((entry) => categorySection({ ...entry, descriptions, documents, config })).join("\n")}
-<div class="empty catalog-empty" data-catalog-empty hidden><span class="empty-media">${icon("search")}</span><p class="empty-title">No matching tools</p><p class="empty-description">Try a different name or platform.</p><button class="btn btn-outline" type="button" data-catalog-reset>Clear filters</button></div>
-</div>
-</main>`;
+/** The catalog: a hero from the root README, then images grouped by category in `order`. */
+export function homePage({ site, readme, icon }) {
+  const { catalog, config } = site;
+  return html`<div class="container home">
+${hero(site, readme, icon)}
+<form class="filter" role="search" aria-label="Filter images" data-filter>
+<div class="filter-input">${raw(icon("search"))}<input type="search" name="q" placeholder="Filter images…" aria-label="Filter images" autocomplete="off" spellcheck="false"></div>
+<span class="select"><select name="category" aria-label="Category"><option value="">All categories</option>${catalog.categories.map(({ slug, meta }) => html`<option value="${slug}">${meta.title}</option>`)}</select>${raw(icon("chevron"))}</span>
+</form>
+<p class="filter-status" role="status" data-filter-status></p>
+${catalog.categories.map(
+  (category) => html`<section class="group" id="${categoryAnchor(category.slug)}" aria-labelledby="${categoryAnchor(category.slug)}-title" data-group>
+<header class="group-head">
+<h2 class="group-title" id="${categoryAnchor(category.slug)}-title"><a href="${config.href(categoryRoute(category))}">${category.meta.title}</a> <span class="count" data-count>${category.tools.length}</span></h2>
+<p class="group-desc">${category.meta.description}</p>
+</header>
+<ul class="rows">${category.tools.map((tool) => toolRow(tool, site, icon))}</ul>
+</section>`,
+)}
+<div class="empty" data-filter-empty hidden><p>No images match these filters.</p><button type="button" class="button" data-filter-reset>Clear filters</button></div>
+</div>`;
 }

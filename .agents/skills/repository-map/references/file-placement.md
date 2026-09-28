@@ -18,7 +18,7 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 | Its variants and labels | `tools/<category>/<tool>/docker-bake.hcl` |
 | Its CI workflow | `.github/workflows/<category>-<tool>.yml` (calls `tool-image.yml`) |
 | Its tests | `tools/<category>/<tool>/tests/` |
-| One platform example | `tools/<category>/<tool>/examples/<platform>/` |
+| One platform doc | `tools/<category>/<tool>/docs/<platform>/` |
 | Web application source, config, assets, tests | `web-ui/` |
 
 ## Coupled changes
@@ -26,10 +26,10 @@ Choose a location by ownership first, then copy the shape of the nearest valid n
 - Adding an image tool changes its directory (including `docker-bake.hcl`), one
   `.github/workflows/<category>-<tool>.yml`, and one root catalog row.
 - Adding or renaming a variant changes the bake matrix, Dockerfile stages, tests, tool
-  README, and every affected example.
+  README, and every affected platform doc.
 - Bumping a version changes only the `ARG` default in the tool's `Dockerfile` (plus README
   text that states it).
-- Adding a platform example changes only the owning tool and its Use cases links.
+- Adding a platform doc changes only the owning tool and its Use cases links.
 - Adding a repository skill changes its own directory; update `AGENTS.md` only for a
   mandatory or deliberately always-on route, and docs or CI only when
   discovery or validation paths change.

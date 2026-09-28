@@ -11,7 +11,7 @@ body:
       options:
         - Existing image
         - New image
-        - Deployment example
+        - Platform docs
         - Publishing or repository automation
         - Documentation
         - Repository tooling

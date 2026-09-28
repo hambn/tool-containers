@@ -1,0 +1,148 @@
+.prose {
+  margin-top: 32px;
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+}
+.prose > * + * { margin-top: 16px; }
+.prose h2 {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.prose > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.prose h3 { margin-top: 32px; font-size: 16px; line-height: 1.4; }
+.prose h4 { margin-top: 24px; font-size: 14px; }
+.prose a {
+  text-decoration: underline;
+  text-decoration-color: var(--muted-fg);
+  text-underline-offset: 3px;
+}
+.prose a:hover { text-decoration-color: var(--accent); }
+.prose ul, .prose ol { padding-left: 24px; }
+.prose li + li { margin-top: 4px; }
+.prose li > ul, .prose li > ol { margin-top: 4px; }
+.prose strong { font-weight: 600; }
+/* Blockquotes read as callouts. */
+.prose blockquote {
+  margin-inline: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.prose blockquote > * + * { margin-top: 8px; }
+.prose hr { border: 0; border-top: 1px solid var(--border); }
+.prose :not(pre) > code, .lead code {
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  font-size: 0.85em;
+}
+
+/* Heading anchors, wherever headings are rendered. */
+.anchor {
+  margin-left: 8px;
+  color: var(--muted-fg);
+  font-weight: 400;
+  text-decoration: none !important;
+  opacity: 0;
+}
+:is(h2, h3, h4):hover > .anchor, .anchor:focus-visible { opacity: 1; }
+
+/* Code blocks: a header with the language and a copy button, then the code. */
+.code {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--code-bg);
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 4px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.code-lang { color: var(--muted-fg); font-size: 12px; font-weight: 500; }
+.code pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.code pre:focus-visible { outline-offset: -2px; }
+.files { margin-top: 40px; }
+.files > * + * { margin-top: 12px; }
+.file {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.file summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 44px 4px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.5;
+  list-style: none;
+}
+.file summary::-webkit-details-marker { display: none; }
+.file summary:hover { background: var(--hover); }
+.file summary:focus-visible { outline-offset: -2px; }
+.file summary .i-chevron { width: 14px; height: 14px; color: var(--muted-fg); transition: transform 0.15s; }
+.file details[open] > summary .i-chevron { transform: rotate(90deg); }
+.file-name { font-family: var(--mono); font-weight: 500; overflow-wrap: anywhere; }
+.file-lines { flex: none; color: var(--muted-fg); }
+.file > .copy { position: absolute; top: 4px; right: 4px; }
+.file .code {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* Tables scroll inside their region; inline code never breaks mid-word. */
+.table {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.table:focus-visible { outline-offset: 2px; }
+.table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.table th, .table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.table tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover { background: var(--hover); }
+.table th {
+  background: var(--surface-2);
+  color: var(--muted-fg);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.table code { white-space: nowrap; }

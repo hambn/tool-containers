@@ -8,9 +8,9 @@ Use the repository skills under `.agents/skills/` through progressive disclosure
   changing the repository layout.
 - Use `$container-images` for anything under `tools/` (including
   each tool's `docker-bake.hcl` and `Dockerfile` pins), `.github/renovate.json5`, the image
-  catalog, platform examples, registries and tags, or image CI workflows.
+  catalog, platform docs, registries and tags, or image CI workflows.
 - Use `$documentation` when writing, editing, or reviewing any README or document in
-  this repository — catalog, tool, or platform example docs — and their cross-links.
+  this repository — catalog, tool, or platform docs — and their cross-links.
 - Use `$web-ui` for product, design, implementation, testing, build, deployment, or CI
   work whose primary target is `web-ui/`.
 - Use `$maintain-agent-workspace` after every repository-changing task and whenever

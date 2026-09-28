@@ -1,157 +1,142 @@
-import fs from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
-import {
-  resolveConfig,
-  lastModified,
-  repoRoot,
-  uiRoot,
-} from "./lib/config.mjs";
-import { buildSite, exampleFiles } from "./lib/catalog.mjs";
-import { createTheme } from "./lib/highlight.mjs";
-import { renderDocument, tableOfContents } from "./lib/markdown.mjs";
-import {
-  createAssets,
-  readStyles,
-  minifyCss,
-  minifyJs,
-} from "./lib/assets.mjs";
-import { pageMeta, structuredData } from "./lib/seo.mjs";
-import { renderShell } from "./lib/layout.mjs";
-import { renderHome } from "./pages/home.mjs";
-import { renderDocs } from "./pages/docs.mjs";
-import { renderNotFound } from "./pages/not-found.mjs";
+import { pathToFileURL } from "node:url";
+import { assetHref, createOutput, pngToIco } from "./lib/assets.mjs";
+import { ConfigError, repoRoot, resolveConfig, uiRoot } from "./lib/config.mjs";
+import { ContentError, TOOLS_SECTION, assertValid, discover, readInlineFiles } from "./lib/content.mjs";
+import { combinedDates, commitDates, trackedFiles } from "./lib/git.mjs";
+import { createCodeHighlighter } from "./lib/highlight.mjs";
+import { createIcons, spriteSvg } from "./lib/icons.mjs";
+import { TEMPLATE_IDS, renderPage } from "./lib/layout.mjs";
+import { createLinkResolver } from "./lib/links.mjs";
+import { createMarkdown } from "./lib/markdown.mjs";
+import { searchIndex } from "./lib/search-index.mjs";
+import { describePages, llmsTxt, manifest, robots, sitemap, structuredData } from "./lib/seo.mjs";
+import { buildSite, sourceRoute } from "./lib/site.mjs";
+import { docPage } from "./pages/doc.mjs";
+import { homePage } from "./pages/home.mjs";
+import { notFoundPage } from "./pages/not-found.mjs";
+import { searchPage } from "./pages/search.mjs";
 
-const distRoot = path.join(uiRoot, "dist");
+const TEMPLATES = { home: homePage, docs: docPage, category: docPage, tool: docPage, platform: docPage, search: searchPage, notFound: notFoundPage };
 
-const config = resolveConfig();
-const site = buildSite(config);
-const theme = await createTheme();
-const assets = createAssets({ distRoot, config });
-
-fs.rmSync(distRoot, { recursive: true, force: true });
-
-/** Every source document, read once and shared by rendering, meta and search. */
-const documents = new Map();
-for (const page of site.pages) {
-  if (!documents.has(page.source)) {
-    documents.set(
-      page.source,
-      fs.readFileSync(path.join(repoRoot, page.source), "utf8"),
-    );
-  }
-}
-
-/*
- * Pass 1 — render page bodies. Highlighting interns its token styles as it
- * runs, so the stylesheet can only be written once every fence is rendered.
+/**
+ * Build the site from the Git-tracked documents under `root` into `outDir`.
+ * Every document is validated and rendered first; any problem fails the build
+ * with all of them listed and leaves `outDir` untouched. The site is written
+ * to a sibling directory and swapped in, so a server never sees it half-built.
+ * @param {{ env?: NodeJS.ProcessEnv, root?: string, outDir?: string }} [options]
+ * @returns {Promise<{ pages: number, outDir: string }>}
  */
-const rendered = [];
-for (const page of site.pages) {
-  const markdown = documents.get(page.source);
-  const meta = pageMeta(page, markdown, site);
-  const modified = lastModified(page.source);
-  let body;
+export async function build({ env = process.env, root = repoRoot, outDir = path.join(uiRoot, "dist") } = {}) {
+  const config = resolveConfig(env);
+  const inventory = trackedFiles(root);
+  const read = (file) => readFileSync(path.join(root, file), "utf8");
+  const { catalog, problems } = discover({ files: inventory, read });
 
-  if (page.kind === "home") {
-    body = renderHome({ site, documents });
-  } else {
-    const sourceDir = path.posix.dirname(page.source);
-    const article = await renderDocument(markdown, {
-      sourceDir,
-      site,
-      theme,
-      files: page.kind === "example" ? exampleFiles(sourceDir) : [],
-    });
-    body = renderDocs({ page, site, article, toc: tableOfContents(article) });
+  const highlighter = await createCodeHighlighter();
+  // Icon hrefs only need the sprite's final URL, which depends on its content alone.
+  const sprite = spriteSvg();
+  const icon = createIcons(assetHref(config, "icons", "svg", sprite));
+  const routeBySource = new Map(inventory.map((file) => [file, sourceRoute(file)]).filter(([, route]) => route));
+  const render = createMarkdown({
+    highlighter,
+    icon,
+    reservedIds: TEMPLATE_IDS,
+    resolveLink: createLinkResolver({ config, routeBySource, files: inventory }),
+  });
+
+  // Render every document before anything is written, so link and markup
+  // problems are reported together with frontmatter problems.
+  const bySource = new Map();
+  const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // A tool page's facts panel links its source directory, so a README bullet linking it again is dropped.
+  const isSelfLink = (doc, { facts }) => {
+    const self = config.href(sourceRoute(doc.source));
+    const tree = facts ? new RegExp(`/tree/[^/]+/${escapeRegExp(path.posix.dirname(doc.source))}/?$`) : null;
+    return (href) => href === self || Boolean(tree?.test(href));
+  };
+  const renderDoc = (doc, { facts = false, ...options } = {}) => {
+    const rendered = render(doc.body, { source: doc.source, isSelfLink: isSelfLink(doc, { facts }), ...options });
+    problems.push(...rendered.problems);
+    bySource.set(doc.source, rendered);
+  };
+  renderDoc(catalog.readme);
+  for (const category of catalog.categories) {
+    if (category.source) renderDoc(category, { slot: TOOLS_SECTION });
+    for (const tool of category.tools) {
+      renderDoc(tool, { facts: true });
+      for (const platform of tool.platforms) {
+        renderDoc(platform, { facts: true, files: readInlineFiles(root, path.posix.dirname(platform.source), platform.files) });
+      }
+    }
   }
+  assertValid(problems);
 
-  rendered.push({
-    page,
-    body,
-    meta,
-    modified,
-    structuredData: structuredData(page, { site, meta, markdown, modified }),
-  });
+  const site = buildSite(config, catalog);
+  const readme = bySource.get("README.md");
+  // The home page and /docs/ share one rendering of the root README.
+  const rendered = new Map(site.pages.filter((page) => page.source).map((page) => [page, bySource.get(page.source)]));
+  const meta = describePages(site, readme);
+  const dates = commitDates(root);
+
+  mkdirSync(path.dirname(outDir), { recursive: true });
+  const staging = mkdtempSync(path.join(path.dirname(outDir), `.${path.basename(outDir)}-`));
+  try {
+    const output = createOutput(staging, config);
+    output.asset("icons", "svg", sprite);
+    const assets = {
+      css: await output.css(highlighter.css()),
+      js: await output.js(),
+      theme: await output.inlineScript("theme.js"),
+      index: output.asset("search", "json", JSON.stringify(searchIndex(site, rendered, meta))),
+    };
+
+    const entries = [];
+    for (const page of site.pages) {
+      const pageDates = combinedDates(dates, page.sources);
+      const heading = page.kind === "home" ? readme.title : page.heading;
+      const seo = { ...meta.get(page), dates: pageDates };
+      seo.structuredData = structuredData(page, site, { ...seo, heading });
+      const main = TEMPLATES[page.kind]({ page, site, readme, rendered: rendered.get(page), dates: pageDates, icon });
+      output.write(page.file, renderPage({ page, site, seo, main, assets, icon }));
+      entries.push({ page, dates: pageDates });
+    }
+
+    output.copyPublic();
+    output.write("favicon.ico", pngToIco(readFileSync(path.join(uiRoot, "public/apple-touch-icon.png"))));
+    output.write("site.webmanifest", manifest(site, meta));
+    output.write("sitemap.xml", sitemap(entries, config));
+    output.write("robots.txt", robots(config));
+    output.write("llms.txt", llmsTxt(site, meta, readme));
+    // Serve files as-is: no Jekyll processing on GitHub Pages.
+    output.write(".nojekyll", "");
+    swapIn(staging, outDir);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+  return { pages: site.pages.length, outDir };
 }
 
-/* Pass 2 — emit the shared assets, then the pages that reference them. */
-
-const publicDir = path.join(uiRoot, "public");
-for (const file of fs.readdirSync(publicDir)) {
-  assets.copy(path.join(publicDir, file), file);
+/**
+ * Replace `outDir` with the finished `staging` directory. Two renames on the
+ * same filesystem: the old site is served until the instant the new one lands.
+ */
+function swapIn(staging, outDir) {
+  const retired = `${staging}-old`;
+  const hadPrevious = existsSync(outDir);
+  if (hadPrevious) renameSync(outDir, retired);
+  renameSync(staging, outDir);
+  if (hadPrevious) rmSync(retired, { recursive: true, force: true });
 }
 
-const styles = assets.emit(
-  "site.css",
-  minifyCss(
-    ["base.css", "home.css", "docs.css"]
-      .map((file) => readStyles(`styles/${file}`, config))
-      .join("\n") + theme.css(),
-  ),
-);
-const script = assets.emit(
-  "site.js",
-  minifyJs(fs.readFileSync(path.join(uiRoot, "src/client/site.js"), "utf8")),
-);
-const themeScript = minifyJs(
-  fs.readFileSync(path.join(uiRoot, "src/client/theme.js"), "utf8"),
-);
-
-const shared = {
-  styles,
-  script,
-  themeScript,
-  favicon: config.href("/favicon.svg"),
-  appleTouchIcon: config.href("/apple-touch-icon.png"),
-  manifest: config.href("/site.webmanifest"),
-};
-
-for (const { page, body, meta, structuredData: data } of rendered) {
-  const html = renderShell({
-    page,
-    body,
-    meta,
-    config,
-    assets: shared,
-    structuredData: data,
-  });
-  assets.write(path.join(page.route, "index.html"), html);
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  try {
+    const { pages, outDir } = await build();
+    console.log(`built ${pages} pages into ${path.relative(process.cwd(), outDir) || "."}`);
+  } catch (error) {
+    if (!(error instanceof ContentError || error instanceof ConfigError)) throw error;
+    console.error(`build failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 }
-
-const notFound = { id: "404", kind: "404", route: "/404.html", source: null };
-assets.write(
-  "404.html",
-  renderShell({
-    page: notFound,
-    body: renderNotFound(config),
-    meta: {
-      title: "Page not found",
-      description: "This page is not part of the tool-containers site.",
-    },
-    config,
-    assets: shared,
-  }),
-);
-
-/* Discovery: a sitemap dated from the repository's own history, and robots. */
-
-const urls = rendered
-  .map(({ page, modified }) => {
-    const lastmod = modified ? `<lastmod>${modified}</lastmod>` : "";
-    return `  <url><loc>${config.canonical(page.route)}</loc>${lastmod}</url>`;
-  })
-  .join("\n");
-
-assets.write(
-  "sitemap.xml",
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
-);
-assets.write(".nojekyll", "");
-assets.write(
-  "robots.txt",
-  `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`,
-);
-
-console.log(
-  `built ${rendered.length} pages + /404.html into ${path.relative(uiRoot, distRoot)}/`,
-);
