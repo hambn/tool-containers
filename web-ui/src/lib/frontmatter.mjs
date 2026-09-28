@@ -1,9 +1,12 @@
 import { parse as parseYaml } from "yaml";
 
 /**
- * The frontmatter contract for repository documents. Tool and platform
- * READMEs carry the metadata the site publishes; anything outside this schema
- * fails the build so a typo can never silently drop a title or description.
+ * The frontmatter contract for repository documents (defined in
+ * .agents/skills/documentation/SKILL.md). Category, tool, and platform READMEs
+ * carry the metadata the site publishes; anything outside this schema fails
+ * the build so a typo can never silently drop a title or description.
+ * `.github/scripts/check-repo.py` implements the same rules, and both run the
+ * shared cases in tests/fixtures/frontmatter.yaml to prove it.
  */
 
 /** Platform directories and their fixed display names, in reading order. */
@@ -15,17 +18,50 @@ export const PLATFORMS = new Map([
   ["helm", "Helm"],
 ]);
 
-export const IMAGE_PREFIX = "ghcr.io/hambn/";
+/** Registries a tool image may be listed on; the first is required and listed first. */
+export const REGISTRIES = ["ghcr.io/hambn/", "docker.io/hambn/"];
 export const DESCRIPTION_LENGTH = { min: 110, max: 160 };
 const USECASE_MAX = 80;
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
-// Descriptions end up in meta tags and JSON-LD verbatim, so markup would leak.
-const MARKUP = /[`<>]|\*\*|__|\[[^\]]*\]\(/;
+// Plain strings end up in meta tags and JSON-LD verbatim, so markup would leak:
+// no code, emphasis, HTML, links, or headings.
+const MARKUP = /[`*<>]|\]\(|^#|(?:^|[^A-Za-z0-9])_|_(?:[^A-Za-z0-9]|$)/;
+const HTTPS_URL = /^https:\/\/[A-Za-z0-9.-]+(?::[0-9]+)?(?:[/?#]\S*)?$/;
+
+/**
+ * check-repo.py parses with PyYAML (YAML 1.1), so the site parses YAML 1.1 too,
+ * with PyYAML's implicit resolvers where the `yaml` package's differ (`y` and
+ * `1e3` stay strings, `09` is not an integer). Integers come back as bigint so
+ * `1` and `1.0` stay distinguishable. Keyed by the replaced resolver's pattern.
+ */
+const PYYAML_RESOLVERS = new Map([
+  ["^(?:Y|y|[Yy]es|YES|[Tt]rue|TRUE|[Oo]n|ON)$", /^(?:[Yy]es|YES|[Tt]rue|TRUE|[Oo]n|ON)$/],
+  ["^(?:N|n|[Nn]o|NO|[Ff]alse|FALSE|[Oo]ff|OFF)$", /^(?:[Nn]o|NO|[Ff]alse|FALSE|[Oo]ff|OFF)$/],
+  ["^[-+]?[0-9][0-9_]*$", /^[-+]?(?:0|[1-9][0-9_]*)$/],
+  ["^[-+]?(?:[0-9][0-9_]*)?(?:\\.[0-9_]*)?[eE][-+]?[0-9]+$", /^(?:[-+]?[0-9][0-9_]*\.[0-9_]*|\.[0-9_]+)[eE][-+][0-9]+$/],
+  ["^[-+]?(?:[0-9][0-9_]*)?\\.[0-9_]*$", /^(?:[-+]?[0-9][0-9_]*\.[0-9_]*|\.[0-9_]+)$/],
+  ["^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+$", /^[-+]?[1-9][0-9_]*(?::[0-5]?[0-9])+$/],
+]);
+
+const YAML_OPTIONS = {
+  version: "1.1",
+  intAsBigInt: true,
+  customTags(tags) {
+    const replaced = tags.map((tag) => (PYYAML_RESOLVERS.has(tag.test?.source) ? { ...tag, test: PYYAML_RESOLVERS.get(tag.test.source) } : tag));
+    const used = new Set(tags.map((tag) => tag.test?.source));
+    const missing = [...PYYAML_RESOLVERS.keys()].filter((source) => !used.has(source));
+    if (missing.length) throw new Error(`the yaml package changed its YAML 1.1 resolvers; update PYYAML_RESOLVERS for ${missing.join(", ")}`);
+    return replaced;
+  },
+};
 
 function typeName(value) {
   if (value === null) return "null";
   if (Array.isArray(value)) return "list";
+  if (value instanceof Date) return "date";
+  if (typeof value === "bigint") return "integer";
+  if (typeof value === "number") return "float";
   if (typeof value === "object") return "mapping";
   return typeof value;
 }
@@ -33,6 +69,7 @@ function typeName(value) {
 /**
  * Split a document into YAML frontmatter and markdown body. A document without
  * frontmatter yields `data: null` so the caller decides whether that is legal.
+ * Duplicate keys are a parse error.
  * @returns {{ data: Record<string, unknown> | null, body: string, error?: string }}
  */
 export function splitFrontmatter(source) {
@@ -41,7 +78,7 @@ export function splitFrontmatter(source) {
   const body = source.slice(match[0].length);
   let data;
   try {
-    data = parseYaml(match[1]);
+    data = parseYaml(match[1], YAML_OPTIONS);
   } catch (error) {
     return { data: {}, body, error: `invalid YAML frontmatter: ${error.message.split("\n")[0]}` };
   }
@@ -51,70 +88,80 @@ export function splitFrontmatter(source) {
   return { data, body };
 }
 
-const text = {
-  check(value) {
-    if (typeof value !== "string") return `expected string, got ${typeName(value)}`;
-    if (!value.trim()) return "must not be empty";
-    return "";
-  },
-  normalize: (value) => value.trim().replace(/\s+/g, " "),
-};
+/** The problem with a plain string, or "": single line, no markup, not empty once trimmed. */
+function plainProblem(value) {
+  if (typeof value !== "string") return `expected string, got ${typeName(value)}`;
+  const text = value.trim();
+  if (!text) return "must not be empty";
+  if (/[\r\n]/.test(text)) return "must be a single line";
+  if (MARKUP.test(text)) return "must be plain text without Markdown or HTML";
+  return "";
+}
 
+const trim = (value) => value.trim();
+
+/** A plain string rule; `extra` checks the trimmed value. */
 const plain = (extra) => ({
-  check(value, context) {
-    const problem = text.check(value);
-    if (problem) return problem;
-    const normalized = text.normalize(value);
-    if (MARKUP.test(normalized)) return "must be plain text without Markdown or HTML";
-    return extra?.(normalized, context) ?? "";
-  },
-  normalize: text.normalize,
+  check: (value, context) => plainProblem(value) || (extra?.(value.trim(), context) ?? ""),
+  normalize: trim,
 });
 
-const keywordList = (min, max) => ({
-  check(value) {
+/** A list of unique plain strings; uniqueness is case-insensitive. */
+const plainList = (min, max, extra) => ({
+  check(value, context) {
     if (!Array.isArray(value)) return `expected list, got ${typeName(value)}`;
-    const bad = value.find((item) => typeof item !== "string" || !item.trim());
-    if (bad !== undefined) return `items must be non-empty strings, got ${typeName(bad) === "string" ? "an empty string" : typeName(bad)}`;
-    if (value.length < min || value.length > max) return `must list ${min}-${max} keywords, got ${value.length}`;
+    for (const item of value) {
+      const problem = plainProblem(item);
+      if (problem) return `items: ${problem}`;
+    }
+    if (value.length < min || value.length > max) return `must list ${min}-${max} items, got ${value.length}`;
     const seen = new Set();
     for (const item of value) {
-      const key = text.normalize(item).toLowerCase();
-      if (seen.has(key)) return `lists "${item}" more than once`;
+      const key = item.trim().toLowerCase();
+      if (seen.has(key)) return `lists "${item.trim()}" more than once`;
       seen.add(key);
     }
-    return "";
+    return extra?.(value.map(trim), context) ?? "";
   },
-  normalize: (value) => value.map(text.normalize),
+  normalize: (value) => value.map(trim),
 });
+
+const name = plain((value, { slug }) => (value === slug ? "" : `must equal the directory name "${slug}", got "${value}"`));
 
 const description = plain((value) => {
   const { min, max } = DESCRIPTION_LENGTH;
   return value.length < min || value.length > max ? `must be ${min}-${max} characters, got ${value.length}` : "";
 });
 
+const order = {
+  check: (value) => (typeof value === "bigint" && value >= 1n ? "" : `must be an integer of at least 1, got ${typeName(value)} ${String(value)}`),
+  normalize: Number,
+};
+
+const images = plainList(1, REGISTRIES.length, (value, { slug }) => {
+  const allowed = REGISTRIES.map((registry) => `${registry}${slug}`);
+  const bad = value.find((image) => !allowed.includes(image));
+  if (bad) return `"${bad}" is not one of ${allowed.join(", ")}`;
+  return value[0] === allowed[0] ? "" : `must list ${allowed[0]} first`;
+});
+
+const upstream = plain((value) => (HTTPS_URL.test(value) ? "" : `must be an https URL, got "${value}"`));
+
 const SCHEMAS = {
-  tool: {
-    name: {
-      required: true,
-      ...plain((value, { slug }) => (value === slug ? "" : `must equal the directory name "${slug}", got "${value}"`)),
-    },
+  category: {
+    name: { required: true, ...name },
     title: { required: true, ...plain() },
     description: { required: true, ...description },
-    image: {
-      required: true,
-      ...plain((value, { slug }) => (value === `${IMAGE_PREFIX}${slug}` ? "" : `must be "${IMAGE_PREFIX}${slug}", got "${value}"`)),
-    },
-    upstream: {
-      required: false,
-      ...plain((value) => {
-        try {
-          if (new URL(value).protocol === "https:") return "";
-        } catch {}
-        return `must be an https URL, got "${value}"`;
-      }),
-    },
-    keywords: { required: false, ...keywordList(3, 8) },
+    order: { required: true, ...order },
+  },
+  tool: {
+    name: { required: true, ...name },
+    title: { required: true, ...plain() },
+    description: { required: true, ...description },
+    order: { required: true, ...order },
+    images: { required: true, ...images },
+    upstream: { required: false, ...upstream },
+    keywords: { required: false, ...plainList(3, 8) },
   },
   platform: {
     name: {
@@ -129,26 +176,26 @@ const SCHEMAS = {
       required: true,
       ...plain((value) => (value.length > USECASE_MAX ? `must be at most ${USECASE_MAX} characters, got ${value.length}` : "")),
     },
-    keywords: { required: false, ...keywordList(2, 6) },
+    keywords: { required: false, ...plainList(2, 6) },
   },
 };
 
 /**
  * Validate one document's frontmatter against its kind's schema. Problems are
  * returned, not thrown, so one build reports every file that needs fixing.
- * Cross-document rules (uniqueness) are checked by the caller.
+ * Cross-document rules (uniqueness, order) are checked by the caller.
  * @param {Record<string, unknown> | null} data
- * @param {"tool" | "platform"} kind
+ * @param {"category" | "tool" | "platform"} kind
  * @param {{ slug: string }} context directory name the document lives in
  * @returns {{ meta: Record<string, any>, problems: string[] }}
  */
 export function validateFrontmatter(data, kind, context) {
   const schema = SCHEMAS[kind];
-  if (data === null) return { meta: {}, problems: ["missing YAML frontmatter"] };
+  if (data === null) return { meta: { keywords: [] }, problems: ["missing YAML frontmatter"] };
   const problems = [];
   const meta = {};
   for (const key of Object.keys(data)) {
-    if (!(key in schema)) problems.push(`unknown frontmatter key "${key}"; allowed: ${Object.keys(schema).join(", ")}`);
+    if (!Object.hasOwn(schema, key)) problems.push(`unknown frontmatter key "${key}"; allowed: ${Object.keys(schema).join(", ")}`);
   }
   for (const [key, rule] of Object.entries(schema)) {
     const value = data[key];
@@ -160,6 +207,6 @@ export function validateFrontmatter(data, kind, context) {
     if (problem) problems.push(`${key}: ${problem}`);
     else meta[key] = rule.normalize(value);
   }
-  meta.keywords ??= [];
+  if (kind !== "category") meta.keywords ??= [];
   return { meta, problems };
 }

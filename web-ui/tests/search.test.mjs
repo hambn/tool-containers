@@ -7,6 +7,7 @@ const { search } = createSearch({
   pages: [
     page("Prose", { s: [["", "", "Mentions the widget once."]] }),
     page("Keywords", { w: "widget" }),
+    page("Description", { d: "Explains the widget." }),
     page("Heading", { s: [["Widget setup", "widget-setup", "How to configure."]] }),
     page("Widget"),
     page("Claude Code · Helm", { w: "kubernetes", s: [["", "", "Deploy with a chart."], ["Variables", "variables", "Set values for the release."]] }),
@@ -18,12 +19,12 @@ test("queries are normalized, deduplicated words", () => {
   assert.deepEqual(parseQuery("  Crème  CRÈME brûlée! "), ["creme", "brulee"]);
 });
 
-test("ranking: title > heading > keywords > prose", () => {
-  assert.deepEqual(titles("widget"), ["Widget", "Heading", "Keywords", "Prose"]);
+test("ranking: title > heading > keywords > description > prose", () => {
+  assert.deepEqual(titles("widget"), ["Widget", "Heading", "Keywords", "Description", "Prose"]);
 });
 
 test("prefix matching while typing", () => {
-  assert.deepEqual(titles("widg"), ["Widget", "Heading", "Keywords", "Prose"]);
+  assert.deepEqual(titles("widg"), ["Widget", "Heading", "Keywords", "Description", "Prose"]);
   assert.equal(matchQuality("kube", "kubernetes") > 0, true);
 });
 

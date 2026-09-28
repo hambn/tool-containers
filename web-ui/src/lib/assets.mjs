@@ -10,6 +10,9 @@ const STYLES = ["base.css", "layout.css", "components.css", "prose.css"];
 
 const digest = (content) => createHash("sha256").update(content).digest("hex").slice(0, 10);
 
+/** The content-addressed href of `/assets/<name>-<hash>.<ext>`, known before it is written. */
+export const assetHref = (config, name, ext, content) => config.href(`/assets/${name}-${digest(content)}.${ext}`);
+
 /**
  * Writes build output. Assets under /assets/ are content-addressed, so they
  * can be cached forever and a changed file always gets a new URL.
@@ -28,9 +31,8 @@ export function createOutput(outDir, config) {
     write,
     /** Write `/assets/<name>-<hash>.<ext>` and return its href. */
     asset(name, ext, content) {
-      const file = `assets/${name}-${digest(content)}.${ext}`;
-      write(file, content);
-      return config.href(`/${file}`);
+      write(`assets/${name}-${digest(content)}.${ext}`, content);
+      return assetHref(config, name, ext, content);
     },
     /** Bundle the stylesheets plus the syntax highlighting rules. */
     async css(extra) {

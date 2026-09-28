@@ -1,4 +1,4 @@
-import { categoryLabel } from "./site.mjs";
+import { TOOLS_SECTION } from "./content.mjs";
 
 /**
  * The client search index: one entry per docs page with its display text.
@@ -15,16 +15,23 @@ export function searchIndex(site, rendered, meta) {
     .map((page) => {
       const { tool, platform } = page;
       const words = tool
-        ? [...(platform ?? tool).meta.keywords, platform?.meta.usecase, platform?.meta.name, categoryLabel(tool.category), tool.meta.image]
+        ? [...(platform ?? tool).meta.keywords, platform?.meta.usecase, platform?.meta.name, tool.category.meta.title, ...tool.meta.images]
         : [];
+      const sections = rendered.get(page).sections.map(({ heading, id, text }) =>
+        // A category's Tools section is generated at render time, so its text is too.
+        page.kind === "category" && heading === TOOLS_SECTION ? [heading, id, toolListText(page.category)] : [heading, id, text],
+      );
       return {
         t: page.name,
         u: site.config.href(page.route),
         k: page.kind,
         d: meta.get(page).description,
         w: words.filter(Boolean).join(" "),
-        s: rendered.get(page).sections.map(({ heading, id, text }) => [heading, id, text]),
+        s: sections,
       };
     });
   return { pages };
 }
+
+/** The searchable text of a category's generated tool list. */
+const toolListText = (category) => category.tools.map((tool) => `${tool.meta.title}. ${tool.meta.description}`).join(" ");

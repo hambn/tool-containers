@@ -35,6 +35,9 @@ export function describePages(site, readme) {
       case "docs":
         meta.set(page, { title: withSiteName(page.heading), description: docs.text || home.text });
         break;
+      case "category":
+        meta.set(page, { title: withSiteName(`${page.category.meta.title} Docker images`), description: page.category.meta.description });
+        break;
       case "tool":
         meta.set(page, { title: withSiteName(`${tool.meta.title} Docker image`), description: tool.meta.description });
         break;
@@ -114,17 +117,27 @@ export function structuredData(page, site, { title, description, heading, dates 
         description,
         isPartOf: { "@id": website["@id"] },
         ...dated,
-        mainEntity: {
-          "@type": "ItemList",
-          numberOfItems: site.catalog.tools.length,
-          itemListElement: site.catalog.tools.map((tool, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            name: tool.meta.title,
-            url: config.canonical(toolRoute(tool)),
-          })),
-        },
+        mainEntity: toolList(site.catalog.tools, config),
       },
+    ]);
+  }
+
+  if (page.kind === "category") {
+    // The page visibly lists the category's tools, so it is a collection of them.
+    return graph([
+      {
+        "@type": "CollectionPage",
+        "@id": `${url}#page`,
+        url,
+        name: title,
+        headline: heading,
+        description,
+        inLanguage: "en",
+        isPartOf: website,
+        ...dated,
+        mainEntity: toolList(page.category.tools, config),
+      },
+      breadcrumbList(page, config),
     ]);
   }
 
@@ -146,19 +159,30 @@ export function structuredData(page, site, { title, description, heading, dates 
       ...(upstream ? { about: { "@type": "Thing", name: page.tool.meta.title, sameAs: upstream } } : {}),
     },
   ];
-  if (page.crumbs.length >= 2) {
-    nodes.push({
-      "@type": "BreadcrumbList",
-      itemListElement: page.crumbs.map(({ label, route }, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        name: label,
-        item: config.canonical(route),
-      })),
-    });
-  }
+  if (page.crumbs.length >= 2) nodes.push(breadcrumbList(page, config));
   return graph(nodes);
 }
+
+const toolList = (tools, config) => ({
+  "@type": "ItemList",
+  numberOfItems: tools.length,
+  itemListElement: tools.map((tool, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: tool.meta.title,
+    url: config.canonical(toolRoute(tool)),
+  })),
+});
+
+const breadcrumbList = (page, config) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: page.crumbs.map(({ label, route }, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: label,
+    item: config.canonical(route),
+  })),
+});
 
 const graph = (nodes) => ({ "@context": "https://schema.org", "@graph": nodes });
 
@@ -188,12 +212,14 @@ export function llmsTxt(site, meta, readme) {
   const lines = [`# ${SITE_NAME}`, "", `> ${meta.get(site.home).description}`, ""];
   lines.push(`- [${site.docs.heading}](${config.canonical(site.docs.route)}): ${readme.headings.join(", ") || docs.description}`, "");
   for (const page of site.pages) {
-    if (page.kind === "tool") {
-      lines.push(`## ${page.tool.meta.title}`, "", `- [${page.tool.meta.title}](${config.canonical(page.route)}): ${page.tool.meta.description}`);
+    if (page.kind === "category") {
+      lines.push(`## ${page.category.meta.title}`, "", `- [${page.category.meta.title}](${config.canonical(page.route)}): ${page.category.meta.description}`, "");
+    } else if (page.kind === "tool") {
+      lines.push(`### ${page.tool.meta.title}`, "", `- [${page.tool.meta.title}](${config.canonical(page.route)}): ${page.tool.meta.description}`);
     } else if (page.kind === "platform") {
       lines.push(`- [${page.heading}](${config.canonical(page.route)}): ${page.platform.meta.usecase}`);
-      if (page === site.toolFamily(page.tool).at(-1)) lines.push("");
     }
+    if (page.tool && page === site.toolFamily(page.tool).at(-1)) lines.push("");
   }
   return `${lines.join("\n").trimEnd()}\n`;
 }

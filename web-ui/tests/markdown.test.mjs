@@ -53,8 +53,21 @@ test("list items whose only link is the page itself are dropped", () => {
   assert.equal(dom.querySelectorAll("ul").length, 1, "a list left empty disappears");
 });
 
-test("raw HTML is rejected, naming the file", () => {
-  assert.throws(() => page("# T\n\n<div>x</div>\n"), /tools\/ai\/demo\/README\.md: raw HTML is not published/);
+test("raw HTML is reported, naming the file, without stopping the render", () => {
+  const out = page("# T\n\n<div>x</div>\n\n## Usage\n\nText.\n");
+  assert.equal(out.problems.length, 1);
+  assert.match(out.problems[0], /^tools\/ai\/demo\/README\.md: raw HTML is not published/);
+  assert.deepEqual(out.toc.map((entry) => entry.text), ["Usage"]);
+});
+
+test("a slot keeps its heading in html and moves the sections after it to tail", () => {
+  const out = page("# T\n\nLead.\n\n## Before\n\nA.\n\n## Tools\n\n- [x](./x/) — X.\n\n## After\n\nB.\n", { slot: "Tools" });
+  const body = parse(out.html);
+  assert.deepEqual(body.querySelectorAll("h2").map((heading) => heading.id), ["before", "tools"]);
+  assert.equal(body.querySelectorAll("li").length, 0, "the hand-written list is replaced");
+  assert.deepEqual(parse(out.tail).querySelectorAll("h2").map((heading) => heading.id), ["after"]);
+  assert.deepEqual(out.toc.map((entry) => entry.text), ["Before", "Tools", "After"]);
+  assert.deepEqual(out.problems, []);
 });
 
 test("inline recipe files render as details, collapsed when long", () => {

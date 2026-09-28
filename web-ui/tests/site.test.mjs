@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
 import { parse } from "node-html-parser";
 import { build } from "../src/build.mjs";
 import { repoRoot } from "../src/lib/config.mjs";
 import { ContentError } from "../src/lib/content.mjs";
-import { DESCRIPTION, fixtureRepo, platformReadme, tempDir, toolReadme } from "./helpers.mjs";
+import { DESCRIPTION, categoryReadme, fixtureRepo, platformReadme, tempDir, toolReadme } from "./helpers.mjs";
 
 // Raw bytes, about twice the size at the time of writing: loose enough for
 // content growth, tight enough to catch an accidental bundle or inlined asset.
@@ -64,8 +64,8 @@ for (const mode of MODES) {
       const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" }).split("\n");
       const expected = ["/", "/docs/", "/search/", "/404.html"];
       for (const file of tracked) {
-        const match = file.match(/^tools\/([^/]+)\/([^/]+)\/(?:docs\/([^/]+)\/)?README\.md$/);
-        if (match) expected.push(`/docs/${match[1]}/${match[2]}/${match[3] ? `${match[3]}/` : ""}`);
+        const match = file.match(/^tools\/([^/]+)\/(?:([^/]+)\/(?:docs\/([^/]+)\/)?)?README\.md$/);
+        if (match) expected.push(`/docs/${match.slice(1).filter(Boolean).join("/")}/`);
       }
       assert.deepEqual([...site.pages.keys()].sort(), expected.sort());
     });
@@ -152,6 +152,28 @@ for (const mode of MODES) {
       assert.deepEqual(routes.sort(), [...site.pages.keys()].filter((route) => route.startsWith("/docs/")).sort());
     });
 
+    test("category pages list their tools in README order, and the sidebar links them", () => {
+      const tracked = execFileSync("git", ["ls-files", ":(glob)tools/*/README.md"], { cwd: repoRoot, encoding: "utf8" }).split("\n").filter(Boolean);
+      assert.ok(tracked.length > 0);
+      for (const file of tracked) {
+        const category = file.split("/")[1];
+        const route = `/docs/${category}/`;
+        const dom = site.pages.get(route);
+        // check-repo.py and the build both hold the Tools bullets to frontmatter order.
+        const bullets = [...readFileSync(path.join(repoRoot, file), "utf8").matchAll(/^- \[[^\]]+\]\(\.\/([^/]+)\/\)/gm)].map((match) => match[1]);
+        const listed = dom.querySelectorAll(".category-tool-title a").map((link) => link.getAttribute("href"));
+        assert.deepEqual(listed, bullets.map((tool) => `${mode.basePath}/docs/${category}/${tool}/`), route);
+        for (const item of dom.querySelectorAll(".category-tool")) {
+          assert.ok(item.querySelectorAll(".image-ref code").length > 0, `${route}: every tool shows its images`);
+        }
+        const collection = jsonLd(dom).find((node) => node["@type"] === "CollectionPage");
+        assert.equal(collection.headline, dom.querySelector("h1").text.trim(), route);
+        assert.deepEqual(collection.mainEntity.itemListElement.map((entry) => entry.url), listed.map((href) => canonical(href.slice(mode.basePath.length))), route);
+        const label = site.pages.get("/docs/").querySelectorAll("a.tree-label").find((link) => link.getAttribute("href") === `${mode.basePath}${route}`);
+        assert.ok(label, `${route}: the sidebar links the category page`);
+      }
+    });
+
     test("favicon.ico is an icon and the manifest shares the theme colour", () => {
       const ico = readFileSync(path.join(site.outDir, "favicon.ico"));
       assert.deepEqual([...ico.subarray(0, 4)], [0, 0, 1, 0]);
@@ -174,10 +196,12 @@ for (const mode of MODES) {
 }
 
 describe("hostile content", () => {
-  const keyword = `</script><script>alert("k")</script>`;
+  // Frontmatter is plain text, so markup can only arrive through the body; quotes and ampersands still can.
+  const keyword = `"quoted" & 'k' \\ \u2028end`;
   const title = `Tom's "Tool" & Co`;
   const files = {
     "README.md": "# Fixture\n\nA fixture catalog for tests. It has one tool.\n\n## Images\n\n- [Demo](tools/ai/demo/README.md)\n",
+    "tools/ai/README.md": categoryReadme("ai", ["demo"], { title: `AI "&" Agents` }),
     "tools/ai/demo/README.md": toolReadme("demo", {
       title,
       keywords: [keyword, `a"b'c&d`, "plain"],
@@ -229,23 +253,83 @@ describe("hostile content", () => {
   });
 });
 
-describe("invalid content", () => {
-  test("an orphan platform README fails the build, naming the file", async () => {
-    const root = fixtureRepo({
-      "README.md": "# Fixture\n\nLead.\n",
-      "tools/ai/demo/README.md": toolReadme("demo"),
-      "tools/ai/ghost/docs/helm/README.md": platformReadme("Helm", { description: DESCRIPTION("A ghost") }),
-    });
-    const outDir = path.join(tempDir("web-ui-invalid-"), "dist");
+describe("build output", () => {
+  const valid = {
+    "README.md": "# Fixture\n\nA fixture catalog for tests.\n",
+    "tools/ai/README.md": categoryReadme("ai", ["demo"]),
+    "tools/ai/demo/README.md": toolReadme("demo"),
+    "tools/ai/demo/docs/helm/README.md": platformReadme("Helm"),
+  };
+  const siblings = (outDir) => readdirSync(path.dirname(outDir)).filter((name) => name !== path.basename(outDir));
+
+  test("a build replaces the previous output whole and leaves no staging directory", async () => {
+    const root = fixtureRepo(valid);
+    const parent = tempDir("web-ui-swap-");
+    const outDir = path.join(parent, "dist");
     try {
-      await assert.rejects(build({ root, outDir, env: {} }), (error) => error instanceof ContentError && error.message.includes("tools/ai/ghost/docs/helm/README.md"));
-      assert.equal(existsSync(outDir), false, "a failed build writes nothing");
+      mkdirSync(outDir);
+      writeFileSync(path.join(outDir, "stale.html"), "old");
+      await build({ root, outDir, env: {} });
+      assert.equal(existsSync(path.join(outDir, "stale.html")), false);
+      assert.ok(existsSync(path.join(outDir, "docs/ai/index.html")));
+      assert.deepEqual(siblings(outDir), []);
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  test("a failed build reports every problem and keeps the previous output", async () => {
+    const root = fixtureRepo({
+      ...valid,
+      "tools/ai/demo/README.md": toolReadme("demo", { image: "ghcr.io/hambn/demo" }).concat("\nSee [outside](../../../../outside.md).\n\n<div>raw</div>\n"),
+      "tools/ai/ghost/docs/helm/README.md": platformReadme("Helm", { description: DESCRIPTION("A ghost") }),
+    });
+    const parent = tempDir("web-ui-invalid-");
+    const outDir = path.join(parent, "dist");
+    try {
+      mkdirSync(outDir);
+      writeFileSync(path.join(outDir, "index.html"), "previous");
+      await assert.rejects(build({ root, outDir, env: {} }), (error) => {
+        assert.ok(error instanceof ContentError);
+        for (const expected of [
+          "tools/ai/ghost/docs/helm/README.md: platform docs need a tool README",
+          'tools/ai/demo/README.md: unknown frontmatter key "image"',
+          "tools/ai/demo/README.md: raw HTML is not published",
+          'link "../../../../outside.md" points outside the repository',
+        ]) {
+          assert.ok(error.message.includes(expected), `missing ${expected} in:\n${error.message}`);
+        }
+        return true;
+      });
+      assert.equal(readFileSync(path.join(outDir, "index.html"), "utf8"), "previous");
+      assert.deepEqual(siblings(outDir), []);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  test("a failed first build writes nothing", async () => {
+    const root = fixtureRepo({ ...valid, "tools/ai/README.md": categoryReadme("ai", []) });
+    const parent = tempDir("web-ui-invalid-");
+    const outDir = path.join(parent, "dist");
+    try {
+      await assert.rejects(build({ root, outDir, env: {} }), /tools\/ai\/README\.md: ## Tools must link each tool once/);
+      assert.deepEqual(readdirSync(parent), []);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(parent, { recursive: true, force: true });
     }
   });
 
   test("an invalid SITE_URL fails the build", async () => {
-    await assert.rejects(build({ env: { SITE_URL: "" }, outDir: tempDir("web-ui-invalid-") }), /SITE_URL must be an absolute http\(s\) URL/);
+    const parent = tempDir("web-ui-invalid-");
+    try {
+      await assert.rejects(build({ env: { SITE_URL: "" }, outDir: path.join(parent, "dist") }), /SITE_URL must be an absolute http\(s\) URL/);
+      assert.deepEqual(readdirSync(parent), []);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
   });
 });

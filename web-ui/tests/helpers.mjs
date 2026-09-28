@@ -5,12 +5,20 @@ import path from "node:path";
 
 export const DESCRIPTION = (subject) => `${subject} ships as a container image with Ubuntu and Alpine variants, and its documentation describes every supported deployment.`.slice(0, 150);
 
+/** A category README whose Tools section lists `tools` (slugs, in order). */
+export const categoryReadme = (slug, tools, overrides = {}) => {
+  const data = { name: slug, title: slug.toUpperCase(), description: DESCRIPTION(`The ${slug} category`), order: 1, ...overrides };
+  const bullets = tools.map((tool) => `- [${tool}](./${tool}/) — The ${tool} tool.`).join("\n");
+  return frontmatter(data, `# ${data.title}\n\nThe ${slug} category lead.\n\n## Tools\n\n${bullets}\n`);
+};
+
 export const toolReadme = (slug, overrides = {}) => {
   const data = {
     name: slug,
     title: slug.toUpperCase(),
     description: DESCRIPTION(`The ${slug} tool`),
-    image: `ghcr.io/hambn/${slug}`,
+    order: 1,
+    images: [`ghcr.io/hambn/${slug}`, `docker.io/hambn/${slug}`],
     keywords: ["one", "two", "three"],
     ...overrides,
   };

@@ -1,7 +1,6 @@
 import { SITE_NAME } from "./config.mjs";
 import { html, raw } from "./html.mjs";
 import { THEME_COLORS, headTags, jsonLdScript } from "./seo.mjs";
-import { categoryLabel } from "./site.mjs";
 
 /** Ids the page chrome uses, reserved so document headings never collide with them. */
 export const TEMPLATE_IDS = ["main", "menu", "menu-title", "search", "search-input", "search-results", "search-status", "on-this-page", "toc-title"];
@@ -28,7 +27,7 @@ function mainNav(page, site, className) {
   });
 }
 
-/** The docs tree: overview, then each category's tools with their platforms. */
+/** The docs tree: overview, then each category page with its tools and their platforms. */
 export function docsNav(page, site) {
   const { config, catalog } = site;
   const link = (target, className) => {
@@ -39,7 +38,7 @@ export function docsNav(page, site) {
   return html`<ul class="tree">
 <li>${link(site.docs, "tree-link")}</li>
 ${catalog.categories.map(
-  (category) => html`<li class="tree-group"><span class="tree-label">${categoryLabel(category.slug)}</span><ul>${category.tools.map((tool) => {
+  (category) => html`<li class="tree-group">${link(site.categoryPage(category), "tree-label")}<ul>${category.tools.map((tool) => {
     const [toolPage, ...platforms] = families.get(tool);
     // Platforms show only under the tool being read, keeping the tree short.
     const open = page.tool === tool;

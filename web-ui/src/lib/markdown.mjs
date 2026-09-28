@@ -1,6 +1,5 @@
 import path from "node:path";
 import { Marked, Renderer } from "marked";
-import { ContentError } from "./content.mjs";
 import { fileLanguage } from "./highlight.mjs";
 import { html, raw } from "./html.mjs";
 
@@ -62,10 +61,12 @@ export const copyButton = (icon, label) =>
  * @property {string} title    plain text of the document's `# ` heading
  * @property {string} leadHtml inline HTML of the opening paragraph, moved out of the body
  * @property {string} lead     plain text of that paragraph
- * @property {string} html     the body without its title and lead
+ * @property {string} html     the body without its title and lead; with a slot, the part up to and including its heading
+ * @property {string} tail     with a slot, the body after the slot's section; otherwise ""
  * @property {{ level: number, id: string, text: string }[]} toc
  * @property {{ id: string, heading: string, text: string }[]} sections searchable prose, never code
  * @property {string[]} headings plain text of every h2 in the body
+ * @property {string[]} problems content errors (raw HTML, bad links), each naming the source
  */
 
 /**
@@ -106,11 +107,13 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
 
   /**
    * @param {string} markdown document body without frontmatter
-   * @param {{ source: string, selfHref: string, files?: { name: string, text: string }[] }} context
-   *   `selfHref` is the page's own href: list items that only link there are dropped
-   * @returns {Rendered}
+   * @param {{ source: string, selfHref: string, files?: { name: string, text: string }[], slot?: string }} context
+   *   `selfHref` is the page's own href: list items that only link there are dropped.
+   *   `slot` names an h2 section whose content the page generates instead: its
+   *   heading stays at the end of `html`, and the rest of the body is `tail`.
+   * @returns {Rendered} rendered even when `problems` is not empty, so one build reports everything
    */
-  return function render(markdown, { source, selfHref, files = [] }) {
+  return function render(markdown, { source, selfHref, files = [], slot }) {
     const nextId = uniqueIds(reservedIds);
     const sourceDir = path.posix.dirname(source);
     const problems = [];
@@ -136,17 +139,27 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
         }
       }
     });
-    if (problems.length) throw new ContentError(`Invalid documents:\n  - ${problems.map((problem) => `${source}: ${problem}`).join("\n  - ")}`);
 
     const blocks = tokens.filter((token) => token.type !== "space");
     const title = blocks[0]?.type === "heading" && blocks[0].depth === 1 ? blocks.shift() : null;
     const lead = blocks[0]?.type === "paragraph" ? blocks.shift() : null;
-    const body = dropSelfLinks(dropContents(blocks), selfHref);
+    let body = dropSelfLinks(dropContents(blocks), selfHref);
+    let after = [];
+    if (slot) {
+      const isH2 = (token) => token.type === "heading" && token.depth === 2;
+      const start = body.findIndex((token) => isH2(token) && plainText(token.tokens) === slot);
+      // A missing slot is reported by content discovery, which checks the section's bullets.
+      if (start !== -1) {
+        const end = body.findIndex((token, index) => index > start && isH2(token));
+        after = end === -1 ? [] : body.slice(end);
+        body = body.slice(0, start + 1);
+      }
+    }
 
     const toc = [];
     const headings = [];
     let label = "";
-    marked.walkTokens(body, (token) => {
+    marked.walkTokens([...body, ...after], (token) => {
       if (token.type === "heading") {
         token.depth = Math.max(token.depth, 2);
         label = plainText(token.tokens);
@@ -158,8 +171,9 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
       }
     });
 
-    const sections = splitSections(body);
+    const sections = [...splitSections(body), ...splitSections(after)];
     let bodyHtml = marked.parser(body);
+    const tail = after.length ? marked.parser(after) : "";
     if (inline.length) {
       const id = nextId(slugify(FILES_HEADING));
       toc.push({ level: 2, id, text: FILES_HEADING });
@@ -171,14 +185,17 @@ export function createMarkdown({ highlighter, resolveLink, icon, reservedIds = [
       bodyHtml += `<section class="files" aria-labelledby="${id}"><h2 id="${id}">${FILES_HEADING}<a class="anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a></h2>${items.join("")}</section>`;
     }
 
+    const leadText = lead ? plainText(lead.tokens) : "";
     return {
       title: title ? plainText(title.tokens) : "",
       leadHtml: lead ? marked.parser([lead]).trim().replace(/^<p>|<\/p>$/g, "") : "",
-      lead: lead ? plainText(lead.tokens) : "",
+      lead: leadText,
       html: bodyHtml,
+      tail,
       toc,
       headings,
-      sections: withLead(sections, lead ? plainText(lead.tokens) : ""),
+      sections: withLead(sections, leadText),
+      problems: problems.map((problem) => `${source}: ${problem}`),
     };
   };
 }

@@ -1,6 +1,7 @@
 import { html, raw } from "../lib/html.mjs";
 import { copyButton } from "../lib/markdown.mjs";
 import { docsNav } from "../lib/layout.mjs";
+import { toolRoute } from "../lib/site.mjs";
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
 
@@ -23,21 +24,38 @@ function tabs(page, site) {
   })}</div></nav>`;
 }
 
+/** An image reference with its copy button. */
+const imageRef = (image, icon) => html`<span class="image-ref" data-copy-source><code>${image}</code>${copyButton(icon, `Copy ${image}`)}</span>`;
+
 function facts(page, site, icon) {
   const { tool, platform } = page;
   if (!tool) return "";
   const { meta } = tool;
-  const mirror = `docker.io/hambn/${tool.slug}`;
   const upstream = meta.upstream && new URL(meta.upstream);
-  const source = platform ? page.source.replace(/\/README\.md$/, "") : `tools/${tool.category}/${tool.slug}`;
+  const source = page.source.replace(/\/README\.md$/, "");
   const keywords = (platform ?? tool).meta.keywords;
   return html`<dl class="facts">
-<div><dt>Image</dt><dd><span class="image-ref" data-copy-source><code>${meta.image}</code>${copyButton(icon, `Copy ${meta.image}`)}</span>${tool.body.includes(mirror) ? html`<span class="muted">Also on Docker Hub as <code>${mirror}</code></span>` : ""}</dd></div>
+<div><dt>${meta.images.length > 1 ? "Images" : "Image"}</dt><dd>${meta.images.map((image) => imageRef(image, icon))}</dd></div>
 ${platform ? html`<div><dt>Use case</dt><dd>${platform.meta.usecase}</dd></div>` : ""}
 ${upstream ? html`<div><dt>Upstream</dt><dd><a href="${upstream.href}">${upstream.host}${upstream.pathname.replace(/\/$/, "")}</a></dd></div>` : ""}
 <div><dt>Source</dt><dd><a href="${site.config.treeUrl(source)}">${source}</a></dd></div>
 ${keywords.length ? html`<div><dt>Keywords</dt><dd class="muted">${keywords.join(", ")}</dd></div>` : ""}
 </dl>`;
+}
+
+/**
+ * The generated body of a category README's Tools section: every tool of the
+ * category in `order`, with its title, description, and images.
+ */
+function categoryTools(page, site, icon) {
+  if (page.kind !== "category") return "";
+  return html`<ul class="category-tools">${page.category.tools.map(
+    (tool) => html`<li class="category-tool">
+<h3 class="category-tool-title"><a href="${site.config.href(toolRoute(tool))}">${tool.meta.title}</a></h3>
+<p>${tool.meta.description}</p>
+<p class="category-tool-images">${tool.meta.images.map((image) => imageRef(image, icon))}</p>
+</li>`,
+  )}</ul>`;
 }
 
 function tocList(toc) {
@@ -75,7 +93,7 @@ ${tabs(page, site)}
 </header>
 ${facts(page, site, icon)}
 ${toc ? html`<details class="toc-inline"><summary>On this page</summary>${toc}</details>` : ""}
-<div class="prose">${raw(rendered.html)}</div>
+<div class="prose">${raw(rendered.html)}${categoryTools(page, site, icon)}${raw(rendered.tail)}</div>
 <p class="doc-meta"><a href="${config.blobUrl(page.source)}">View source on GitHub</a>${modified}</p>
 ${pager(page, site)}
 </article>
