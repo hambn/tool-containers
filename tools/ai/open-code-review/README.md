@@ -3,7 +3,8 @@ name: open-code-review
 title: Open Code Review
 description: Alibaba's Open Code Review AI code review CLI (ocr) on the devbox image, with Ubuntu and Alpine variants and optional Chromium.
 upstream: https://github.com/alibaba/open-code-review
-image: ghcr.io/hambn/open-code-review
+order: 5
+images: [ghcr.io/hambn/open-code-review, docker.io/hambn/open-code-review]
 keywords: [ocr, alibaba, ai code review, llm, devbox]
 ---
 

@@ -7,7 +7,7 @@ on-demand [repository skills](./.agents/skills/).
 
 ## Catalog
 
-### ai
+### [ai](./tools/ai/)
 
 | Tool | Description |
 |-------|-------------|
@@ -19,7 +19,7 @@ on-demand [repository skills](./.agents/skills/).
 | [claude-code](./tools/ai/claude-code/) | [Claude Code](https://github.com/anthropics/claude-code) CLI on devbox |
 | [t3code](./tools/ai/t3code/) | [T3 Code](https://github.com/pingdotgg/t3code) web GUI for coding agents on agentbloat |
 
-### base
+### [base](./tools/base/)
 
 | Tool | Description |
 |------|-------------|

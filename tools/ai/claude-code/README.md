@@ -3,7 +3,8 @@ name: claude-code
 title: Claude Code
 description: Anthropic's Claude Code CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
 upstream: https://github.com/anthropics/claude-code
-image: ghcr.io/hambn/claude-code
+order: 2
+images: [ghcr.io/hambn/claude-code, docker.io/hambn/claude-code]
 keywords: [anthropic, coding agent, devbox, ubuntu, alpine, headless chromium]
 ---
 

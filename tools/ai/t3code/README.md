@@ -3,7 +3,8 @@ name: t3code
 title: T3 Code
 description: T3 Code web GUI over coding agents on the agentbloat image, serving on port 3773 with Codex, Claude Code, and other CLIs ready.
 upstream: https://github.com/pingdotgg/t3code
-image: ghcr.io/hambn/t3code
+order: 7
+images: [ghcr.io/hambn/t3code, docker.io/hambn/t3code]
 keywords: [web gui, coding agents, agentbloat, codex, claude code, cursor, opencode]
 ---
 

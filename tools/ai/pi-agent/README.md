@@ -3,7 +3,8 @@ name: pi-agent
 title: Pi Coding Agent
 description: Pi, a minimal and extensible terminal coding agent, on the devbox image with Ubuntu and Alpine variants and optional Chromium.
 upstream: https://github.com/earendil-works/pi
-image: ghcr.io/hambn/pi-agent
+order: 6
+images: [ghcr.io/hambn/pi-agent, docker.io/hambn/pi-agent]
 keywords: [terminal coding agent, earendil works, devbox, ubuntu, alpine, headless chromium]
 ---
 

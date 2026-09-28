@@ -3,7 +3,8 @@ name: omnigent
 title: Omnigent
 description: Omnigent, an open-source AI agent meta-harness, on the agentbloat image so every bundled agent CLI is ready to orchestrate.
 upstream: https://github.com/omnigent-ai/omnigent
-image: ghcr.io/hambn/omnigent
+order: 4
+images: [ghcr.io/hambn/omnigent, docker.io/hambn/omnigent]
 keywords: [agent meta-harness, multi-agent, agent orchestration, coding agents, agentbloat]
 ---
 

@@ -3,7 +3,8 @@ name: codex
 title: Codex CLI
 description: OpenAI Codex CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
 upstream: https://github.com/openai/codex
-image: ghcr.io/hambn/codex
+order: 3
+images: [ghcr.io/hambn/codex, docker.io/hambn/codex]
 keywords: [openai, coding agent, devbox, ubuntu, alpine, headless chromium]
 ---
 
