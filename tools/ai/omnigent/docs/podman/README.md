@@ -1,45 +1,45 @@
 ---
 name: Podman
-description: Run Omnigent under rootless Podman over the current directory, discovering provider credentials and harness logins at runtime.
+description: Run Omnigent under rootless Podman on the current directory, keeping file ownership with keep-id and relabeling the mount for SELinux.
 usecase: Rootless agent orchestration on a workstation
 keywords: [agent harness, rootless, keep-id, selinux]
 ---
 
-# omnigent · Podman
+# Run Omnigent with Podman
 
-[`run.sh`](./run.sh) runs `omnigent` with the arguments you pass under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) starts [Omnigent](../../README.md) under rootless Podman on the
+current directory, passing any arguments to `omnigent`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Omnigent discovers provider credentials and harness logins at runtime; pass provider API-key variables with `-e <VAR>` added to the `podman run` command in [`run.sh`](./run.sh) when needed.
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
+- A model credential, such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 
-## Commands
+## Run Omnigent
+
+`run.sh` passes no environment. Add `-e ANTHROPIC_API_KEY` or `-e OPENAI_API_KEY` to
+its `podman run` line, then:
 
 ```bash
+export ANTHROPIC_API_KEY=sk-ant-...
 ./run.sh
 ```
+
+Omnigent's settings are removed with the container, and its web UI on port 6767 is not
+published.
 
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `OMNIGENT_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/omnigent:ubuntu-browser`. |
+| `OMNIGENT_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/omnigent:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files Omnigent writes stay owned by you.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/omnigent:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/omnigent@sha256:<digest>`) for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.
