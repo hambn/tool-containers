@@ -1,7 +1,7 @@
 ---
 name: core
 title: core
-description: Hardened minimal base images on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, curl, bash, and a nonroot user.
+description: Hardened minimal base images on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, curl, bash, and an unprivileged nonroot user.
 order: 1
 images: [ghcr.io/hambn/core, docker.io/hambn/core]
 keywords: [base image, wolfi, alpine, ubuntu, nonroot, hardened]
@@ -9,10 +9,11 @@ keywords: [base image, wolfi, alpine, ubuntu, nonroot, hardened]
 
 # core
 
-Hardened minimal base images on [Wolfi](https://github.com/wolfi-dev),
-[Alpine](https://alpinelinux.org/), and [Ubuntu](https://ubuntu.com/): CA certificates,
-tzdata, curl, bash, and an unprivileged `nonroot` user. `core` is also the base of
-[devbox](../devbox/README.md).
+Minimal base images on [Wolfi](https://github.com/wolfi-dev),
+[Alpine](https://alpinelinux.org/), and [Ubuntu](https://ubuntu.com/) for building
+applications that run as an unprivileged user. Each holds CA certificates, tzdata,
+curl, bash, and a `nonroot` user, and nothing else. core is also the base of
+[devbox](../devbox/).
 
 - **Source:** [`tools/base/core/`](https://github.com/hambn/tool-containers/tree/main/tools/base/core)
 - **Docs:** [tool-containers.hgh.dev/docs/base/core/](https://tool-containers.hgh.dev/docs/base/core/)
@@ -26,34 +27,36 @@ tzdata, curl, bash, and an unprivileged `nonroot` user. `core` is also the base 
 
 ## Images
 
-- **`wolfi`** — CA bundle, tzdata, curl, bash, `nonroot` user
+- **`wolfi`**: Wolfi, a glibc distribution built for containers. `docker build` builds
+  this variant by default.
   - Base: `chainguard/wolfi-base`
   - Tags: `wolfi`
-- **`alpine`** — CA bundle, tzdata, curl, bash, `nonroot` user
-  - Base: Alpine
+- **`alpine`**: Alpine 3.24.
+  - Base: `alpine:3.24`
   - Tags: `alpine`
-- **`ubuntu`** — CA bundle, tzdata, curl, bash, `nonroot` user
-  - Base: Ubuntu 24.04
+- **`ubuntu`**: Ubuntu 24.04, for software that needs glibc and apt. `latest` points
+  here.
+  - Base: `ubuntu:24.04`
   - Tags: `ubuntu`, `latest`
 
-Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Tags are the variant names plus `latest` (`ubuntu`, the largest variant); every tag follows `main` and moves on each rebuild. Pin a digest for reproducibility. Earlier dated `<variant>-<YYYYMMDD>-<sha7>` tags are no longer published. Base-image digests and the OS package refresh date are pinned in the [`Dockerfile`](./Dockerfile) `ARG` defaults.
+Pull `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. All tags move when the
+image is rebuilt; pin a digest to keep one build. The [`Dockerfile`](./Dockerfile) pins
+each upstream base by digest and holds the date that forces an OS package refresh.
 
 ## Hardening
 
-- Runs as `nonroot` (UID/GID 65532) in `/home/nonroot`; the default command is `bash`.
-- No `sudo`; every setuid and setgid bit is removed at build time.
-- Documentation, man pages, and package caches are removed; the package manager stays
-  so derived images can install packages as `USER root`.
-- The Ubuntu variant drops the stock `ubuntu` (UID 1000) account.
+- Runs as `nonroot` (UID and GID 65532) in `/home/nonroot`. The default command is
+  `bash`.
+- Has no `sudo`, and the build clears every setuid and setgid bit.
+- Removes documentation, man pages, and package caches. The package manager stays, so
+  a derived image can install packages as `USER root`.
+- On Ubuntu, removes the stock `ubuntu` account (UID 1000).
 
 ## Use cases
 
-- **Throwaway shell** — curl and bash in a disposable container with
-  [Docker](docs/docker/).
-- **Base for your own image** — a derived application image
-  `FROM ghcr.io/hambn/core:wolfi` with [Docker](docs/docker/).
-- **Locked-down read-only shell service** — no capabilities and a read-only root with
-  [Docker Compose](docs/docker-compose/).
+- **Throwaway shell or base for your own image** with [Docker](./docs/docker/): run curl
+  and bash in a disposable container, or build `FROM ghcr.io/hambn/core:wolfi`.
+- **Locked-down read-only shell service** with [Docker Compose](./docs/docker-compose/).
 
 ## Sources
 

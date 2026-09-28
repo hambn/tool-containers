@@ -1,63 +1,57 @@
 ---
 name: Docker
-description: Open a throwaway shell in the hardened core base with Docker, run one command, or build your own image FROM core.
+description: Open a throwaway shell in the hardened core base with Docker, run a single command in it, or build your own image FROM core.
 usecase: Throwaway shell or base for your own image
 keywords: [base image, dockerfile, derived image, nonroot]
 ---
 
-# core · Docker
+# Run core with Docker
 
-Open a shell in the hardened [core](../../README.md) base, or use it as the `FROM` line of
-your own image.
+[`run.sh`](./run.sh) opens a shell in [core](../../README.md) with the current
+directory mounted at `/workspace`. [`Dockerfile.example`](./Dockerfile.example) shows
+core as the base of your own image.
 
 ## Prerequisites
 
-- Docker 24 or later
+- Docker Engine 23 or later.
 
-## Commands
-
-Open a throwaway shell with the current directory mounted at `/workspace`:
+## Open a shell
 
 ```bash
 ./run.sh
 ```
 
-Run a single command instead of a shell:
+Arguments replace the shell, so you can run one command:
 
 ```bash
 ./run.sh curl -fsS https://example.com -o /dev/null -w '%{http_code}\n'
 ```
 
-Build your own image on top of core with [`Dockerfile.example`](./Dockerfile.example); it
-expects an `app.sh` next to it:
+## Build your own image
+
+Put an `app.sh` next to [`Dockerfile.example`](./Dockerfile.example), then:
 
 ```bash
 docker build -f Dockerfile.example -t my-app .
 docker run --rm my-app
 ```
 
+core has no `sudo` and no setuid binaries. To install packages, switch to `USER root`
+in your Dockerfile, install them, then switch back with `USER 65532:65532`.
+
 ## Variables
 
-| Variable | Default | Purpose |
+| Variable | Required | Purpose |
 |---|---|---|
-| `CORE_IMAGE` | `ghcr.io/hambn/core:wolfi` | Image to run; use the `alpine` or `ubuntu` tag, or a digest |
+| `CORE_IMAGE` | no | Image `run.sh` runs. Defaults to `ghcr.io/hambn/core:wolfi`; use the `alpine` or `ubuntu` tag, or `ghcr.io/hambn/core@sha256:<digest>` to pin one build. |
 
 ## Workspace
 
-[`run.sh`](./run.sh) bind-mounts the current directory at `/workspace`. The container runs
-as `nonroot` (UID/GID 65532), so the directory must be readable, and writable if the
-command writes, by that UID.
+`run.sh` mounts the current directory at `/workspace` and starts there. The container
+runs as `nonroot` (UID and GID 65532), so that UID must be able to read the directory,
+and write to it if your command writes.
 
 ## Files
 
-- [`run.sh`](./run.sh) — interactive shell or one-off command
-- [`Dockerfile.example`](./Dockerfile.example) — minimal derived image
-
-## Cleanup
-
-`run.sh` uses `--rm`. Remove derived images with `docker image rm my-app`.
-
-## Limitations
-
-- No `sudo` and no setuid binaries: install packages in a derived image as `USER root`,
-  then switch back to `USER 65532:65532`.
+- [`run.sh`](./run.sh) opens a shell or runs one command.
+- [`Dockerfile.example`](./Dockerfile.example) builds a minimal image from core.

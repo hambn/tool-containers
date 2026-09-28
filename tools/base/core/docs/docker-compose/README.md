@@ -1,50 +1,44 @@
 ---
 name: Docker Compose
-description: Run the hardened core base as a locked-down Compose shell service with a read-only root, tmpfs /tmp, and dropped capabilities.
+description: Run the hardened core base as a locked-down Compose shell service with a read-only root, a tmpfs /tmp, and every capability dropped.
 usecase: Locked-down read-only shell service
 keywords: [read-only root, tmpfs, dropped capabilities, nonroot]
 ---
 
-# core · Docker Compose
+# Run core with Docker Compose
 
-Run the hardened [core](../../README.md) base as a locked-down, read-only shell service.
-[`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs
-`docker compose` from this directory.
+The `shell` service runs [core](../../README.md) with a read-only root filesystem, a
+tmpfs at `/tmp`, no capabilities, and `no-new-privileges`. [`compose.sh`](./compose.sh)
+checks that `WORKSPACE` is an absolute path, because Compose would resolve a relative
+one against this directory, then runs `docker compose` here.
 
 ## Prerequisites
 
-- Docker with the Compose v2 plugin
+- Docker Engine with the Compose v2 plugin.
 
-## Commands
+## Open a shell
 
 ```bash
 WORKSPACE="$PWD" ./compose.sh run --rm shell
 ```
 
+The shell starts in `/workspace`. Only `/workspace` and `/tmp` are writable; remove
+`read_only` from [`docker-compose.yml`](./docker-compose.yml) if you need to write
+elsewhere.
+
 ## Variables
 
-| Variable | Default | Purpose |
+| Variable | Required | Purpose |
 |---|---|---|
-| `CORE_IMAGE` | `ghcr.io/hambn/core:wolfi` | Image to run; use the `alpine` or `ubuntu` tag, or a digest |
-| `WORKSPACE` | required | Absolute host path mounted at `/workspace` |
+| `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
+| `CORE_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/core:wolfi`; use the `alpine` or `ubuntu` tag, or a digest reference to pin one build. |
 
 ## Workspace
 
-The workspace is bind-mounted at `/workspace`; the root filesystem is read-only and `/tmp`
-is a tmpfs. The process runs as UID/GID 65532 with every capability dropped.
+`WORKSPACE` is mounted at `/workspace`. The shell runs as UID and GID 65532, so that
+UID needs access to the directory.
 
 ## Files
 
-- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`
-- [`docker-compose.yml`](./docker-compose.yml) — the `shell` service
-
-## Cleanup
-
-```bash
-WORKSPACE="$PWD" ./compose.sh down
-```
-
-## Limitations
-
-- The read-only root filesystem blocks writes outside `/workspace` and `/tmp`; drop
-  `read_only` to experiment with package installs (which still need root).
+- [`compose.sh`](./compose.sh) validates `WORKSPACE` and passes its arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) defines the `shell` service.
