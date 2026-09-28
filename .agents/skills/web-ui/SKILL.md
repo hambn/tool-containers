@@ -22,19 +22,40 @@ The site automatically showcases the repository's markdown as pages — nothing 
   under `tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
-  Resolve repository README links to the full document so section fragments stay valid.
 - Platform pages render their sibling recipe files (scripts, manifests, charts) inline
   from the tracked files, which is why platform READMEs link rather than embed them.
+- Site-only rendering rules, so a README reads well on both GitHub and the site:
+  - Drop a `## Contents` section whose content is only a list of same-page links; the
+    page's table of contents replaces it.
+  - Drop a list item whose only link targets the current page's own site URL (the
+    "Docs:" self-link), and drop a list this empties.
+  - The first `# Title` and paragraph become the page heading and lead; the frontmatter
+    `description` feeds meta tags and search only, so the lead is never duplicated.
+- Resolve links against the Git inventory, never the working tree:
+  - Repository README links go to the full document, so section fragments stay valid.
+  - Sibling recipe files become in-page anchors, unless the link has a fragment.
+  - Any other repository path becomes a GitHub blob or tree URL.
+  - A link that leaves the repository fails the build, as does a non-http(s)/mailto
+    scheme and raw HTML.
 - Navigation mirrors the repository shape: catalog categories → tools → tool page → its
   platform pages. Every discovered document gets a page.
-- Page metadata comes from YAML frontmatter (parsed with `yaml`): tool READMEs require
-  `name`, `description` and allow `upstream`, `image`, `keywords`; platform READMEs
-  require `name`, `description`, `usecase` and allow `keywords`. The root README has
-  none. A missing or mistyped key fails the build with a message naming the file; never
-  default around it or keep metadata tables in UI code.
-- Search is fully static: a content-addressed JSON index (titles, frontmatter,
-  headings, prose excerpts, never code) loaded lazily by a dialog (`/`, Ctrl/Cmd+K) and
-  by the noindex `/search/?q=` page, which is also the WebSite SearchAction target.
+- Page metadata comes from YAML frontmatter (parsed with `yaml`), validated strictly
+  against the contract in `$documentation`:
+  - Unknown, missing, or mistyped keys fail the build, as do invalid values.
+  - So do frontmatter in the root README, unknown platform directories, and a platform
+    doc without its tool README.
+  - Every problem is reported at once, each naming its file.
+  - Never default around a failure or keep metadata tables in UI code.
+- Search is fully static. A content-addressed JSON index is loaded lazily by the dialog
+  (`/`, Ctrl/Cmd+K) and by the noindex `/search/?q=` page, which is also the WebSite
+  SearchAction target.
+  - The index holds titles, frontmatter, headings, and full section prose, never code.
+  - Ranking and matching live in the pure `src/shared/search.mjs`, shared by the
+    browser and the tests; the home filter uses the same matcher.
+  - Every term must match. Matches are exact, prefix, or within one typo for terms of
+    five or more characters. Fields rank title > headings > keywords/use case >
+    description > prose.
+  - Highlight raw text, then escape it.
 
 ## Technical contract
 
@@ -45,14 +66,21 @@ The site automatically showcases the repository's markdown as pages — nothing 
   if it serves these goals; otherwise prefer the lightest static generator. Ship
   minimal or no client JavaScript.
 - Keep structured data limited to facts in the visible documents. Do not infer setup
-  durations, prices, ratings, or publisher identity.
+  durations, prices, ratings, or publisher identity. Use TechArticle (never
+  SoftwareApplication), and emit BreadcrumbList only where a visible breadcrumb with at
+  least two items exists. Canonical and `og:url` tags appear on indexable pages only.
+- Escape every value interpolated into HTML or XML through the `html` tagged template
+  or `escapeHtml`; JSON-LD escapes `<`.
 - SEO requirements per page: semantic HTML, exactly one `<h1>`, unique title and meta
   description from document content, clean slugs, generated sitemap and robots where
   the pipeline supports them.
-- Design language: basic modern shadcn style — neutral surfaces, restrained color,
-  rounded borders, subtle borders/shadows, clean typography, dark-mode-friendly tokens;
-  the markdown renderer plus a sidebar/nav are the core components. Weight performance
-  above decoration: small payload, no heavy frameworks in the shipped bundle.
+- Design language: minimal modern shadcn zinc style.
+  - Tokens are CSS `light-dark()` values that follow the OS until the user picks a
+    theme.
+  - One radius scale (8/6/4/12px), the system font stack, and one shared container.
+  - The Markdown renderer plus the sidebar and nav are the core components.
+  - Weight performance above decoration: small payload, no web fonts, and no heavy
+    frameworks in the shipped bundle.
 - Accessibility floor on every surface: semantic landmarks, keyboard operation, visible
   focus, sufficient contrast, reduced-motion support.
 - A static showcase has no secrets; never introduce tokens, analytics keys, or private
@@ -83,11 +111,13 @@ variables at runtime cannot alter already generated HTML.
 
 ## Code layout
 
-`src/build.mjs` orchestrates; `src/lib/` holds `content` (discovery, frontmatter),
-`site` (pages, routes, order), `markdown`, `highlight`, `seo`, `search`, `layout`,
-`assets`; `src/pages/` holds templates; `src/client/` the deferred script and pre-paint
-theme; `tests/content.test.mjs` (fixtures, no build) and `tests/site.test.mjs`
-(generated `dist/`).
+- `src/build.mjs` orchestrates and exports `build({ env, root, outDir })`.
+- `src/lib/` holds the build-time modules. `site.mjs` is the single owner of pages,
+  routes, labels, and order.
+- `src/shared/` holds modules the browser bundle and Node share.
+- `src/pages/` holds the templates.
+- `src/client/` holds the module script, the lazy search UI, and the pre-paint theme.
+- `tests/` holds unit tests and site tests.
 
 ## Verification
 
@@ -105,9 +135,11 @@ When routing, SEO URLs, or asset paths change, verify both hosting modes:
 - A build with explicit `SITE_URL` and `BASE_PATH` prefixes internal routes exactly
   once while keeping canonical and sitemap URLs under `SITE_URL`.
 
-After each mode, run the generated-site tests with the same environment used for its
-build. Restore the default build before local browser inspection or handoff unless the
-user asked to keep a prefixed artifact.
+`npm test` builds both modes into temporary directories itself, so it never depends on
+a stale `dist/`. Keep its assertions structural (parse the HTML) rather than
+exact-HTML regexes. When output grows on purpose, raise the size budgets to about
+twice the new actuals. Restore the default build before local browser inspection or
+handoff unless the user asked to keep a prefixed artifact.
 
 Use `$repository-changes` for Git isolation and handoff. Load `$container-images` only
 when UI packaging is implemented as a cataloged project under `tools/` or changes
