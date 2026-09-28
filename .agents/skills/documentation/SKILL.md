@@ -50,65 +50,91 @@ materially helps operation:
 4. **Included software** as nested lists (grouped by tier or by tool, with commands and
    sources), and what comes from the parent image. Base images without a bundle may
    use a focused section such as Hardening instead.
-5. **Use cases** with three to five concrete scenarios linking the relevant platform
-   examples.
+5. **Use cases** with three to five concrete scenarios, each a bold scenario name and
+   links to the platform docs that serve it. The scenario name is the `usecase` of the
+   platform doc it links; when one scenario links two platform docs, each `usecase`
+   extends the name to stay unique (for example "… from plain manifests" and
+   "… from a Helm chart").
 6. **Sources** linking upstream repository, package registry, and authoritative docs
    where available.
 
-Do not add a file map; the Source link opens the directory. Do not duplicate `docker run` instructions in the
-tool README; runnable commands belong under `docs/<platform>/`. Do not add a generic build or
-update section when CI is the sole supported build/update path.
+Do not list the tool's files; the Source link opens the directory. Do not duplicate
+`docker run` instructions in the tool README; runnable commands belong under
+`docs/<platform>/`. Do not add a generic build or update section when CI is the sole
+supported build/update path.
 
 ## Platform doc
 
 Each present platform README explains, in this order where applicable: prerequisites,
-exact commands, required variables or secrets, workspace behavior, files, cleanup, and
-limitations. Keep commands copy-pasteable and consistent with the Dockerfile and tool
-README; technical conventions live in `$container-images`.
+exact commands, required variables or secrets, workspace behavior, a **Files** section
+listing every file in its directory, cleanup, and limitations. Keep commands
+copy-pasteable and consistent with the Dockerfile and tool README; technical
+conventions live in `$container-images`.
 
-Link each example file with a relative link such as `./run.sh` instead of embedding its
-contents: the web-ui renders sibling example files inline, so embedded copies duplicate
-and drift. Short command lines to type are fine. Example image references use moving
+Link each runnable file with a relative link such as `./run.sh` instead of embedding its
+contents: the web-ui renders sibling files inline, so embedded copies duplicate and
+drift. Short command lines to type are fine. Example image references use moving
 tags from `ghcr.io/hambn/<repo>`.
 
 ## Frontmatter contract
 
 Every tool README and every platform doc starts with YAML frontmatter. The web UI reads
-it for page titles, meta descriptions, catalog cards, and search, and
+it for page titles, meta descriptions, catalog cards, structured data, and search, and
 `.github/scripts/check-repo.py` enforces it. Use flat keys only, plain scalars or flow
-lists, and quote any value that contains `:` or `#`.
+lists, and quote a value only when YAML would misread it (for example one containing
+`: ` or ` #`). No other keys are allowed.
 
 ```yaml
 ---
 name: codex
-description: OpenAI Codex CLI on the devbox development image, with Ubuntu and Alpine variants.
+title: Codex CLI
+description: OpenAI Codex CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
 upstream: https://github.com/openai/codex
 image: ghcr.io/hambn/codex
-keywords: [codex, openai, coding agent, cli]
+keywords: [openai, coding agent, devbox, ubuntu, alpine, headless chromium]
 ---
 ```
 
-| Key | Tool README | Platform doc | Rule |
-|---|---|---|---|
-| `name` | required | required | Tool directory name; platform display name (Docker, Docker Compose, Podman, Kubernetes, Helm) |
-| `description` | required | required | One plain-text sentence, 70–160 characters, no markdown, unique per file |
-| `upstream` | required when an upstream exists | not used | `https://` URL of the upstream project; omit for images built only here |
-| `image` | required | not used | Primary pull path without tag, e.g. `ghcr.io/hambn/<repo>` |
-| `usecase` | not used | required | Short phrase naming what the recipe is for |
-| `keywords` | recommended | recommended | Flow list of 3–8 real search terms |
+Tool README (`tools/<category>/<tool>/README.md`):
 
-No other keys are allowed. Derive every value from the document's own content; the
-existing `# Title` heading and body stay unchanged below the frontmatter.
+| Key | Required | Rule |
+|---|---|---|
+| `name` | yes | Equals the `<tool>` directory name |
+| `title` | yes | Human display name of the product, for example `Claude Code` or `core` |
+| `description` | yes | Plain text, 110–160 characters, unique across tool READMEs |
+| `image` | yes | Exactly `ghcr.io/hambn/<name>` |
+| `upstream` | no | `https://` URL of the upstream project; omit for images built only here |
+| `keywords` | no | Flow list of 3–8 unique, non-empty strings |
+
+Platform doc (`tools/<category>/<tool>/docs/<platform>/README.md`):
+
+| Key | Required | Rule |
+|---|---|---|
+| `name` | yes | Fixed by directory: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm; any other directory fails |
+| `description` | yes | Plain text, 110–160 characters, unique across platform docs |
+| `usecase` | yes | Short plain phrase, unique within the tool, matching its Use cases scenario name |
+| `keywords` | no | Flow list of 2–6 unique, non-empty strings |
+
+The root `README.md` has no frontmatter. Derive every value from the document's own
+content; the `# Title` heading and body stay unchanged below the frontmatter:
+
+- Write descriptions as one sentence without Markdown, stating what the image or recipe
+  does. Avoid time-bound or unverifiable claims such as "every current agent".
+- Pick keywords a reader would search for that the page does not already carry: skip
+  the tool name, title, platform name, and generic terms such as `cli` or
+  `docker image`.
 
 ## Cross-linking contract
 
 Every document must be reachable from every other document of the same tool, with no
 orphan pages:
 
-- Catalog → every tool README; tool README → every platform doc and back via
-  its file map; platform doc → its tool README.
-- Keep every present platform doc reachable from the tool's Use cases or file map.
-- Update the file map in the same change that adds, moves, or removes any tracked file.
+- Catalog → every tool README; tool README → every platform doc through its Use cases;
+  platform doc → its tool README through the "tool overview" link, and → every file in
+  its directory through its Files section (`check-repo.py` enforces the latter).
+- Update the Files section in the same change that adds, moves, or removes a file in
+  the platform directory, and the Use cases in the same change that adds or removes a
+  platform doc.
 - Use relative GitHub-compatible links between repository documents; verify claimed
   inventories against:
 

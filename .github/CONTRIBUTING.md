@@ -8,7 +8,8 @@ Before opening a pull request:
 1. Read [`AGENTS.md`](../AGENTS.md) and follow the routed repository guidance.
 2. Keep credentials and generated runtime state out of the repository.
 3. Update affected documentation and agent guidance when a reusable repository
-   contract changes.
+   contract changes. Every tool README and platform doc needs the YAML frontmatter
+   defined in the [documentation skill](../.agents/skills/documentation/SKILL.md).
 4. Run `bash .agents/skills/repository-changes/scripts/validate-change.sh`.
 
 Describe the change and list exact validation in the pull request body. The
