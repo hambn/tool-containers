@@ -49,5 +49,5 @@ kubectl delete secret claude-code
 
 ## Limitations
 
-- The Job runs non-interactively; use the Docker or Podman examples for interactive sessions.
+- The Job runs non-interactively; use the [Docker](../docker/) or [Podman](../podman/) docs for interactive sessions.
 - `ubuntu-browser` is a moving tag; pin `<version>-ubuntu-browser` or a digest for repeatable runs.

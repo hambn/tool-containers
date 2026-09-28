@@ -13,7 +13,7 @@ body:
       label: Affected area
       options:
         - Image build or runtime
-        - Deployment example
+        - Platform docs
         - Publishing or repository automation
         - Documentation
         - Repository tooling

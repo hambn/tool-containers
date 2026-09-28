@@ -74,13 +74,13 @@ tools/
 ```
 
 `ci` and `sandboxes` are catalog categories with no projects yet. A tool contains only
-the platform examples it actually supports. README standards are owned by
+the platform docs it actually supports. README standards are owned by
 `$documentation`; the web-ui site renders them.
 
 ## Web UI
 
 `web-ui/` owns the static site generated at build time from the root catalog, every
-tool README, and every example README with its sibling files. Use `$web-ui`.
+tool README, and every platform doc README with its sibling files. Use `$web-ui`.
 
 ## Exact-inventory commands
 

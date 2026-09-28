@@ -146,7 +146,7 @@
       enabled: false,
     },
     {
-      description: "Our own images in examples use moving tags on purpose",
+      description: "Our own images in platform docs use moving tags on purpose",
       matchPackageNames: ["ghcr.io/hambn/**", "docker.io/hambn/**", "hambn/**"],
       enabled: false,
     },

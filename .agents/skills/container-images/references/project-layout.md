@@ -57,7 +57,7 @@ use `docs/`.
    name, paths, cron minute, concurrency group, and inputs, and add it to the parent
    workflow's `dependents`; see
    [CI](ci.md).
-6. Add the README, only the platform examples that serve real use cases
+6. Add the README, only the platform docs that serve real use cases
    ([conventions](deployment/conventions.md)), and one root catalog row, all per
    `$documentation`.
 7. Run `.github/scripts/check-repo.py`; it checks the required files and the workflow.

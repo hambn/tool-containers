@@ -1,6 +1,6 @@
 ---
 name: container-images
-description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile and its ARG pins, per-tool docker-bake.hcl, tests, README, platform examples, root catalog entry, registries, tags, and image CI (per-tool workflows, tool-image.yml, .github/renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
+description: Add, change, review, or troubleshoot a container project under tools/ and its coupled Dockerfile and its ARG pins, per-tool docker-bake.hcl, tests, README, platform docs, root catalog entry, registries, tags, and image CI (per-tool workflows, tool-image.yml, .github/renovate.json5). Use for any tools/ change or image-delivery automation; do not use for the application under web-ui/.
 ---
 
 # Container images
@@ -11,7 +11,7 @@ current task needs.
 ## Route the task
 
 - **Add or reorganize a tool:** read [project layout](references/project-layout.md),
-  then the image, testing, and platform-example guides it links. Use `$documentation`
+  then the image, testing, and platform-doc guides it links. Use `$documentation`
   for every README.
 - **Understand inheritance or pick a base/tier:** read [tiers](references/images/tiers.md)
   and [variants](references/images/variants.md).
@@ -22,8 +22,8 @@ current task needs.
   [registries, tags, and labels](references/registries-and-tags.md).
 - **Add or change image tests:** read [testing](references/testing.md).
 - **Change build, publish, scan, or update automation:** read [CI](references/ci.md).
-- **Add or change a platform example:** read
-  [platform example conventions](references/deployment/conventions.md), then only the
+- **Add or change a platform doc:** read
+  [platform doc conventions](references/deployment/conventions.md), then only the
   platform guide linked there.
 - **Touch agentbloat, omnigent, or a `# ponytail:` limitation:** read
   [tool-specific contracts](references/tool-specific-contracts.md).
@@ -34,7 +34,7 @@ current task needs.
    `docker-bake.hcl`), its closest neighbor, its workflow
    `.github/workflows/<category>-<tool>.yml`, and the root catalog row.
 2. Identify every coupled surface before editing: Dockerfile and `ARG` pins, bake
-   variants, tests, workflow, README, examples, catalog row.
+   variants, tests, workflow, README, platform docs, catalog row.
 3. Render the variants instead of guessing them: `docker buildx bake --print` from the
    tool directory.
 4. Validate with `$repository-changes`. Static validation never proves runtime
