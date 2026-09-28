@@ -5,12 +5,10 @@ usecase: Code review in CI on GitHub pull requests
 keywords: [pull request review, print mode, read-only tools]
 ---
 
-# pi-agent · GitHub Actions
+# Run Pi Coding Agent with GitHub Actions
 
-[`workflow.yml`](./workflow.yml) reviews each pull request with Pi and writes the
+[`workflow.yml`](./workflow.yml) reviews each pull request with [Pi](../../README.md) and writes the
 review to the job summary. It pipes the diff into `pi --print --no-session`, limited to the `read`, `grep`, `find`, and `ls` tools.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
 
 ## Prerequisites
 
@@ -18,7 +16,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
   GitHub-hosted `ubuntu-24.04`.
 - An `ANTHROPIC_API_KEY` [repository secret](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 
-## Commands
+## Set up
 
 ```bash
 mkdir -p .github/workflows
@@ -26,6 +24,8 @@ cp workflow.yml .github/workflows/pi-agent-review.yml
 ```
 
 It runs on every pull request opened from a branch of the same repository.
+
+The workflow runs `ghcr.io/hambn/pi-agent:ubuntu`. Replace the tag with `@sha256:<digest>` to pin one build.
 
 ## Variables
 
@@ -41,12 +41,7 @@ container mounts the checkout read-only at `/workspace` and runs as `sysadmin`
 
 ## Files
 
-- [`workflow.yml`](./workflow.yml) — pull request review workflow
-
-## Cleanup
-
-The review container is started with `--rm`, and GitHub-hosted runners are discarded
-after the job.
+- [`workflow.yml`](./workflow.yml): pull request review workflow.
 
 ## Limitations
 
@@ -54,4 +49,3 @@ after the job.
 - The review is advisory: the job does not comment on the pull request or fail on findings. Read it in the job summary.
 - The diff is untrusted model input. The step has a read-only mount and no GitHub token, which limits what a crafted change can make the agent do.
 - Pi picks a default model for the provider whose key is set; add `--model <provider>/<id>` to choose one.
-- `ubuntu` is a moving tag; pin a digest (`ghcr.io/hambn/pi-agent@sha256:<digest>`) for repeatable reviews.

@@ -5,13 +5,11 @@ usecase: Code review in CI on GitLab merge requests
 keywords: [merge request review, print mode, masked variable]
 ---
 
-# pi-agent · GitLab CI
+# Run Pi Coding Agent with GitLab CI
 
 [`gitlab-ci.yml`](./gitlab-ci.yml) defines a job that reviews each merge request with
-Pi on a GitLab Runner with the [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/). It
+[Pi](../../README.md) on a GitLab Runner with the [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/). It
 pipes the diff into `pi --print --no-session`, limited to the `read`, `grep`, `find`, and `ls` tools.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
 
 ## Prerequisites
 
@@ -19,10 +17,12 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
   hosted Linux runners.
 - A masked `ANTHROPIC_API_KEY` [CI/CD variable](https://docs.gitlab.com/ci/variables/).
 
-## Commands
+## Set up
 
 Add the `pi-agent-review` job to your project's `.gitlab-ci.yml`. It runs only in merge
 request pipelines.
+
+The job runs `ghcr.io/hambn/pi-agent:ubuntu`. Replace the tag with `@sha256:<digest>` to pin one build.
 
 ## Variables
 
@@ -40,11 +40,7 @@ review covers `$CI_MERGE_REQUEST_DIFF_BASE_SHA` to `HEAD`.
 
 ## Files
 
-- [`gitlab-ci.yml`](./gitlab-ci.yml) — merge request review job
-
-## Cleanup
-
-The runner removes the job container when the job ends.
+- [`gitlab-ci.yml`](./gitlab-ci.yml): merge request review job.
 
 ## Limitations
 
@@ -52,4 +48,3 @@ The runner removes the job container when the job ends.
 - The review is advisory: the job does not comment on the merge request or fail on findings. Read it in the job log.
 - The diff is untrusted model input, and the job environment, including `CI_JOB_TOKEN`, is visible to any command the agent runs.
 - Pi picks a default model for the provider whose key is set; add `--model <provider>/<id>` to choose one.
-- `ubuntu` is a moving tag; pin a digest (`ghcr.io/hambn/pi-agent@sha256:<digest>`) for repeatable reviews.

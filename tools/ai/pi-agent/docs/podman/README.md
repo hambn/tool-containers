@@ -1,45 +1,42 @@
 ---
 name: Podman
-description: Run the Pi terminal coding agent under rootless Podman, mapping your host user to sysadmin and mounting the current directory.
+description: Run the Pi terminal coding agent under rootless Podman on the current directory, mapping your host user to sysadmin with keep-id.
 usecase: Rootless sessions on a workstation
 keywords: [terminal coding agent, rootless, keep-id, selinux]
 ---
 
-# pi-agent · Podman
+# Run Pi Coding Agent with Podman
 
-[`run.sh`](./run.sh) runs Pi (`pi`) with the arguments you pass under rootless Podman.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) starts [Pi](../../README.md) under rootless Podman on the current
+directory, passing any arguments to `pi`.
 
 ## Prerequisites
 
-- Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e <VAR>` added to the `podman run` command in [`run.sh`](./run.sh).
+- Rootless Podman 4.3 or later, for `--userns=keep-id:uid=1000,gid=1000`.
+- An account or API key for a model provider Pi supports.
 
-## Commands
+## Run Pi
 
 ```bash
 ./run.sh
 ```
 
+Run `/login` inside Pi to connect a provider; the login is removed with the container.
+To use an environment key, add `-e ANTHROPIC_API_KEY` (or another provider's variable)
+to the `podman run` line in [`run.sh`](./run.sh).
+
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `PI_AGENT_IMAGE` | no | Image to run; defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
+| `PI_AGENT_IMAGE` | no | Image to run. Defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-The current directory is mounted at `/workspace` with `:Z` so SELinux hosts relabel it. `--userns=keep-id` maps your host user to the image's `sysadmin` (UID 1000), so written files stay owned by you.
+The current directory is mounted at `/workspace` with `:Z`, so SELinux hosts relabel it
+for the container. `--userns=keep-id` maps your host user to `sysadmin` (UID 1000), so
+files Pi writes stay owned by you.
 
 ## Files
 
-- [`run.sh`](./run.sh) — rootless `podman run` of the published image.
-
-## Cleanup
-
-The container is started with `--rm`. Remove the image with `podman image rm ghcr.io/hambn/pi-agent:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/pi-agent@sha256:<digest>`) for repeatable runs.
+- [`run.sh`](./run.sh) runs the published image with rootless Podman.
