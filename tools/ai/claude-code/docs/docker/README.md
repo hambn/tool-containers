@@ -1,54 +1,61 @@
 ---
 name: Docker
-description: Run Claude Code in Docker with ANTHROPIC_API_KEY, mounting the current directory at /workspace, or from a saved image tarball.
+description: Run Claude Code in Docker on the current directory with your Anthropic API key, or from a saved image tarball on a host with no registry access.
 usecase: Interactive coding on a local checkout
 keywords: [anthropic api key, air-gapped, docker save]
 ---
 
-# claude-code · Docker
+# Run Claude Code with Docker
 
-[`run.sh`](./run.sh) runs Claude Code (`claude`) with the arguments you pass, mounting the current directory at `/workspace`.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+[`run.sh`](./run.sh) starts [Claude Code](../../README.md) on the current directory,
+passing any arguments to `claude`. [`airgapped.run.sh`](./airgapped.run.sh) does the
+same from a saved image on a host that cannot pull.
 
 ## Prerequisites
 
-- Docker Engine 23 or newer.
-- `ANTHROPIC_API_KEY` exported in your shell.
+- Docker Engine 23 or later.
+- An Anthropic API key in `ANTHROPIC_API_KEY`.
 
-## Commands
+## Run Claude Code
 
 ```bash
-./run.sh
-./airgapped.run.sh claude-code.tar
+export ANTHROPIC_API_KEY=sk-ant-...
+./run.sh                                  # interactive session
+./run.sh -p "explain the build scripts"   # print one answer and exit
 ```
 
-For an air-gapped host, save the image on a connected machine first:
+## Run without registry access
+
+On a machine that can pull, save the image:
 
 ```bash
 docker save ghcr.io/hambn/claude-code:ubuntu-browser -o claude-code.tar
 ```
 
+Copy the tar to the offline host and pass its path first; the remaining arguments go to
+`claude`:
+
+```bash
+./airgapped.run.sh claude-code.tar
+```
+
+The script loads the tar and runs `CLAUDE_CODE_IMAGE` with `--pull=never`, so set that
+variable if you saved a different tag.
+
 ## Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
-| `CLAUDE_CODE_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
+| `ANTHROPIC_API_KEY` | yes | Forwarded to the container; the scripts stop if it is unset. |
+| `CLAUDE_CODE_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`; set `ghcr.io/hambn/claude-code@sha256:<digest>` to pin one build. |
 
 ## Workspace
 
-The current directory is bind-mounted at `/workspace` and the container runs as `sysadmin` (UID 1000), so files it writes are owned by UID 1000 on the host.
+The current directory is mounted at `/workspace`, the image's working directory. Claude
+Code runs as `sysadmin` (UID 1000), so new files belong to UID 1000 on the host. Its
+settings and session history stay in the container and are removed with it.
 
 ## Files
 
-- [`run.sh`](./run.sh) — pull and run the published image.
-- [`airgapped.run.sh`](./airgapped.run.sh) — `docker load` a saved tar and run with `--pull=never`.
-
-## Cleanup
-
-Containers are started with `--rm`. Remove the image with `docker image rm ghcr.io/hambn/claude-code:ubuntu-browser`.
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/claude-code@sha256:<digest>`) for repeatable runs.
+- [`run.sh`](./run.sh) pulls the image if needed and runs it.
+- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.

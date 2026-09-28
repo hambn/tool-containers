@@ -1,30 +1,40 @@
 ---
 name: Docker Compose
-description: Run Claude Code as a Docker Compose service on the current directory with ANTHROPIC_API_KEY, plus an air-gapped variant.
+description: Run Claude Code as a Docker Compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
 usecase: Repeatable local sessions
 keywords: [anthropic api key, air-gapped]
 ---
 
-# claude-code · Docker Compose
+# Run Claude Code with Docker Compose
 
-The `claude` service runs Claude Code (`claude`) with the arguments you pass. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and runs `docker compose` from this directory.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
+The `claude` service runs [Claude Code](../../README.md) on the directory in
+`WORKSPACE`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path,
+because Compose would resolve a relative one against this directory, then runs
+`docker compose` here.
 
 ## Prerequisites
 
 - Docker Engine with the Compose v2 plugin.
-- `ANTHROPIC_API_KEY` exported in your shell.
+- An Anthropic API key in `ANTHROPIC_API_KEY`.
 
-## Commands
+## Run Claude Code
 
 ```bash
+export ANTHROPIC_API_KEY=sk-ant-...
 WORKSPACE="$PWD" ./compose.sh run --rm claude
 ```
 
-Air-gapped host, after `docker load -i claude-code.tar`:
+Arguments after the service name go to `claude`, for example
+`./compose.sh run --rm claude -p "list the TODOs"`.
+
+## Run without registry access
+
+On a connected machine, run
+`docker save ghcr.io/hambn/claude-code:ubuntu-browser -o claude-code.tar`. On the
+offline host, load it and use the air-gapped file, which sets `pull_policy: never`:
 
 ```bash
+docker load -i claude-code.tar
 WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm claude
 ```
 
@@ -32,26 +42,17 @@ WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm claude
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
+| `ANTHROPIC_API_KEY` | yes | Passed to the container; Compose stops if it is unset. |
 | `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
-| `CLAUDE_CODE_IMAGE` | no | Image for both Compose files; defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
+| `CLAUDE_CODE_IMAGE` | no | Image for both Compose files. Defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`; set a digest reference to pin one build. |
 
 ## Workspace
 
-`WORKSPACE` is bind-mounted at `/workspace`; the container runs as UID 1000.
+`WORKSPACE` is mounted at `/workspace`. Claude Code runs as UID 1000, so new files
+belong to UID 1000 on the host.
 
 ## Files
 
-- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`.
-- [`docker-compose.yml`](./docker-compose.yml) — pulls the published image.
-- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) — uses a pre-loaded image with `pull_policy: never`.
-
-## Cleanup
-
-```bash
-WORKSPACE="$PWD" ./compose.sh down
-```
-
-## Limitations
-
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/claude-code@sha256:<digest>`) for repeatable runs.
+- [`compose.sh`](./compose.sh) validates `WORKSPACE` and passes its arguments to `docker compose`.
+- [`docker-compose.yml`](./docker-compose.yml) runs the published image.
+- [`airgapped.docker-compose.yml`](./airgapped.docker-compose.yml) runs a loaded image and never pulls.

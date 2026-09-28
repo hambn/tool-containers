@@ -5,13 +5,11 @@ usecase: Code review in CI on GitLab merge requests
 keywords: [merge request review, claude -p, masked variable]
 ---
 
-# claude-code · GitLab CI
+# Run Claude Code with GitLab CI
 
 [`gitlab-ci.yml`](./gitlab-ci.yml) defines a job that reviews each merge request with
-Claude Code on a GitLab Runner with the [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/). It
+[Claude Code](../../README.md) on a GitLab Runner with the [Docker executor](https://docs.gitlab.com/ci/docker/using_docker_images/). It
 pipes the diff into `claude -p` (print mode) with `--max-turns 10`.
-
-See the [tool overview](../../README.md) for image variants, tags, and registries.
 
 ## Prerequisites
 
@@ -19,10 +17,12 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
   hosted Linux runners.
 - A masked `ANTHROPIC_API_KEY` [CI/CD variable](https://docs.gitlab.com/ci/variables/).
 
-## Commands
+## Set up
 
 Add the `claude-code-review` job to your project's `.gitlab-ci.yml`. It runs only in merge
 request pipelines.
+
+The job runs `ghcr.io/hambn/claude-code:ubuntu`. Replace the tag with `@sha256:<digest>` to pin one build.
 
 ## Variables
 
@@ -40,15 +40,10 @@ review covers `$CI_MERGE_REQUEST_DIFF_BASE_SHA` to `HEAD`.
 
 ## Files
 
-- [`gitlab-ci.yml`](./gitlab-ci.yml) — merge request review job
-
-## Cleanup
-
-The runner removes the job container when the job ends.
+- [`gitlab-ci.yml`](./gitlab-ci.yml): merge request review job.
 
 ## Limitations
 
 - Merge request pipelines that run in a fork do not get the parent project's CI/CD variables, so the job stops at the variable check.
 - The review is advisory: the job does not comment on the merge request or fail on findings. Read it in the job log.
 - The diff is untrusted model input, and the job environment, including `CI_JOB_TOKEN`, is visible to any command the agent runs.
-- `ubuntu` is a moving tag; pin a digest (`ghcr.io/hambn/claude-code@sha256:<digest>`) for repeatable reviews.
