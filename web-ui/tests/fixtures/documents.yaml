@@ -1,0 +1,354 @@
+# Shared cases for the two document validators, which must agree on every one:
+#   - web-ui/tests/fixtures.test.mjs runs them through discover() (src/lib/content.mjs)
+#   - .github/scripts/test_check_repo.py runs them through check_documents() (check-repo.py)
+#
+# `base` is a valid document tree. Each case starts from it, applies `files`
+# (whole documents; null removes one), then `edit` ([old, new] replacements;
+# `old` must occur exactly once), and lists in `invalid` every document the
+# validators must report a problem for, and no other.
+
+base:
+  README.md: |
+    # Fixture
+
+    A fixture catalog for the validator tests.
+  tools/ai/README.md: |
+    ---
+    name: ai
+    title: AI
+    description: Fixture AI images package coding agents for tests, each with Ubuntu and Alpine variants and a set of deployment recipes.
+    order: 1
+    ---
+
+    # AI
+
+    Fixture images for coding agents.
+
+    ## Tools
+
+    - [Demo](./demo/) — A fixture coding agent.
+    - [Other](./other/) — A second fixture agent on demo.
+  tools/ai/demo/README.md: |
+    ---
+    name: demo
+    title: Demo
+    description: The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants and optional Chromium.
+    order: 1
+    images: [ghcr.io/hambn/demo, docker.io/hambn/demo]
+    upstream: https://github.com/example/demo
+    keywords: [one, two, three]
+    ---
+
+    # demo
+
+    The demo lead.
+  tools/ai/demo/docs/docker/README.md: |
+    ---
+    name: Docker
+    description: Run the demo fixture image with Docker on a local checkout, mounting the workspace and passing the provider key from the host.
+    usecase: Interactive coding on a local checkout
+    ---
+
+    # Docker
+
+    Steps.
+  tools/ai/other/README.md: |
+    ---
+    name: other
+    title: Other
+    description: The other tool packages a second fixture agent on the demo image so every bundled command-line tool is ready to orchestrate.
+    order: 2
+    images: [ghcr.io/hambn/other]
+    ---
+
+    # other
+
+    The other lead.
+  tools/base/README.md: |
+    ---
+    name: base
+    title: Base
+    description: Fixture base images that the other fixture images build from, with hardened minimal and interactive development variants.
+    order: 2
+    ---
+
+    # Base
+
+    Fixture base images.
+
+    ## Tools
+
+    - [core](./core/) — A hardened minimal fixture base.
+
+    ## Tags
+
+    Moving tags only.
+  tools/base/core/README.md: |
+    ---
+    name: core
+    title: core
+    description: The core tool is a hardened minimal fixture base on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, and a nonroot user.
+    order: 1
+    images: [ghcr.io/hambn/core, docker.io/hambn/core]
+    ---
+
+    # core
+
+    The core lead.
+
+cases:
+  - name: the base tree is valid
+    invalid: []
+
+  # --- YAML -----------------------------------------------------------------
+  - name: duplicate keys are an error
+    edit: { tools/ai/demo/README.md: [["title: Demo\n", "title: Demo\ntitle: Demo again\n"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: invalid YAML
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: [Demo"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: frontmatter that is not a mapping
+    files:
+      tools/ai/demo/README.md: "---\n- demo\n---\n\n# demo\n"
+    invalid: [tools/ai/demo/README.md]
+  - name: missing frontmatter
+    files:
+      tools/ai/demo/README.md: "# demo\n\nNo frontmatter.\n"
+    invalid: [tools/ai/demo/README.md]
+  - name: a bare yes is a boolean, not a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: yes"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: a bare on is a boolean, not a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: on"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: a bare y is a string in YAML 1.1 as PyYAML reads it
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: y"]] }
+    invalid: []
+  - name: a bare 1e3 is a string in YAML 1.1 as PyYAML reads it
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: 1e3"]] }
+    invalid: []
+  - name: a bare integer is not a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: 123"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: a sexagesimal number is not a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: 12:30"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: a bare date is not a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: 2024-01-01"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: an empty value is null, not a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title:"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: a quoted number is a string
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: \"123\""]] }
+    invalid: []
+
+  # --- keys and plain strings -------------------------------------------------
+  - name: unknown key
+    edit: { tools/ai/demo/README.md: [["title: Demo\n", "title: Demo\nextra: x\n"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: the removed image key
+    edit: { tools/ai/demo/README.md: [["title: Demo\n", "title: Demo\nimage: ghcr.io/hambn/demo\n"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: missing required key
+    edit: { tools/ai/demo/README.md: [["title: Demo\n", ""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: name must equal the directory
+    edit: { tools/ai/demo/README.md: [["name: demo", "name: other"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: category name must equal the directory
+    edit: { tools/ai/README.md: [["name: ai", "name: AI"]] }
+    invalid: [tools/ai/README.md]
+  - name: whitespace-only title
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: \"  \""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: multi-line title
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: \"De\\nmo\""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: backticks in a title
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: \"`Demo`\""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: underscore emphasis in a title
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: _Demo_"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: an underscore inside a word is plain
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: demo_cli"]] }
+    invalid: []
+  - name: a link in a title
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: \"[Demo](https://example.com)\""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: HTML in a category title
+    edit: { tools/ai/README.md: [["title: AI", "title: <b>AI</b>"]] }
+    invalid: [tools/ai/README.md]
+  - name: a heading as a title
+    edit: { tools/ai/demo/README.md: [["title: Demo", "title: \"# Demo\""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: a description one character too short
+    edit:
+      tools/ai/demo/README.md: [["description: The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants and optional Chromium.", "description: The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants plus X."]]
+    invalid: [tools/ai/demo/README.md]
+  - name: a description of exactly 110 characters
+    edit:
+      tools/ai/demo/README.md: [["description: The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants and optional Chromium.", "description: The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants at hand."]]
+    invalid: []
+  - name: description length is measured after trimming
+    edit:
+      tools/ai/demo/README.md: [["description: The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants and optional Chromium.", "description: \"   The demo tool packages a fixture coding agent on a development image, with Ubuntu and Alpine variants plus X.   \""]]
+    invalid: [tools/ai/demo/README.md]
+
+  # --- order ----------------------------------------------------------------------
+  - name: order must be an integer, not a boolean
+    edit: { tools/ai/demo/README.md: [["order: 1", "order: true"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: order must be an integer, not a float
+    edit: { tools/ai/demo/README.md: [["order: 1", "order: 1.0"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: order must be an integer, not a string
+    edit: { tools/ai/demo/README.md: [["order: 1", "order: \"1\""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: order must be at least 1
+    edit: { tools/ai/demo/README.md: [["order: 1", "order: 0"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: tool order is unique within a category, reported on the later tool
+    edit: { tools/ai/other/README.md: [["order: 2", "order: 1"]] }
+    invalid: [tools/ai/other/README.md]
+  - name: category order is unique, reported on the later category
+    edit: { tools/base/README.md: [["order: 2", "order: 1"]] }
+    invalid: [tools/base/README.md]
+  - name: the same order in different categories is fine
+    edit: { tools/base/README.md: [["order: 2", "order: 7"]] }
+    invalid: []
+
+  # --- images -------------------------------------------------------------------
+  - name: images must be a list
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: ghcr.io/hambn/demo"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images must not be empty
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: []"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images must list GHCR first
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: [docker.io/hambn/demo, ghcr.io/hambn/demo]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images must include GHCR
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: [docker.io/hambn/demo]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images must not repeat
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: [ghcr.io/hambn/demo, ghcr.io/hambn/demo]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images must be named after the tool
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: [ghcr.io/hambn/other]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images must be on a known registry
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: [ghcr.io/hambn/demo, quay.io/hambn/demo]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: images carry no tag
+    edit: { tools/ai/demo/README.md: [["images: [ghcr.io/hambn/demo, docker.io/hambn/demo]", "images: [\"ghcr.io/hambn/demo:latest\"]"]] }
+    invalid: [tools/ai/demo/README.md]
+
+  # --- upstream and keywords -------------------------------------------------------
+  - name: upstream must be https
+    edit: { tools/ai/demo/README.md: [["upstream: https://github.com/example/demo", "upstream: http://github.com/example/demo"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: upstream must not be a script URL
+    edit: { tools/ai/demo/README.md: [["upstream: https://github.com/example/demo", "upstream: \"javascript:alert(1)\""]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: too few tool keywords
+    edit: { tools/ai/demo/README.md: [["keywords: [one, two, three]", "keywords: [one, two]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: too many tool keywords
+    edit: { tools/ai/demo/README.md: [["keywords: [one, two, three]", "keywords: [a1, a2, a3, a4, a5, a6, a7, a8, a9]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: keywords are unique case-insensitively
+    edit: { tools/ai/demo/README.md: [["keywords: [one, two, three]", "keywords: [one, One, three]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: keywords must be strings
+    edit: { tools/ai/demo/README.md: [["keywords: [one, two, three]", "keywords: [one, two, 3]"]] }
+    invalid: [tools/ai/demo/README.md]
+  - name: platform keywords take 2-6 items
+    edit: { tools/ai/demo/docs/docker/README.md: [["usecase: Interactive coding on a local checkout\n", "usecase: Interactive coding on a local checkout\nkeywords: [one]\n"]] }
+    invalid: [tools/ai/demo/docs/docker/README.md]
+  - name: categories take no keywords
+    edit: { tools/ai/README.md: [["order: 1\n", "order: 1\nkeywords: [one, two, three]\n"]] }
+    invalid: [tools/ai/README.md]
+
+  # --- uniqueness -----------------------------------------------------------------
+  - name: descriptions are unique case-insensitively, reported on the later tool
+    edit:
+      tools/ai/other/README.md: [["description: The other tool packages a second fixture agent on the demo image so every bundled command-line tool is ready to orchestrate.", "description: THE DEMO TOOL PACKAGES A FIXTURE CODING AGENT ON A DEVELOPMENT IMAGE, WITH UBUNTU AND ALPINE VARIANTS AND OPTIONAL CHROMIUM."]]
+    invalid: [tools/ai/other/README.md]
+  - name: descriptions are unique across categories and tools
+    edit:
+      tools/base/core/README.md: [["description: The core tool is a hardened minimal fixture base on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, and a nonroot user.", "description: Fixture AI images package coding agents for tests, each with Ubuntu and Alpine variants and a set of deployment recipes."]]
+    invalid: [tools/base/core/README.md]
+  - name: descriptions are unique across tools and platforms
+    edit:
+      tools/ai/demo/docs/docker/README.md: [["description: Run the demo fixture image with Docker on a local checkout, mounting the workspace and passing the provider key from the host.", "description: The core tool is a hardened minimal fixture base on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, and a nonroot user."]]
+    invalid: [tools/ai/demo/docs/docker/README.md]
+
+  # --- platforms --------------------------------------------------------------------
+  - name: platform name is fixed by its directory
+    edit: { tools/ai/demo/docs/docker/README.md: [["name: Docker", "name: docker"]] }
+    invalid: [tools/ai/demo/docs/docker/README.md]
+  - name: usecase is at most 80 characters
+    edit: { tools/ai/demo/docs/docker/README.md: [["usecase: Interactive coding on a local checkout", "usecase: Interactive coding on a local checkout with every provider key and workspace mounted"]] }
+    invalid: [tools/ai/demo/docs/docker/README.md]
+  - name: usecase is unique within the tool, case-insensitively
+    files:
+      tools/ai/demo/docs/podman/README.md: |
+        ---
+        name: Podman
+        description: Run the demo fixture image with rootless Podman on a workstation, with the workspace mounted and the provider key passed in.
+        usecase: interactive coding on a local checkout
+        ---
+
+        # Podman
+    invalid: [tools/ai/demo/docs/podman/README.md]
+  - name: an unknown platform directory
+    files:
+      tools/ai/demo/docs/nomad/README.md: "# Nomad\n"
+    invalid: [tools/ai/demo/docs/nomad/README.md]
+  - name: a platform doc without a tool README
+    files:
+      tools/ai/ghost/docs/docker/README.md: "# Docker\n"
+    invalid: [tools/ai/ghost/docs/docker/README.md]
+
+  # --- category READMEs and their Tools section ------------------------------------------
+  - name: a tool needs a category README
+    files:
+      tools/base/README.md: null
+    invalid: [tools/base/core/README.md]
+  - name: the Tools section is required
+    edit: { tools/ai/README.md: [["## Tools", "## Images"]] }
+    invalid: [tools/ai/README.md]
+  - name: the Tools section must link every tool
+    edit: { tools/ai/README.md: [["- [Other](./other/) — A second fixture agent on demo.\n", ""]] }
+    invalid: [tools/ai/README.md]
+  - name: the Tools section must follow tool order
+    edit:
+      tools/ai/README.md: [["- [Demo](./demo/) — A fixture coding agent.\n- [Other](./other/) — A second fixture agent on demo.", "- [Other](./other/) — A second fixture agent on demo.\n- [Demo](./demo/) — A fixture coding agent."]]
+    invalid: [tools/ai/README.md]
+  - name: the Tools section follows order, not names
+    edit:
+      tools/ai/demo/README.md: [["order: 1", "order: 3"]]
+      tools/ai/README.md: [["- [Demo](./demo/) — A fixture coding agent.\n- [Other](./other/) — A second fixture agent on demo.", "- [Other](./other/) — A second fixture agent on demo.\n- [Demo](./demo/) — A fixture coding agent."]]
+    invalid: []
+  - name: the Tools section links each tool once
+    edit: { tools/base/README.md: [["- [core](./core/) — A hardened minimal fixture base.\n", "- [core](./core/) — A hardened minimal fixture base.\n- [core again](./core/) — The same tool.\n"]] }
+    invalid: [tools/base/README.md]
+  - name: Tools bullets are prose only after the link
+    edit: { tools/base/README.md: [["A hardened minimal fixture base.", "A base for [devbox](./devbox/)."]] }
+    invalid: [tools/base/README.md]
+  - name: Tools bullets need the em dash separator
+    edit: { tools/base/README.md: [["(./core/) — A", "(./core/) - A"]] }
+    invalid: [tools/base/README.md]
+  - name: Tools bullets link the tool directory
+    edit: { tools/base/README.md: [["(./core/)", "(./core/README.md)"]] }
+    invalid: [tools/base/README.md]
+  - name: the Tools section holds only bullets
+    edit: { tools/base/README.md: [["- [core](./core/)", "Every base image:\n\n- [core](./core/)"]] }
+    invalid: [tools/base/README.md]
+
+  # --- root README -----------------------------------------------------------------
+  - name: the root README has no frontmatter
+    edit: { README.md: [["# Fixture", "---\ntitle: Fixture\n---\n\n# Fixture"]] }
+    invalid: [README.md]
