@@ -46,19 +46,23 @@ function withinOneEdit(a, b) {
  * typing), or one typo away for terms long enough that a typo is likely.
  * @returns {number} 0 when there is no match
  */
-export function matchQuality(term, word) {
+export function matchQuality(term, word, typos = true) {
   if (word === term) return EXACT;
   if (word.startsWith(term)) return PREFIX;
-  if (term.length < TYPO_MIN_LENGTH) return 0;
+  if (!typos || term.length < TYPO_MIN_LENGTH) return 0;
   if (withinOneEdit(term, word)) return TYPO;
   if (word.length > term.length && withinOneEdit(term, word.slice(0, term.length))) return TYPO_PREFIX;
   return 0;
 }
 
-/** True when every term matches some word of `text`: the home filter's predicate. */
-export function matchesAll(terms, text) {
+/**
+ * True when every term matches some word of `text`: the home filter's
+ * predicate. The filter first tries without typos and allows them only when
+ * nothing matches, so "codex" never also lists every "code" row.
+ */
+export function matchesAll(terms, text, { typos = true } = {}) {
   const list = words(text);
-  return terms.every((term) => list.some((word) => matchQuality(term, word) > 0));
+  return terms.every((term) => list.some((word) => matchQuality(term, word, typos) > 0));
 }
 
 /**

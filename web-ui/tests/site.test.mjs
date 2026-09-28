@@ -164,13 +164,29 @@ for (const mode of MODES) {
         const listed = dom.querySelectorAll(".category-tool-title a").map((link) => link.getAttribute("href"));
         assert.deepEqual(listed, bullets.map((tool) => `${mode.basePath}/docs/${category}/${tool}/`), route);
         for (const item of dom.querySelectorAll(".category-tool")) {
-          assert.ok(item.querySelectorAll(".image-ref code").length > 0, `${route}: every tool shows its images`);
+          assert.ok(item.querySelectorAll(".image code").length > 0, `${route}: every tool shows its images`);
         }
         const collection = jsonLd(dom).find((node) => node["@type"] === "CollectionPage");
         assert.equal(collection.headline, dom.querySelector("h1").text.trim(), route);
         assert.deepEqual(collection.mainEntity.itemListElement.map((entry) => entry.url), listed.map((href) => canonical(href.slice(mode.basePath.length))), route);
         const label = site.pages.get("/docs/").querySelectorAll("a.tree-label").find((link) => link.getAttribute("href") === `${mode.basePath}${route}`);
         assert.ok(label, `${route}: the sidebar links the category page`);
+      }
+    });
+
+    test("the catalog groups tools by category order, links each category page, and lists every image", () => {
+      const home = site.pages.get("/");
+      assert.equal(home.querySelector('select[name="platform"]'), null, "no platform filter");
+      assert.equal(home.querySelectorAll(".row nav, .row-platforms").length, 0, "no platform columns");
+      const groups = home.querySelectorAll(".group");
+      const categoryPages = site.pages.get("/docs/").querySelectorAll(".sidebar a.tree-label").map((link) => link.getAttribute("href"));
+      assert.deepEqual(groups.map((group) => group.querySelector(".group-title a").getAttribute("href")), categoryPages);
+      for (const row of home.querySelectorAll(".row")) {
+        const tool = site.pages.get(row.querySelector(".row-title a").getAttribute("href").slice(mode.basePath.length));
+        const images = (dom) => dom.querySelectorAll(".image code").map((code) => code.text);
+        assert.deepEqual(images(row), images(tool.querySelector(".facts")));
+        assert.ok(images(row).some((image) => image.startsWith("ghcr.io/")) && images(row).some((image) => image.startsWith("docker.io/")));
+        assert.deepEqual(row.querySelectorAll(".image-registry").map((label) => label.text), ["GHCR", "Docker Hub"]);
       }
     });
 

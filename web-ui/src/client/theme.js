@@ -9,5 +9,5 @@
   } catch {}
   // A shared catalog link carries filters: keep the list unpainted until they
   // apply, so rows never visibly jump (see .filtering in the stylesheet).
-  if (/[?&](q|category|platform)=/.test(location.search)) root.classList.add("filtering");
+  if (/[?&](q|category)=/.test(location.search)) root.classList.add("filtering");
 })();

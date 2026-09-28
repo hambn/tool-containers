@@ -45,6 +45,10 @@ export function sourceRoute(source) {
 const PLATFORM_LABELS = { "docker-compose": "Compose" };
 export const platformLabel = (platform) => PLATFORM_LABELS[platform.slug] ?? platform.meta.name;
 
+// Image references name their registry host; the frontmatter contract allows only these.
+const REGISTRIES = { "ghcr.io": "GHCR", "docker.io": "Docker Hub" };
+export const registryLabel = (image) => REGISTRIES[image.split("/")[0]] ?? image.split("/")[0];
+
 const DOCS_CRUMB = { label: "Docs", route: "/docs/" };
 
 /** A tool page followed by its platform pages. */

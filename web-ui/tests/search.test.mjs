@@ -54,6 +54,13 @@ test("the home filter shares the matcher", () => {
   assert.equal(matchesAll(parseQuery("claude nomad"), "Claude Code kubernetes"), false);
 });
 
+test("the home filter can match without typos, so a precise word stays precise", () => {
+  assert.equal(matchesAll(parseQuery("codex"), "Claude Code CLI"), true, "one typo away by default");
+  assert.equal(matchesAll(parseQuery("codex"), "Claude Code CLI", { typos: false }), false);
+  assert.equal(matchesAll(parseQuery("codex"), "Codex CLI", { typos: false }), true);
+  assert.equal(matchesAll(parseQuery("cod"), "Codex CLI", { typos: false }), true, "prefixes still match");
+});
+
 test("highlighting marks raw text, then escapes it", () => {
   assert.equal(highlight("<lt> & lt", ["lt"]), "&lt;<mark>lt</mark>&gt; &amp; <mark>lt</mark>");
   assert.equal(highlight(`"><img src=x>`, ["img"]), "&quot;&gt;&lt;<mark>img</mark> src=x&gt;");

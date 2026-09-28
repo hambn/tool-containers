@@ -1,17 +1,25 @@
 /* Design tokens (shadcn zinc). `light-dark()` follows the OS preference unless
-   the stored choice pins `.light` or `.dark` on <html>; no JavaScript needed. */
+   the stored choice pins `.light` or `.dark` on <html>; no JavaScript needed.
+   Text pairs hold 4.5:1 and control borders (--input) 3:1 in both themes;
+   highlight.mjs keeps code colours readable on --code-bg. */
 :root {
   color-scheme: light dark;
   --bg: light-dark(#ffffff, #09090b);
   --fg: light-dark(#09090b, #fafafa);
-  --muted: light-dark(#f4f4f5, #18181b);
-  --muted-fg: light-dark(#71717a, #a1a1aa);
-  --border: light-dark(#e4e4e7, #27272a);
-  --input: light-dark(#e4e4e7, #27272a);
+  --surface: light-dark(#ffffff, #0f0f12);
+  --surface-2: light-dark(#fafafa, #151518);
+  --code-bg: light-dark(#fafafa, #151518);
+  --muted: light-dark(#f4f4f5, #1f1f23);
+  --hover: light-dark(#f7f7f8, #18181c);
+  --muted-fg: light-dark(#63636b, #a1a1aa);
+  --border: light-dark(#e4e4e7, #34343b);
+  --input: light-dark(#8a8a93, #6b6b75);
   --accent: light-dark(#2563eb, #60a5fa);
+  --accent-soft: light-dark(#eff6ff, #172554);
   --mark: light-dark(#dbeafe, #1e3a8a);
   --overlay: rgb(0 0 0 / 0.5);
-  --shadow: 0 16px 48px -12px rgb(0 0 0 / 0.25);
+  --shadow-sm: 0 1px 2px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.5));
+  --shadow: 0 16px 48px -12px light-dark(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.7));
 
   --radius: 8px;
   --radius-sm: 6px;

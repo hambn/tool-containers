@@ -2,6 +2,7 @@ import path from "node:path";
 import { Marked, Renderer } from "marked";
 import { fileLanguage } from "./highlight.mjs";
 import { html, raw } from "./html.mjs";
+import { copyButton } from "./ui.mjs";
 
 // Longer recipe files start collapsed so the page stays scannable.
 const COLLAPSE_LINES = 40;
@@ -51,10 +52,6 @@ export function plainText(tokens = []) {
     .join("");
   return text.replace(/\s+/g, " ").trim();
 }
-
-/** A copy button; the client script copies the nearest `[data-copy-source]` text. */
-export const copyButton = (icon, label) =>
-  html`<button type="button" class="copy" data-copy aria-label="${label}">${raw(icon("copy"))}${raw(icon("check"))}</button>`;
 
 /**
  * @typedef {object} Rendered

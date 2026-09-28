@@ -1,7 +1,7 @@
 import { html, raw } from "../lib/html.mjs";
-import { copyButton } from "../lib/markdown.mjs";
 import { docsNav } from "../lib/layout.mjs";
 import { toolRoute } from "../lib/site.mjs";
+import { imageList } from "../lib/ui.mjs";
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
 
@@ -24,9 +24,6 @@ function tabs(page, site) {
   })}</div></nav>`;
 }
 
-/** An image reference with its copy button. */
-const imageRef = (image, icon) => html`<span class="image-ref" data-copy-source><code>${image}</code>${copyButton(icon, `Copy ${image}`)}</span>`;
-
 function facts(page, site, icon) {
   const { tool, platform } = page;
   if (!tool) return "";
@@ -35,7 +32,7 @@ function facts(page, site, icon) {
   const source = page.source.replace(/\/README\.md$/, "");
   const keywords = (platform ?? tool).meta.keywords;
   return html`<dl class="facts">
-<div><dt>${meta.images.length > 1 ? "Images" : "Image"}</dt><dd>${meta.images.map((image) => imageRef(image, icon))}</dd></div>
+<div><dt>${meta.images.length > 1 ? "Images" : "Image"}</dt><dd>${imageList(meta.images, icon)}</dd></div>
 ${platform ? html`<div><dt>Use case</dt><dd>${platform.meta.usecase}</dd></div>` : ""}
 ${upstream ? html`<div><dt>Upstream</dt><dd><a href="${upstream.href}">${upstream.host}${upstream.pathname.replace(/\/$/, "")}</a></dd></div>` : ""}
 <div><dt>Source</dt><dd><a href="${site.config.treeUrl(source)}">${source}</a></dd></div>
@@ -53,7 +50,7 @@ function categoryTools(page, site, icon) {
     (tool) => html`<li class="category-tool">
 <h3 class="category-tool-title"><a href="${site.config.href(toolRoute(tool))}">${tool.meta.title}</a></h3>
 <p>${tool.meta.description}</p>
-<p class="category-tool-images">${tool.meta.images.map((image) => imageRef(image, icon))}</p>
+${imageList(tool.meta.images, icon)}
 </li>`,
   )}</ul>`;
 }

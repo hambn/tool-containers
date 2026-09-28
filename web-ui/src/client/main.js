@@ -113,43 +113,39 @@ if (pageName) {
   save(RECENT_KEY, [{ t: pageName, u: path }, ...recent].slice(0, RECENT_MAX));
 }
 
-// Home catalog filter, matching words exactly as search does; state lives in the URL.
+// Home catalog filter, matching words as search does; state lives in the URL.
 const filter = document.querySelector("[data-filter]");
 if (filter) {
+  const FIELDS = ["q", "category"];
   const rows = [...document.querySelectorAll(".row")];
   const groups = [...document.querySelectorAll("[data-group]")];
   const status = document.querySelector("[data-filter-status]");
   const empty = document.querySelector("[data-filter-empty]");
   const fields = filter.elements;
   const params = new URLSearchParams(location.search);
-  for (const name of ["q", "category", "platform"]) {
+  for (const name of FIELDS) {
     const value = params.get(name);
     if (value && (fields[name].tagName !== "SELECT" || [...fields[name].options].some((option) => option.value === value))) fields[name].value = value;
   }
   const apply = () => {
     const terms = parseQuery(fields.q.value);
     const category = fields.category.value;
-    const platform = fields.platform.value;
-    let shown = 0;
-    for (const row of rows) {
-      const visible =
-        (!category || row.dataset.category === category) &&
-        (!platform || row.dataset.platforms.split(" ").includes(platform)) &&
-        matchesAll(terms, row.dataset.text);
-      row.hidden = !visible;
-      if (visible) shown += 1;
-    }
+    const inCategory = rows.filter((row) => !category || row.dataset.category === category);
+    // Exact and prefix matches first; a typo is forgiven only when nothing matches without one.
+    let matching = inCategory.filter((row) => matchesAll(terms, row.dataset.text, { typos: false }));
+    if (!matching.length) matching = inCategory.filter((row) => matchesAll(terms, row.dataset.text));
+    const shown = new Set(matching);
+    for (const row of rows) row.hidden = !shown.has(row);
     for (const group of groups) {
       const count = group.querySelectorAll(".row:not([hidden])").length;
       group.hidden = count === 0;
       group.querySelector("[data-count]").textContent = count;
     }
-    const filtered = terms.length || category || platform;
-    empty.hidden = shown > 0;
-    status.textContent = filtered ? `${shown} of ${rows.length} images` : "";
+    empty.hidden = shown.size > 0;
+    status.textContent = terms.length || category ? `${shown.size} of ${rows.length} images` : "";
     const url = new URL(location.href);
-    for (const name of ["q", "category", "platform"]) {
-      const value = fields[name].value.trim();
+    for (const name of FIELDS) {
+      const value = fields[name].value.trim().replace(/\s+/g, " ");
       if (value) url.searchParams.set(name, value);
       else url.searchParams.delete(name);
     }
