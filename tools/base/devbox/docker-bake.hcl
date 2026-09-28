@@ -3,7 +3,7 @@
 #   docker buildx bake devbox-alpine-lite   # build one variant
 #   docker buildx bake --print            # show what would be built
 # CI builds one variant per job from this file and pins BASE_IMAGE to a digest; see
-# .github/workflows/_image.yml.
+# .github/workflows/tool-image.yml.
 
 target "devbox" {
   name    = "devbox-${v.variant}"
