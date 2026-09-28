@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Docker Engine with the Compose v2 plugin.
-- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e`.
+- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e <VAR>` after `./compose.sh run --rm`.
 
 ## Commands
 
@@ -33,7 +33,7 @@ WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm open-code
 | Variable | Required | Purpose |
 |---|---|---|
 | `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
-| `OPEN_CODE_REVIEW_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`. |
+| `OPEN_CODE_REVIEW_IMAGE` | no | Image for both Compose files; defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`. |
 
 ## Workspace
 
@@ -53,4 +53,4 @@ WORKSPACE="$PWD" ./compose.sh down
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/open-code-review@sha256:<digest>`) for repeatable runs.

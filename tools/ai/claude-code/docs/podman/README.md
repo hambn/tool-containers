@@ -43,4 +43,4 @@ The container is started with `--rm`. Remove the image with `podman image rm ghc
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/claude-code@sha256:<digest>`) for repeatable runs.

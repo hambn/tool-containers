@@ -4,7 +4,7 @@ name: pi-agent
 
 services:
   pi-agent:
-    image: ghcr.io/hambn/pi-agent:ubuntu-browser
+    image: ${PI_AGENT_IMAGE:-ghcr.io/hambn/pi-agent:ubuntu-browser}
     pull_policy: never
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace

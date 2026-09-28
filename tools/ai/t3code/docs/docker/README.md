@@ -33,7 +33,7 @@ docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `T3CODE_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
+| `T3CODE_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
 | `T3CODE_DOCKER_SOCKET` | no | Host Docker socket path to mount at `/var/run/docker.sock`. |
 
 ## Workspace
@@ -52,4 +52,4 @@ Containers are started with `--rm`. Remove the image with `docker image rm ghcr.
 ## Limitations
 
 - The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/t3code@sha256:<digest>`) for repeatable runs.

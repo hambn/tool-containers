@@ -34,7 +34,7 @@ docker save ghcr.io/hambn/claude-code:ubuntu-browser -o claude-code.tar
 | Variable | Required | Purpose |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
-| `CLAUDE_CODE_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
+| `CLAUDE_CODE_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/claude-code:ubuntu-browser`. |
 
 ## Workspace
 
@@ -51,4 +51,4 @@ Containers are started with `--rm`. Remove the image with `docker image rm ghcr.
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/claude-code@sha256:<digest>`) for repeatable runs.

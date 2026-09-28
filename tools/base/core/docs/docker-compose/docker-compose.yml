@@ -1,12 +1,12 @@
-# docker compose run --rm shell
+# WORKSPACE="$PWD" ./compose.sh run --rm shell
 name: core
 
 services:
   shell:
-    image: ghcr.io/hambn/core:${CORE_VARIANT:-wolfi}
+    image: ${CORE_IMAGE:-ghcr.io/hambn/core:wolfi}
     working_dir: /workspace
     volumes:
-      - ${WORKSPACE:-.}:/workspace
+      - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     read_only: true
     tmpfs:
       - /tmp

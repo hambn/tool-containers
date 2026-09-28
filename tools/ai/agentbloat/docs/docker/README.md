@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Docker Engine 23 or newer.
-- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e`.
+- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e <VAR>` added to the `docker run` command in [`run.sh`](./run.sh).
 
 ## Commands
 
@@ -33,7 +33,7 @@ docker save ghcr.io/hambn/agentbloat:ubuntu-browser -o agentbloat.tar
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `AGENTBLOAT_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/agentbloat:ubuntu-browser`. |
+| `AGENTBLOAT_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/agentbloat:ubuntu-browser`. |
 | `AGENTBLOAT_DOCKER_SOCKET` | no | Host Docker socket path to mount at `/var/run/docker.sock`. |
 
 ## Workspace
@@ -51,4 +51,4 @@ Containers are started with `--rm`. Remove the image with `docker image rm ghcr.
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a `<variant>-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/agentbloat@sha256:<digest>`) for repeatable runs.

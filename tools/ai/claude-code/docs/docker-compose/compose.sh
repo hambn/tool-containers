@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Compose resolves relative paths against this directory, so require an absolute WORKSPACE.
 set -euo pipefail
 
 case "${WORKSPACE:-}" in

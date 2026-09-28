@@ -40,7 +40,7 @@ docker run --rm my-app
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CORE_VARIANT` | `wolfi` | Image variant: `wolfi`, `alpine`, or `ubuntu` |
+| `CORE_IMAGE` | `ghcr.io/hambn/core:wolfi` | Image to run; use the `alpine` or `ubuntu` tag, or a digest |
 
 ## Workspace
 

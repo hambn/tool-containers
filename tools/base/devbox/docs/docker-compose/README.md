@@ -8,7 +8,8 @@ keywords: [persistent home, named volume, zsh]
 # devbox · Docker Compose
 
 Run [devbox](../../README.md) as a reusable Compose service with a persistent home
-directory.
+directory. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path and
+runs `docker compose` from this directory.
 
 ## Prerequisites
 
@@ -17,7 +18,7 @@ directory.
 ## Commands
 
 ```bash
-WORKSPACE="$PWD" docker compose run --rm devbox
+WORKSPACE="$PWD" ./compose.sh run --rm devbox
 ```
 
 ## Variables
@@ -25,7 +26,7 @@ WORKSPACE="$PWD" docker compose run --rm devbox
 | Variable | Default | Purpose |
 |---|---|---|
 | `WORKSPACE` | required | Absolute host path mounted at `/workspace` |
-| `DEVBOX_VARIANT` | `ubuntu-full` | Any variant from the [image table](../../README.md#images) |
+| `DEVBOX_IMAGE` | `ghcr.io/hambn/devbox:ubuntu-full` | Image to run; any variant from the [image table](../../README.md#images), or a digest |
 
 ## Workspace
 
@@ -35,12 +36,13 @@ first use.
 
 ## Files
 
+- [`compose.sh`](./compose.sh) — validates `WORKSPACE`, then forwards arguments to `docker compose`
 - [`docker-compose.yml`](./docker-compose.yml) — the `devbox` service and `home` volume
 
 ## Cleanup
 
 ```bash
-docker compose down --volumes
+WORKSPACE="$PWD" ./compose.sh down --volumes
 ```
 
 ## Limitations

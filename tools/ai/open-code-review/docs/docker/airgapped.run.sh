@@ -3,6 +3,7 @@
 #   docker save ghcr.io/hambn/open-code-review:ubuntu-browser -o open-code-review.tar
 set -euo pipefail
 
+image=${OPEN_CODE_REVIEW_IMAGE:-ghcr.io/hambn/open-code-review:ubuntu-browser}
 tar=${1:-open-code-review.tar}
 shift $(($# > 0 ? 1 : 0))
 [[ -f "$tar" ]] || {
@@ -13,4 +14,4 @@ shift $(($# > 0 ? 1 : 0))
 docker load -i "$tar"
 docker run -it --rm --pull=never \
     -v "$PWD:/workspace" \
-    ghcr.io/hambn/open-code-review:ubuntu-browser "$@"
+    "$image" "$@"

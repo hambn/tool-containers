@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Docker Engine 23 or newer.
-- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e`.
+- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e <VAR>` added to the `docker run` command in [`run.sh`](./run.sh).
 
 ## Commands
 
@@ -33,7 +33,7 @@ docker save ghcr.io/hambn/pi-agent:ubuntu-browser -o pi-agent.tar
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `PI_AGENT_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
+| `PI_AGENT_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
 
 ## Workspace
 
@@ -50,4 +50,4 @@ Containers are started with `--rm`. Remove the image with `docker image rm ghcr.
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/pi-agent@sha256:<digest>`) for repeatable runs.

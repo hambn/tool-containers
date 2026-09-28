@@ -3,6 +3,7 @@
 #   docker save ghcr.io/hambn/agentbloat:ubuntu-browser -o agentbloat.tar
 set -euo pipefail
 
+image=${AGENTBLOAT_IMAGE:-ghcr.io/hambn/agentbloat:ubuntu-browser}
 tar=${1:-agentbloat.tar}
 shift $(($# > 0 ? 1 : 0))
 [[ -f "$tar" ]] || {
@@ -13,4 +14,4 @@ shift $(($# > 0 ? 1 : 0))
 docker load -i "$tar"
 docker run -it --rm --pull=never \
     -v "$PWD:/workspace" \
-    ghcr.io/hambn/agentbloat:ubuntu-browser "$@"
+    "$image" "$@"

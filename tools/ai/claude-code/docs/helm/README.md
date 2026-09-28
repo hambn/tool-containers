@@ -29,7 +29,7 @@ kubectl logs -f job/claude-code-claude-code
 | Value | Default | Purpose |
 |---|---|---|
 | `image.repository` | `ghcr.io/hambn/claude-code` | Image repository. |
-| `image.tag` | `ubuntu-browser` | Image tag; pin `<version>-<variant>` for repeatable runs. |
+| `image.tag` | `ubuntu-browser` | Image tag; append `@sha256:<digest>` (for example `ubuntu-browser@sha256:<digest>`) to pin it. |
 | `image.pullPolicy` | `Always` | Pull policy. |
 | `args` | `["-p", "review the workspace"]` | Arguments passed to `claude`. |
 | `apiKeySecret` | `claude-code` | Secret holding key `ANTHROPIC_API_KEY`. |

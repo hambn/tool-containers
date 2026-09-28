@@ -3,6 +3,7 @@
 #   docker save ghcr.io/hambn/omnigent:ubuntu-browser -o omnigent.tar
 set -euo pipefail
 
+image=${OMNIGENT_IMAGE:-ghcr.io/hambn/omnigent:ubuntu-browser}
 tar=${1:-omnigent.tar}
 shift $(($# > 0 ? 1 : 0))
 [[ -f "$tar" ]] || {
@@ -13,4 +14,4 @@ shift $(($# > 0 ? 1 : 0))
 docker load -i "$tar"
 docker run -it --rm --pull=never \
     -v "$PWD:/workspace" \
-    ghcr.io/hambn/omnigent:ubuntu-browser "$@"
+    "$image" "$@"

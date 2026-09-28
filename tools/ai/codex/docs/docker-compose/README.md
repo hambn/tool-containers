@@ -34,7 +34,7 @@ WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm codex
 |---|---|---|
 | `OPENAI_API_KEY` | yes | API key forwarded into the container; never stored in the image. |
 | `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
-| `CODEX_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/codex:ubuntu-browser`. |
+| `CODEX_IMAGE` | no | Image for both Compose files; defaults to `ghcr.io/hambn/codex:ubuntu-browser`. |
 
 ## Workspace
 
@@ -54,4 +54,4 @@ WORKSPACE="$PWD" ./compose.sh down
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/codex@sha256:<digest>`) for repeatable runs.

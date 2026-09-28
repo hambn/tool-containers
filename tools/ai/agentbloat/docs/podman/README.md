@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e`.
+- Sign in to each agent CLI inside the shell, or pass its API-key variable with `-e <VAR>` added to the `podman run` command in [`run.sh`](./run.sh).
 
 ## Commands
 
@@ -42,4 +42,4 @@ The container is started with `--rm`. Remove the image with `podman image rm ghc
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a `<variant>-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/agentbloat@sha256:<digest>`) for repeatable runs.

@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Docker Engine 23 or newer.
-- Omnigent discovers provider credentials and harness logins at runtime; pass provider API-key variables with `-e` when needed.
+- Omnigent discovers provider credentials and harness logins at runtime; pass provider API-key variables with `-e <VAR>` added to the `docker run` command in [`run.sh`](./run.sh) when needed.
 
 ## Commands
 
@@ -33,7 +33,7 @@ docker save ghcr.io/hambn/omnigent:ubuntu-browser -o omnigent.tar
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `OMNIGENT_IMAGE` | no | Image for [`run.sh`](./run.sh); defaults to `ghcr.io/hambn/omnigent:ubuntu-browser`. |
+| `OMNIGENT_IMAGE` | no | Image for both scripts; defaults to `ghcr.io/hambn/omnigent:ubuntu-browser`. |
 
 ## Workspace
 
@@ -50,4 +50,4 @@ Containers are started with `--rm`. Remove the image with `docker image rm ghcr.
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/omnigent@sha256:<digest>`) for repeatable runs.

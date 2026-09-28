@@ -43,4 +43,4 @@ kubectl delete -f deployment.yaml
 ## Limitations
 
 - Agent logins stored in the home directory are lost when the pod is replaced.
-- `ubuntu-browser` is a moving tag; pin a `ubuntu-browser-<YYYYMMDD>-<sha7>` tag or a digest for repeatable runs.
+- `ubuntu-browser` is a moving tag; pin a digest (`image: ghcr.io/hambn/agentbloat@sha256:<digest>`) for repeatable runs.

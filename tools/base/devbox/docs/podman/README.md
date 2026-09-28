@@ -35,7 +35,7 @@ podman exec -it systemd-devbox zsh -l
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DEVBOX_VARIANT` | `ubuntu-full` | Any variant from the [image table](../../README.md#images) |
+| `DEVBOX_IMAGE` | `ghcr.io/hambn/devbox:ubuntu-full` | Image to run; any variant from the [image table](../../README.md#images), or a digest |
 
 ## Workspace
 

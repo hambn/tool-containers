@@ -50,4 +50,4 @@ kubectl delete secret claude-code
 ## Limitations
 
 - The Job runs non-interactively; use the [Docker](../docker/) or [Podman](../podman/) docs for interactive sessions.
-- `ubuntu-browser` is a moving tag; pin `<version>-ubuntu-browser` or a digest for repeatable runs.
+- `ubuntu-browser` is a moving tag; pin a digest (`image: ghcr.io/hambn/claude-code@sha256:<digest>`) for repeatable runs.

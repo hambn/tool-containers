@@ -29,7 +29,7 @@ Open `http://localhost:3773` and authenticate the agents from the T3 Code UI.
 | Value | Default | Purpose |
 |---|---|---|
 | `image.repository` | `ghcr.io/hambn/t3code` | Image repository. |
-| `image.tag` | `ubuntu-browser` | Image tag; pin `<version>-<variant>` for repeatable runs. |
+| `image.tag` | `ubuntu-browser` | Image tag; append `@sha256:<digest>` (for example `ubuntu-browser@sha256:<digest>`) to pin it. |
 | `image.pullPolicy` | `Always` | Pull policy. |
 | `service.port` | `3773` | Service port. |
 | `resources` | 100m/256Mi requests, 2 CPU/2Gi limits | Container resources. |

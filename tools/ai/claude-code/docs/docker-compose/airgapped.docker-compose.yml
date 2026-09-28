@@ -4,10 +4,10 @@ name: claude-code
 
 services:
   claude:
-    image: ghcr.io/hambn/claude-code:ubuntu-browser
+    image: ${CLAUDE_CODE_IMAGE:-ghcr.io/hambn/claude-code:ubuntu-browser}
     pull_policy: never
     environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY}
     volumes:
       - ${WORKSPACE:?Set WORKSPACE to an absolute host path}:/workspace
     stdin_open: true

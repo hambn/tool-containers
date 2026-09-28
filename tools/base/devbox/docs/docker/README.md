@@ -38,7 +38,7 @@ DEVBOX_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DEVBOX_VARIANT` | `ubuntu-full` | Any variant from the [image table](../../README.md#images) |
+| `DEVBOX_IMAGE` | `ghcr.io/hambn/devbox:ubuntu-full` | Image to run; any variant from the [image table](../../README.md#images), or a digest |
 | `DEVBOX_DOCKER_SOCKET` | unset | Host Docker socket to mount; its group is added to the container |
 
 ## Workspace

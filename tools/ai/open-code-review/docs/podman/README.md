@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Rootless Podman 4.3 or newer (for `--userns=keep-id:uid=,gid=`).
-- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e`.
+- Configure an LLM provider with `ocr config` or its supported environment variables, passed with `-e <VAR>` added to the `podman run` command in [`run.sh`](./run.sh).
 
 ## Commands
 
@@ -42,4 +42,4 @@ The container is started with `--rm`. Remove the image with `podman image rm ghc
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/open-code-review@sha256:<digest>`) for repeatable runs.

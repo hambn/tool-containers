@@ -33,7 +33,7 @@ WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml up
 | Variable | Required | Purpose |
 |---|---|---|
 | `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
-| `T3CODE_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
+| `T3CODE_IMAGE` | no | Image for both Compose files; defaults to `ghcr.io/hambn/t3code:ubuntu-browser`. |
 
 ## Workspace
 
@@ -54,4 +54,4 @@ WORKSPACE="$PWD" ./compose.sh down
 ## Limitations
 
 - The port is bound to `127.0.0.1`; put an authenticating reverse proxy in front before exposing it further.
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/t3code@sha256:<digest>`) for repeatable runs.

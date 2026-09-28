@@ -14,7 +14,7 @@ See the [tool overview](../../README.md) for image variants, tags, and registrie
 ## Prerequisites
 
 - Docker Engine with the Compose v2 plugin.
-- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e`.
+- Sign in through Pi's provider login flow, or pass a supported API-key variable with `-e <VAR>` after `./compose.sh run --rm`.
 
 ## Commands
 
@@ -33,7 +33,7 @@ WORKSPACE="$PWD" ./compose.sh -f airgapped.docker-compose.yml run --rm pi-agent
 | Variable | Required | Purpose |
 |---|---|---|
 | `WORKSPACE` | yes | Absolute host path mounted at `/workspace`. |
-| `PI_AGENT_IMAGE` | no | Image for [`docker-compose.yml`](./docker-compose.yml); defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
+| `PI_AGENT_IMAGE` | no | Image for both Compose files; defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`. |
 
 ## Workspace
 
@@ -53,4 +53,4 @@ WORKSPACE="$PWD" ./compose.sh down
 
 ## Limitations
 
-- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin `<version>-<variant>` or a digest for repeatable runs.
+- Moving tags such as `ubuntu-browser` are repointed on every rebuild; pin a digest (`ghcr.io/hambn/pi-agent@sha256:<digest>`) for repeatable runs.
