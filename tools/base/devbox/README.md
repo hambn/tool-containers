@@ -119,6 +119,10 @@ lingering for `sysadmin`, and hardware, getty, and update units masked.
   [Kubernetes](docs/kubernetes/).
 - **Long-running cluster pod with a persistent workspace** — a StatefulSet volume claim
   keeps `/workspace` across restarts, with [Helm](docs/helm/).
+- **Editor-attached development container** — VS Code or the `devcontainer` CLI opens
+  your project at `/workspace`, with [Dev Container](docs/devcontainer/).
+- **CI job with the full toolchain** — Go, Node.js, and Python without setup steps, with
+  [GitHub Actions](docs/github-actions/) or [GitLab CI](docs/gitlab-ci/).
 
 ## Sources
 

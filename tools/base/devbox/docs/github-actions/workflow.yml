@@ -1,0 +1,35 @@
+# Copy to .github/workflows/devbox.yml and replace the check commands with your own.
+name: devbox
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check in devbox
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/hambn/devbox:ubuntu-full
+      # The runner's workspace and temp files belong to its own user (UID 1001), and
+      # actions/checkout does not support a non-root container user.
+      options: --user root
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check
+        run: |
+          go version
+          node --version
+          python3 --version
