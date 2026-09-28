@@ -400,6 +400,9 @@ html:not(.js) .filter { display: none; }
 }
 .prose a.chip:hover, .chip:hover { border-color: var(--input); background: var(--muted); color: var(--fg); }
 
+.tags { margin-top: 48px; }
+.tags-title { margin-bottom: 12px; color: var(--muted-fg); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
 .toc-title { margin-bottom: 8px; font-weight: 500; }
 .toc ul, .toc-inline ul { margin: 0; padding: 0; list-style: none; }
 .toc a {

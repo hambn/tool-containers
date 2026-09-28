@@ -30,13 +30,11 @@ function facts(page, site, icon) {
   const { meta } = tool;
   const upstream = meta.upstream && new URL(meta.upstream);
   const source = page.source.replace(/\/README\.md$/, "");
-  const keywords = (platform ?? tool).meta.keywords;
   return html`<dl class="facts">
 <div><dt>${meta.images.length > 1 ? "Images" : "Image"}</dt><dd>${imageList(meta.images, icon)}</dd></div>
 ${platform ? html`<div><dt>Use case</dt><dd>${platform.meta.usecase}</dd></div>` : ""}
 ${upstream ? html`<div><dt>Upstream</dt><dd>${externalLink(upstream.href, `${upstream.host}${upstream.pathname.replace(/\/$/, "")}`, { icon })}</dd></div>` : ""}
 <div><dt>Source</dt><dd>${externalLink(site.config.treeUrl(source), source, { icon })}</dd></div>
-${keywords.length ? html`<div><dt>Keywords</dt><dd class="muted">${keywords.join(", ")}</dd></div>` : ""}
 </dl>`;
 }
 
@@ -54,6 +52,15 @@ ${imageList(tool.meta.images, icon)}
 ${platformChips(tool, site)}
 </li>`,
   )}</ul>`;
+}
+
+/** The page's keywords as tags, each a search for that keyword. */
+function tags(page, { config }) {
+  const keywords = page.tool ? (page.platform ?? page.tool).meta.keywords : [];
+  if (!keywords.length) return "";
+  return html`<section class="tags" aria-labelledby="tags-title"><h2 class="tags-title" id="tags-title">Topics</h2><ul class="chips">${keywords.map(
+    (keyword) => html`<li><a class="chip" href="${config.href(`/search/?q=${encodeURIComponent(keyword)}`)}">${keyword}</a></li>`,
+  )}</ul></section>`;
 }
 
 function tocList(toc) {
@@ -92,6 +99,7 @@ ${tabs(page, site)}
 ${facts(page, site, icon)}
 ${toc ? html`<details class="toc-inline"><summary>On this page</summary>${toc}</details>` : ""}
 <div class="prose">${raw(rendered.html)}${categoryTools(page, site, icon)}${raw(rendered.tail)}</div>
+${tags(page, site)}
 <p class="doc-meta">${externalLink(config.blobUrl(page.source), "View source on GitHub", { icon })}${modified}</p>
 ${pager(page, site)}
 </article>

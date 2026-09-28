@@ -4,7 +4,7 @@ import { THEME_COLORS, headTags, jsonLdScript } from "./seo.mjs";
 import { NEW_TAB, externalLink } from "./ui.mjs";
 
 /** Ids the page chrome uses, reserved so document headings never collide with them. */
-export const TEMPLATE_IDS = ["main", "menu", "menu-title", "search", "search-input", "search-results", "search-status", "on-this-page", "toc-title"];
+export const TEMPLATE_IDS = ["main", "menu", "menu-title", "search", "search-input", "search-results", "search-status", "on-this-page", "toc-title", "tags-title"];
 
 const NAV = [
   { label: "Catalog", kinds: ["home"], page: (site) => site.home },

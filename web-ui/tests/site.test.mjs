@@ -126,6 +126,21 @@ for (const mode of MODES) {
       }
     });
 
+    test("keywords are tags at the end of the article, each searching for itself", () => {
+      let tagged = 0;
+      for (const [route, dom] of site.pages) {
+        assert.ok(!dom.querySelectorAll(".facts dt").some((term) => term.text === "Keywords"), `${route}: no Keywords row`);
+        const tags = dom.querySelectorAll(".tags .chip");
+        if (!tags.length) continue;
+        tagged += 1;
+        assert.equal(dom.querySelector(".tags h2").text, "Topics");
+        for (const tag of tags) {
+          assert.equal(tag.getAttribute("href"), `${mode.basePath}/search/?q=${encodeURIComponent(tag.text)}`, route);
+        }
+      }
+      assert.ok(tagged > 0);
+    });
+
     test("a tool page links its source once, from the facts panel", () => {
       for (const [route, dom] of site.pages) {
         const source = dom.querySelector(".facts a[href*='/tree/']");
