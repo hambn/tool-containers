@@ -7,10 +7,10 @@ order: 2
 
 # Base
 
-Base images that the rest of the catalog builds `FROM`. [`core`](./core/) is a hardened
-minimal application base; [`devbox`](./devbox/) builds on it as an interactive
+The images every other image in the catalog builds `FROM`. [core](./core/) is a
+hardened minimal base for applications. [devbox](./devbox/) builds on core as a
 development and CI image, and every [AI](../ai/) image builds on devbox. Both are
-published to GHCR and Docker Hub under the tags described in the
+published to GHCR and Docker Hub with the tags described in the
 [catalog](../../README.md#images-and-tags).
 
 - **Source:** [`tools/base/`](https://github.com/hambn/tool-containers/tree/main/tools/base)
@@ -18,5 +18,5 @@ published to GHCR and Docker Hub under the tags described in the
 
 ## Tools
 
-- [core](./core/) — Hardened minimal base images on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, curl, bash, and a nonroot user.
-- [devbox](./devbox/) — Interactive Ubuntu and Alpine development and CI images in lite, full, and browser tiers, built on core.
+- [core](./core/) — Hardened minimal bases on Wolfi, Alpine, and Ubuntu with CA certificates, tzdata, curl, bash, and a nonroot user.
+- [devbox](./devbox/) — Ubuntu and Alpine development and CI images in lite, full, and browser tiers, built on core.
