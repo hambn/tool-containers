@@ -3,12 +3,14 @@
 The ownership boundary is `tools/<category>/<tool>/`. `<category>` groups purpose
 (`base`, `ai`; `ci` and `sandboxes` are catalog categories with no projects yet),
 `<tool>` is one published image repository, and `<variant>` is one published profile of
-it. Each tool directory is self-contained: its `Dockerfile` carries every pin as an `ARG`
+it. Each category directory has a `README.md` whose frontmatter `order` sorts it on the
+site and whose Tools list links every tool in it. Each tool directory is self-contained: its `Dockerfile` carries every pin as an `ARG`
 default and its `docker-bake.hcl` lists its variants.
 
 ## Standard tree
 
 ```text
+tools/<category>/README.md     # category page: frontmatter and Tools list
 tools/<category>/<tool>/
 ├── README.md
 ├── Dockerfile                 # one per tool; pinned ARG defaults, per-distro stages
@@ -57,9 +59,10 @@ use `docs/`.
    name, paths, cron minute, concurrency group, and inputs, and add it to the parent
    workflow's `dependents`; see
    [CI](ci.md).
-6. Add the README, only the platform docs that serve real use cases
-   ([conventions](deployment/conventions.md)), and one root catalog row, all per
-   `$documentation`.
+6. Add the README (with its `order` within the category and both `images`), only the
+   platform docs that serve real use cases ([conventions](deployment/conventions.md)),
+   its bullet in the category README's Tools list, and one root catalog row, all per
+   `$documentation`. A new category also needs its own category README.
 7. Run `.github/scripts/check-repo.py`; it checks the required files and the workflow.
 8. Replace every copied name, image path, command, label, and source link, including the README Source and Docs links.
 
