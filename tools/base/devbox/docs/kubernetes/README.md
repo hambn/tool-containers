@@ -2,7 +2,7 @@
 name: Kubernetes
 description: Run devbox as a disposable non-root Kubernetes development pod, exec into it, and copy files in and out with kubectl.
 usecase: Disposable cluster development pod
-keywords: [devbox, kubernetes, kubectl exec, pod]
+keywords: [kubectl exec, kubectl cp, pod, emptydir]
 ---
 
 # devbox · Kubernetes

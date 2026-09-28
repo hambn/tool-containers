@@ -1,8 +1,8 @@
 ---
 name: Kubernetes
 description: Run Claude Code once as a Kubernetes batch/v1 Job that reviews the workspace, with the API key read from a Secret.
-usecase: One-shot non-interactive review in a cluster
-keywords: [claude code, kubernetes job, kubectl, anthropic]
+usecase: One-shot review in a cluster from plain manifests
+keywords: [batch job, kubectl, secret, anthropic api key, code review]
 ---
 
 # claude-code · Kubernetes

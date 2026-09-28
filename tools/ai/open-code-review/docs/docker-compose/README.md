@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Run the Open Code Review CLI (ocr) as a Docker Compose service against the current checkout, with an air-gapped compose file.
-usecase: Repeatable local AI code reviews
-keywords: [open code review, ocr, docker compose, code review]
+usecase: Repeatable local reviews
+keywords: [ocr review, llm provider, air-gapped]
 ---
 
 # open-code-review · Docker Compose

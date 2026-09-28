@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Run the Pi terminal coding agent as a Docker Compose service on the current directory, with an air-gapped compose file.
-usecase: Repeatable local Pi sessions
-keywords: [pi agent, docker compose, coding agent, air-gapped]
+usecase: Repeatable local sessions
+keywords: [terminal coding agent, air-gapped]
 ---
 
 # pi-agent · Docker Compose

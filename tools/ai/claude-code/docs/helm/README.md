@@ -1,8 +1,8 @@
 ---
 name: Helm
-description: Install Claude Code as a one-shot Kubernetes Job with a Helm chart, reading ANTHROPIC_API_KEY from a Secret.
-usecase: One-shot Claude Code review in a cluster
-keywords: [claude code, helm chart, kubernetes job, anthropic]
+description: Install Claude Code as a one-shot Kubernetes Job with a Helm chart that reviews the workspace, reading ANTHROPIC_API_KEY from a Secret.
+usecase: One-shot review in a cluster from a Helm chart
+keywords: [kubernetes job, kubernetes secret, anthropic api key, code review]
 ---
 
 # claude-code · Helm

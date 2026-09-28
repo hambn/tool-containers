@@ -1,8 +1,8 @@
 ---
 name: agentbloat
-description: Every current command-line coding agent in one interactive devbox image, with Ubuntu and Alpine variants and optional Chromium.
+description: Codex, Claude Code, Cursor Agent, Gemini CLI, Copilot, and other coding-agent CLIs in one interactive devbox image, with Ubuntu and Alpine variants.
 image: ghcr.io/hambn/agentbloat
-keywords: [agentbloat, coding agents, codex, claude code, cursor agent, docker image]
+keywords: [coding agents, codex, claude code, cursor agent, gemini cli, github copilot, opencode, grok]
 ---
 
 # agentbloat
@@ -79,8 +79,8 @@ Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as
 ## Use cases
 
 - **Interactive multi-agent workspace** — [`docs/docker/`](./docs/docker/).
-- **Rootless workstation** — [`docs/podman/`](./docs/podman/).
-- **Repeatable local environment** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Rootless multi-agent workstation** — [`docs/podman/`](./docs/podman/).
+- **Repeatable local multi-agent workspace** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **Long-lived cluster workspace** — [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
 
 ## Sources

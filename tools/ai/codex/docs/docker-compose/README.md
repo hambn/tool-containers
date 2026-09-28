@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Run the OpenAI Codex CLI as a Docker Compose service on the current directory with OPENAI_API_KEY, plus an air-gapped file.
-usecase: Repeatable local Codex sessions
-keywords: [codex, docker compose, openai, air-gapped]
+usecase: Repeatable local sessions
+keywords: [openai api key, air-gapped]
 ---
 
 # codex · Docker Compose

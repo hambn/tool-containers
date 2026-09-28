@@ -2,7 +2,7 @@
 name: Docker
 description: Run Omnigent in Docker over the current directory mounted at /workspace, or from a saved image tarball on air-gapped hosts.
 usecase: Orchestrate agents over a local checkout
-keywords: [omnigent, docker run, agent harness, air-gapped]
+keywords: [agent harness, air-gapped, docker save]
 ---
 
 # omnigent · Docker

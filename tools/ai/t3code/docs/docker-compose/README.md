@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Serve the T3 Code web GUI on 127.0.0.1:3773 as a persistent Docker Compose service, with an air-gapped compose file.
-usecase: Persistent local T3 Code instance
-keywords: [t3code, docker compose, web gui, coding agents]
+usecase: Persistent local instance
+keywords: [web gui, port 3773, air-gapped]
 ---
 
 # t3code · Docker Compose

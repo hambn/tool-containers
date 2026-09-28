@@ -2,7 +2,7 @@
 name: Docker
 description: Open an interactive devbox Zsh shell on the current directory with Docker, optionally driving the host Docker daemon.
 usecase: Interactive development shell on a checkout
-keywords: [devbox, docker run, docker socket, zsh]
+keywords: [docker socket, zsh, development shell]
 ---
 
 # devbox · Docker

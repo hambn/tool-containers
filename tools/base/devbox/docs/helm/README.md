@@ -1,8 +1,8 @@
 ---
 name: Helm
 description: Install devbox as a long-running Kubernetes development pod with a persistent /workspace volume using a Helm chart.
-usecase: Long-running cluster dev pod with persistent workspace
-keywords: [devbox, helm chart, kubernetes, persistent volume]
+usecase: Long-running cluster pod with a persistent workspace
+keywords: [kubernetes, statefulset, persistent volume]
 ---
 
 # devbox · Helm

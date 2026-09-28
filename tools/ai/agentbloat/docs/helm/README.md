@@ -1,8 +1,8 @@
 ---
 name: Helm
 description: Install a long-lived agentbloat workspace pod as a Kubernetes Deployment with a Helm chart, then exec into a shell.
-usecase: Long-lived cluster workspace with every agent CLI
-keywords: [agentbloat, helm chart, kubernetes, coding agents]
+usecase: Long-lived cluster workspace from a Helm chart
+keywords: [coding agents, kubernetes, deployment, kubectl exec]
 ---
 
 # agentbloat · Helm

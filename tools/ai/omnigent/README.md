@@ -3,7 +3,7 @@ name: omnigent
 description: Omnigent, an open-source AI agent meta-harness, on the agentbloat image so every bundled agent CLI is ready to orchestrate.
 upstream: https://github.com/omnigent-ai/omnigent
 image: ghcr.io/hambn/omnigent
-keywords: [omnigent, agent harness, multi-agent, coding agents, docker image]
+keywords: [agent meta-harness, multi-agent, agent orchestration, coding agents, agentbloat]
 ---
 
 # omnigent
@@ -54,8 +54,8 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 ## Use cases
 
 - **Orchestrate agents over a local checkout** — [`docs/docker/`](./docs/docker/).
-- **Rootless workstation** — [`docs/podman/`](./docs/podman/).
-- **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Rootless agent orchestration on a workstation** — [`docs/podman/`](./docs/podman/).
+- **Repeatable local orchestration sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 
 ## Sources

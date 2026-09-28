@@ -3,7 +3,7 @@ name: claude-code
 description: Anthropic's Claude Code CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
 upstream: https://github.com/anthropics/claude-code
 image: ghcr.io/hambn/claude-code
-keywords: [claude code, anthropic, coding agent, cli, docker image]
+keywords: [anthropic, coding agent, devbox, ubuntu, alpine, headless chromium]
 ---
 
 # claude-code
@@ -53,7 +53,8 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 
 ## Use cases
 
-- **Interactive coding on a local checkout** — [`docs/docker/`](./docs/docker/) or rootless [`docs/podman/`](./docs/podman/).
+- **Interactive coding on a local checkout** — [`docs/docker/`](./docs/docker/).
+- **Rootless sessions on a workstation** — [`docs/podman/`](./docs/podman/).
 - **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **One-shot review in a cluster** — Kubernetes Job in [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).

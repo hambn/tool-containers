@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Run Omnigent as a Docker Compose service over the current directory, with an air-gapped compose file for offline hosts.
-usecase: Repeatable local agent orchestration sessions
-keywords: [omnigent, docker compose, agent harness, air-gapped]
+usecase: Repeatable local orchestration sessions
+keywords: [agent harness, air-gapped]
 ---
 
 # omnigent · Docker Compose

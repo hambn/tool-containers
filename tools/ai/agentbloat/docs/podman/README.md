@@ -2,7 +2,7 @@
 name: Podman
 description: Open an agentbloat Zsh shell with every bundled agent CLI under rootless Podman, mapping your UID with keep-id.
 usecase: Rootless multi-agent workstation
-keywords: [agentbloat, podman, rootless, coding agents]
+keywords: [coding agents, rootless, keep-id, selinux]
 ---
 
 # agentbloat · Podman

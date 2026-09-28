@@ -1,8 +1,8 @@
 ---
 name: Podman
 description: Run Claude Code under rootless Podman with ANTHROPIC_API_KEY, mounting the current directory with SELinux relabeling.
-usecase: Rootless Claude Code sessions on a workstation
-keywords: [claude code, podman, rootless, anthropic]
+usecase: Rootless sessions on a workstation
+keywords: [rootless, keep-id, selinux, anthropic api key]
 ---
 
 # claude-code · Podman

@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Run Claude Code as a Docker Compose service on the current directory with ANTHROPIC_API_KEY, plus an air-gapped variant.
-usecase: Repeatable local Claude Code sessions
-keywords: [claude code, docker compose, anthropic, air-gapped]
+usecase: Repeatable local sessions
+keywords: [anthropic api key, air-gapped]
 ---
 
 # claude-code · Docker Compose

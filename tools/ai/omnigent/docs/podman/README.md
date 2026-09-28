@@ -2,7 +2,7 @@
 name: Podman
 description: Run Omnigent under rootless Podman over the current directory, discovering provider credentials and harness logins at runtime.
 usecase: Rootless agent orchestration on a workstation
-keywords: [omnigent, podman, rootless, agent harness]
+keywords: [agent harness, rootless, keep-id, selinux]
 ---
 
 # omnigent · Podman

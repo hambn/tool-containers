@@ -1,8 +1,8 @@
 ---
 name: Docker Compose
 description: Run devbox as a reusable Docker Compose service with the workspace bind-mounted and a persistent home volume for sysadmin.
-usecase: Reusable dev shell with persistent home
-keywords: [devbox, docker compose, development container, zsh]
+usecase: Reusable shell with a persistent home
+keywords: [persistent home, named volume, zsh]
 ---
 
 # devbox · Docker Compose

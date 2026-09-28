@@ -1,8 +1,8 @@
 ---
 name: Docker
-description: Open an interactive agentbloat Zsh shell with every agent CLI in Docker, mounting the current directory at /workspace.
-usecase: Interactive multi-agent workspace on a local checkout
-keywords: [agentbloat, docker run, coding agents, air-gapped]
+description: Open an interactive agentbloat Zsh shell with every bundled agent CLI in Docker, mounting the current directory at /workspace.
+usecase: Interactive multi-agent workspace
+keywords: [coding agents, zsh, docker socket, air-gapped]
 ---
 
 # agentbloat · Docker

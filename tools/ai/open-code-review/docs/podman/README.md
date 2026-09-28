@@ -1,8 +1,8 @@
 ---
 name: Podman
 description: Run the Open Code Review CLI (ocr) under rootless Podman against the current checkout with a configured LLM provider.
-usecase: Rootless AI code reviews on a workstation
-keywords: [open code review, ocr, podman, rootless]
+usecase: Rootless reviews on a workstation
+keywords: [ocr review, rootless, keep-id, selinux]
 ---
 
 # open-code-review · Podman

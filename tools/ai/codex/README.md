@@ -3,7 +3,7 @@ name: codex
 description: OpenAI Codex CLI on the devbox development image, with Ubuntu and Alpine variants and optional headless Chromium.
 upstream: https://github.com/openai/codex
 image: ghcr.io/hambn/codex
-keywords: [codex, openai, coding agent, cli, docker image]
+keywords: [openai, coding agent, devbox, ubuntu, alpine, headless chromium]
 ---
 
 # codex
@@ -54,7 +54,7 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 ## Use cases
 
 - **Interactive coding on a local checkout** — [`docs/docker/`](./docs/docker/).
-- **Rootless workstation** — [`docs/podman/`](./docs/podman/).
+- **Rootless sessions on a workstation** — [`docs/podman/`](./docs/podman/).
 - **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 

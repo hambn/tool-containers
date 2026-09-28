@@ -1,8 +1,8 @@
 ---
 name: Kubernetes
 description: Run the T3 Code web GUI as a Kubernetes Deployment with a ClusterIP Service on port 3773 and reach it with port-forward.
-usecase: Shared cluster T3 Code instance from plain manifests
-keywords: [t3code, kubernetes, deployment, port-forward]
+usecase: Shared cluster instance from plain manifests
+keywords: [web gui, deployment, clusterip service, port-forward]
 ---
 
 # t3code · Kubernetes

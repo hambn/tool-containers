@@ -1,8 +1,8 @@
 ---
 name: Podman
 description: Serve the T3 Code web GUI on 127.0.0.1:3773 under rootless Podman, mounting the current directory as the workspace.
-usecase: Rootless local T3 Code instance
-keywords: [t3code, podman, rootless, web gui]
+usecase: Rootless local instance
+keywords: [web gui, rootless, keep-id, selinux]
 ---
 
 # t3code · Podman

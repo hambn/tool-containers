@@ -1,8 +1,8 @@
 ---
 name: Kubernetes
 description: Keep one agentbloat pod running with a Kubernetes Deployment and kubectl exec into a shell with every agent CLI.
-usecase: Cluster workspace pod for agent CLIs
-keywords: [agentbloat, kubernetes, kubectl exec, deployment]
+usecase: Long-lived cluster workspace from plain manifests
+keywords: [coding agents, deployment, kubectl exec]
 ---
 
 # agentbloat · Kubernetes

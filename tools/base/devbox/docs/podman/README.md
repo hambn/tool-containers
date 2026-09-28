@@ -2,7 +2,7 @@
 name: Podman
 description: Run devbox under rootless Podman with your UID mapped to sysadmin, interactively or as a Quadlet systemd user service.
 usecase: Rootless development shell or Quadlet service
-keywords: [devbox, podman, rootless, quadlet]
+keywords: [rootless, quadlet, systemd user service, keep-id]
 ---
 
 # devbox · Podman

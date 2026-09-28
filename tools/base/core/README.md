@@ -46,10 +46,11 @@ Pull from `ghcr.io/hambn/core:<tag>` or `docker.io/hambn/core:<tag>`. Tags are t
 
 ## Use cases
 
-- Open a throwaway shell with curl and bash with [Docker](docs/docker/).
-- Start a derived application image `FROM ghcr.io/hambn/core:wolfi` with
+- **Throwaway shell** — curl and bash in a disposable container with
   [Docker](docs/docker/).
-- Run a read-only, capability-free shell service with
+- **Base for your own image** — a derived application image
+  `FROM ghcr.io/hambn/core:wolfi` with [Docker](docs/docker/).
+- **Locked-down read-only shell service** — no capabilities and a read-only root with
   [Docker Compose](docs/docker-compose/).
 
 ## Sources

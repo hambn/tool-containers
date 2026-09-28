@@ -2,7 +2,7 @@
 name: Docker
 description: Serve the T3 Code web GUI on 127.0.0.1:3773 in Docker over the current directory, or from a saved image on air-gapped hosts.
 usecase: Local GUI over a checkout
-keywords: [t3code, docker run, web gui, air-gapped]
+keywords: [web gui, port 3773, air-gapped]
 ---
 
 # t3code · Docker

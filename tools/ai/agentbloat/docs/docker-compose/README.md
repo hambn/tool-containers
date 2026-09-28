@@ -2,7 +2,7 @@
 name: Docker Compose
 description: Open an agentbloat Zsh shell with every bundled agent CLI through Docker Compose, with an air-gapped compose file.
 usecase: Repeatable local multi-agent workspace
-keywords: [agentbloat, docker compose, coding agents, air-gapped]
+keywords: [coding agents, zsh, air-gapped]
 ---
 
 # agentbloat · Docker Compose

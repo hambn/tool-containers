@@ -2,7 +2,7 @@
 name: Docker
 description: Run Claude Code in Docker with ANTHROPIC_API_KEY, mounting the current directory at /workspace, or from a saved image tarball.
 usecase: Interactive coding on a local checkout
-keywords: [claude code, docker run, anthropic, air-gapped]
+keywords: [anthropic api key, air-gapped, docker save]
 ---
 
 # claude-code · Docker

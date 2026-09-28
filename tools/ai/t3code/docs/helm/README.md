@@ -1,8 +1,8 @@
 ---
 name: Helm
 description: Install the T3 Code web GUI on Kubernetes as a Deployment plus Service with a Helm chart, then port-forward to port 3773.
-usecase: Shared cluster T3 Code instance
-keywords: [t3code, helm chart, kubernetes, web gui]
+usecase: Shared cluster instance from a Helm chart
+keywords: [web gui, kubernetes, deployment, port-forward]
 ---
 
 # t3code · Helm

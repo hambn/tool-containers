@@ -2,7 +2,7 @@
 name: devbox
 description: Interactive Ubuntu and Alpine development and CI images in lite, full, and browser tiers, built on core with Zsh and sudo.
 image: ghcr.io/hambn/devbox
-keywords: [devbox, development container, ci image, ubuntu, alpine, zsh]
+keywords: [development container, ci image, ubuntu, alpine, zsh, headless chromium]
 ---
 
 # devbox
@@ -107,13 +107,16 @@ lingering for `sysadmin`, and hardware, getty, and update units masked.
 
 ## Use cases
 
-- Open an interactive shell on a project, optionally with the host Docker daemon, with
-  [Docker](docs/docker/).
-- Keep a persistent home directory across sessions with
-  [Docker Compose](docs/docker-compose/).
-- Work rootless with your UID mapped to `sysadmin` with [Podman](docs/podman/).
-- Exec into a disposable development pod with [Kubernetes](docs/kubernetes/), or a
-  long-running one with a persistent workspace with [Helm](docs/helm/).
+- **Interactive development shell on a checkout** — optionally with the host Docker
+  daemon, with [Docker](docs/docker/).
+- **Reusable shell with a persistent home** — history and tool caches kept across
+  sessions with [Docker Compose](docs/docker-compose/).
+- **Rootless development shell or Quadlet service** — your UID mapped to `sysadmin`
+  with [Podman](docs/podman/).
+- **Disposable cluster development pod** — exec into it with
+  [Kubernetes](docs/kubernetes/).
+- **Long-running cluster pod with a persistent workspace** — a StatefulSet volume claim
+  keeps `/workspace` across restarts, with [Helm](docs/helm/).
 
 ## Sources
 

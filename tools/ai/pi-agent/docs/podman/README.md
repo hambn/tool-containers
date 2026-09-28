@@ -1,8 +1,8 @@
 ---
 name: Podman
 description: Run the Pi terminal coding agent under rootless Podman, mapping your host user to sysadmin and mounting the current directory.
-usecase: Rootless Pi sessions on a workstation
-keywords: [pi agent, podman, rootless, coding agent]
+usecase: Rootless sessions on a workstation
+keywords: [terminal coding agent, rootless, keep-id, selinux]
 ---
 
 # pi-agent · Podman

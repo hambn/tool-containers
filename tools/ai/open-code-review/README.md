@@ -3,7 +3,7 @@ name: open-code-review
 description: Alibaba's Open Code Review AI code review CLI (ocr) on the devbox image, with Ubuntu and Alpine variants and optional Chromium.
 upstream: https://github.com/alibaba/open-code-review
 image: ghcr.io/hambn/open-code-review
-keywords: [open code review, ocr, alibaba, ai code review, docker image]
+keywords: [ocr, alibaba, ai code review, llm, devbox]
 ---
 
 # open-code-review
@@ -54,7 +54,7 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 ## Use cases
 
 - **Review the current checkout** — `./run.sh review` in [`docs/docker/`](./docs/docker/).
-- **Rootless reviews** — [`docs/podman/`](./docs/podman/).
+- **Rootless reviews on a workstation** — [`docs/podman/`](./docs/podman/).
 - **Repeatable local reviews** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 

@@ -3,7 +3,7 @@ name: t3code
 description: T3 Code web GUI over coding agents on the agentbloat image, serving on port 3773 with Codex, Claude Code, and other CLIs ready.
 upstream: https://github.com/pingdotgg/t3code
 image: ghcr.io/hambn/t3code
-keywords: [t3code, t3 code, web gui, coding agents, docker image]
+keywords: [web gui, coding agents, agentbloat, codex, claude code, cursor, opencode]
 ---
 
 # t3code
@@ -50,7 +50,8 @@ The Browser item in T3 Code's served web interface is disabled. It uses a deskto
 ## Use cases
 
 - **Local GUI over a checkout** — [`docs/docker/`](./docs/docker/), then open `http://127.0.0.1:3773`.
-- **Persistent local instance** — [`docs/docker-compose/`](./docs/docker-compose/) or rootless [`docs/podman/`](./docs/podman/).
+- **Persistent local instance** — [`docs/docker-compose/`](./docs/docker-compose/).
+- **Rootless local instance** — [`docs/podman/`](./docs/podman/).
 - **Shared cluster instance** — Deployment and Service in [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 

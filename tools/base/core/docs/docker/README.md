@@ -2,7 +2,7 @@
 name: Docker
 description: Open a throwaway shell in the hardened core base with Docker, run one command, or build your own image FROM core.
 usecase: Throwaway shell or base for your own image
-keywords: [core, docker run, base image, dockerfile]
+keywords: [base image, dockerfile, derived image, nonroot]
 ---
 
 # core · Docker

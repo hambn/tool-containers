@@ -2,7 +2,7 @@
 name: Docker
 description: Run the Pi terminal coding agent in Docker, mounting the current directory at /workspace, or from a saved image tarball.
 usecase: Interactive coding on a local checkout
-keywords: [pi agent, docker run, coding agent, air-gapped]
+keywords: [terminal coding agent, air-gapped, docker save]
 ---
 
 # pi-agent · Docker

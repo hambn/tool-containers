@@ -2,7 +2,7 @@
 name: Docker
 description: Run the OpenAI Codex CLI in Docker with OPENAI_API_KEY, mounting the current directory at /workspace or loading a saved tarball.
 usecase: Interactive coding on a local checkout
-keywords: [codex, docker run, openai, air-gapped]
+keywords: [openai api key, air-gapped, docker save]
 ---
 
 # codex · Docker

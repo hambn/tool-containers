@@ -3,7 +3,7 @@ name: pi-agent
 description: Pi, a minimal and extensible terminal coding agent, on the devbox image with Ubuntu and Alpine variants and optional Chromium.
 upstream: https://github.com/earendil-works/pi
 image: ghcr.io/hambn/pi-agent
-keywords: [pi, pi agent, terminal coding agent, cli, docker image]
+keywords: [terminal coding agent, earendil works, devbox, ubuntu, alpine, headless chromium]
 ---
 
 # pi-agent
@@ -54,7 +54,7 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 ## Use cases
 
 - **Interactive coding on a local checkout** — [`docs/docker/`](./docs/docker/).
-- **Rootless workstation** — [`docs/podman/`](./docs/podman/).
+- **Rootless sessions on a workstation** — [`docs/podman/`](./docs/podman/).
 - **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
 

@@ -1,8 +1,8 @@
 ---
 name: Docker
 description: Run the Open Code Review CLI (ocr review) in Docker against the current directory, or from a saved image on air-gapped hosts.
-usecase: Review the current checkout with an LLM
-keywords: [open code review, ocr, docker run, code review]
+usecase: Review the current checkout
+keywords: [ocr review, llm provider, air-gapped]
 ---
 
 # open-code-review · Docker

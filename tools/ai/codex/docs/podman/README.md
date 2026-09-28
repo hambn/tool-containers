@@ -1,8 +1,8 @@
 ---
 name: Podman
 description: Run the OpenAI Codex CLI under rootless Podman with OPENAI_API_KEY, mounting the current directory with SELinux relabeling.
-usecase: Rootless Codex sessions on a workstation
-keywords: [codex, podman, rootless, openai]
+usecase: Rootless sessions on a workstation
+keywords: [rootless, keep-id, selinux, openai api key]
 ---
 
 # codex · Podman

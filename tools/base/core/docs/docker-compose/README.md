@@ -2,7 +2,7 @@
 name: Docker Compose
 description: Run the hardened core base as a locked-down Compose shell service with a read-only root, tmpfs /tmp, and dropped capabilities.
 usecase: Locked-down read-only shell service
-keywords: [core, docker compose, read-only, hardened]
+keywords: [read-only root, tmpfs, dropped capabilities, nonroot]
 ---
 
 # core · Docker Compose
