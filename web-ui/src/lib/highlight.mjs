@@ -4,7 +4,7 @@ import { escapeHtml } from "./html.mjs";
 
 const THEMES = { light: "github-light", dark: "github-dark-default" };
 // --code-bg in base.css; token colours are adjusted until they hold 4.5:1 on it.
-const CODE_BG = { light: "#fafafa", dark: "#151518" };
+export const CODE_BG = { light: "#f7f7f7", dark: "#161616" };
 const MIN_CONTRAST = 4.5;
 
 const channels = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));

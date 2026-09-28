@@ -13,15 +13,40 @@ function breadcrumb(page, { config }) {
   )}</ol></nav>`;
 }
 
-/** Overview | Docker | Compose | …: the tool page and its platform pages. */
+// The switcher groups platforms by what they are for; a platform missing here is listed under "More".
+const PLATFORM_GROUPS = {
+  docker: "Run",
+  "docker-compose": "Run",
+  podman: "Run",
+  kubernetes: "Deploy",
+  helm: "Deploy",
+  "github-actions": "CI",
+  "gitlab-ci": "CI",
+  devcontainer: "Develop",
+};
+
+/**
+ * Overview, then Run: Docker · Compose · …: the tool page and its platform pages.
+ * Consecutive platforms that share a group form one run, so platform order never changes.
+ */
 function tabs(page, site) {
   if (!page.tool) return "";
-  const family = site.toolFamily(page.tool);
-  if (family.length < 2) return "";
-  return html`<nav class="tabs" aria-label="${page.tool.meta.title} platforms"><div class="tabs-scroll">${family.map((target) => {
+  const [overview, ...platforms] = site.toolFamily(page.tool);
+  if (!platforms.length) return "";
+  const link = (target, label) => {
     const current = target === page ? raw(' aria-current="page"') : "";
-    return html`<a class="tabs-link" href="${site.config.href(target.route)}"${current}>${target.kind === "tool" ? "Overview" : target.label}</a>`;
-  })}</div></nav>`;
+    return html`<a class="tabs-link" href="${site.config.href(target.route)}"${current}>${label}</a>`;
+  };
+  const groups = [];
+  for (const target of platforms) {
+    const label = PLATFORM_GROUPS[target.platform.slug] ?? "More";
+    if (groups.at(-1)?.label !== label) groups.push({ label, targets: [] });
+    groups.at(-1).targets.push(target);
+  }
+  return html`<nav class="tabs" aria-label="${page.tool.meta.title} platforms"><ul class="tabs-groups">
+<li class="tabs-group"><span class="tabs-links">${link(overview, "Overview")}</span></li>
+${groups.map(({ label, targets }) => html`<li class="tabs-group"><span class="tabs-label">${label}</span><span class="tabs-links">${targets.map((target) => link(target, target.label))}</span></li>`)}
+</ul></nav>`;
 }
 
 function facts(page, site, icon) {

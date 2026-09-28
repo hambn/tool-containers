@@ -7,7 +7,7 @@ import { parse } from "node-html-parser";
 import { build } from "../src/build.mjs";
 import { repoRoot } from "../src/lib/config.mjs";
 import { ContentError } from "../src/lib/content.mjs";
-import { contrast } from "../src/lib/highlight.mjs";
+import { CODE_BG, contrast } from "../src/lib/highlight.mjs";
 import { DESCRIPTION, categoryReadme, fixtureRepo, platformReadme, tempDir, toolReadme } from "./helpers.mjs";
 
 // Raw bytes, about twice the size at the time of writing: loose enough for
@@ -253,8 +253,8 @@ for (const mode of MODES) {
       const tokens = [...css.matchAll(/\.t[\da-z]+\{color:light-dark\((#[\da-f]+),(#[\da-f]+)\)\}/gi)];
       assert.ok(tokens.length > 0);
       for (const [rule, light, dark] of tokens) {
-        assert.ok(contrast(long(light), "#fafafa") >= 4.5, rule);
-        assert.ok(contrast(long(dark), "#151518") >= 4.5, rule);
+        assert.ok(contrast(long(light), CODE_BG.light) >= 4.5, rule);
+        assert.ok(contrast(long(dark), CODE_BG.dark) >= 4.5, rule);
       }
     });
 
