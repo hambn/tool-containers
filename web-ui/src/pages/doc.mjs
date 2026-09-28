@@ -67,14 +67,25 @@ function tocList(toc) {
   return html`<ul>${toc.map(({ level, id, text }) => html`<li class="toc-${level}"><a href="#${id}">${text}</a></li>`)}</ul>`;
 }
 
-function pager(page, site) {
+function pager(page, site, icon) {
   const { previous, next } = site.neighbours(page);
   if (!previous && !next) return "";
   const link = (target, rel, label) =>
     target
-      ? html`<a class="pager-link ${rel}" href="${site.config.href(target.route)}" rel="${rel}"><span class="muted">${label}</span><span class="pager-name">${target.name}</span></a>`
+      ? html`<a class="pager-link ${rel}" href="${site.config.href(target.route)}" rel="${rel}"><span class="pager-label">${raw(icon("chevron"))}${label}</span><span class="pager-name">${target.name}</span></a>`
       : html`<span></span>`;
   return html`<nav class="pager" aria-label="Previous and next page">${link(previous, "prev", "Previous")}${link(next, "next", "Next")}</nav>`;
+}
+
+/** Edit link, last change, and the reading-order neighbours. */
+function docFooter(page, site, dates, icon) {
+  const updated = dates.modified
+    ? html`<span>Last updated <time datetime="${dates.modified}">${dateFormat.format(new Date(dates.modified))}</time></span>`
+    : "";
+  return html`<footer class="doc-footer">
+<div class="doc-meta">${externalLink(site.config.editUrl(page.source), html`${raw(icon("edit"))}Edit this page on GitHub`, { className: "edit-link" })}${updated}</div>
+${pager(page, site, icon)}
+</footer>`;
 }
 
 /**
@@ -84,9 +95,7 @@ function pager(page, site) {
  * metadata and search results, where it is written for.
  */
 export function docPage({ page, site, rendered, dates, icon }) {
-  const { config } = site;
   const toc = rendered.toc.length ? tocList(rendered.toc) : "";
-  const modified = dates.modified ? html` · Updated <time datetime="${dates.modified}">${dateFormat.format(new Date(dates.modified))}</time>` : "";
   return html`<div class="container docs">
 <nav class="sidebar" aria-label="Documentation">${docsNav(page, site)}</nav>
 <article class="doc">
@@ -100,8 +109,7 @@ ${facts(page, site, icon)}
 ${toc ? html`<details class="toc-inline"><summary>On this page</summary>${toc}</details>` : ""}
 <div class="prose">${raw(rendered.html)}${categoryTools(page, site, icon)}${raw(rendered.tail)}</div>
 ${tags(page, site)}
-<p class="doc-meta">${externalLink(config.blobUrl(page.source), "View source on GitHub", { icon })}${modified}</p>
-${pager(page, site)}
+${docFooter(page, site, dates, icon)}
 </article>
 ${toc ? html`<nav class="toc" id="on-this-page" aria-labelledby="toc-title"><p class="toc-title" id="toc-title">On this page</p>${toc}</nav>` : html`<div class="toc"></div>`}
 </div>`;

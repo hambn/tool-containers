@@ -7,6 +7,7 @@ import { parse } from "node-html-parser";
 import { build } from "../src/build.mjs";
 import { repoRoot } from "../src/lib/config.mjs";
 import { ContentError } from "../src/lib/content.mjs";
+import { contrast } from "../src/lib/highlight.mjs";
 import { DESCRIPTION, categoryReadme, fixtureRepo, platformReadme, tempDir, toolReadme } from "./helpers.mjs";
 
 // Raw bytes, about twice the size at the time of writing: loose enough for
@@ -244,6 +245,17 @@ for (const mode of MODES) {
       const dark = site.pages.get("/").querySelector('meta[name="theme-color"][media="(prefers-color-scheme: dark)"]').getAttribute("content");
       assert.equal(manifest.theme_color, dark);
       assert.equal(manifest.start_url, `${mode.basePath}/`);
+    });
+
+    test("code token colours hold 4.5:1 on the code background in both themes", () => {
+      const css = site.read(site.files.find((file) => /^assets\/site-.*\.css$/.test(file)));
+      const long = (hex) => (hex.length === 4 ? `#${[...hex.slice(1)].map((c) => c + c).join("")}` : hex);
+      const tokens = [...css.matchAll(/\.t[\da-z]+\{color:light-dark\((#[\da-f]+),(#[\da-f]+)\)\}/gi)];
+      assert.ok(tokens.length > 0);
+      for (const [rule, light, dark] of tokens) {
+        assert.ok(contrast(long(light), "#fafafa") >= 4.5, rule);
+        assert.ok(contrast(long(dark), "#151518") >= 4.5, rule);
+      }
     });
 
     test("output stays within size budgets", () => {

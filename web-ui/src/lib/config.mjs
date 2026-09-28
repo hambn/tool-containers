@@ -69,5 +69,7 @@ export function resolveConfig(env = process.env) {
     blobUrl: (repoPath) => `${repoUrl}/blob/HEAD/${repoPath}`,
     treeUrl: (repoPath) => `${repoUrl}/tree/HEAD/${repoPath}`,
     rawUrl: (repoPath) => `${repoUrl}/raw/HEAD/${repoPath}`,
+    /** GitHub's editor needs a branch name, not HEAD; documents are edited on main. */
+    editUrl: (repoPath) => `${repoUrl}/edit/main/${repoPath}`,
   };
 }

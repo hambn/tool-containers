@@ -3,6 +3,33 @@ import { createHighlighter } from "shiki";
 import { escapeHtml } from "./html.mjs";
 
 const THEMES = { light: "github-light", dark: "github-dark-default" };
+// --code-bg in base.css; token colours are adjusted until they hold 4.5:1 on it.
+const CODE_BG = { light: "#fafafa", dark: "#151518" };
+const MIN_CONTRAST = 4.5;
+
+const channels = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+const luminance = (hex) => {
+  const [r, g, b] = channels(hex).map((value) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+export const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+/** `color`, darkened (on a light background) or lightened (on a dark one) just enough to read on `background`. */
+export function readable(color, background) {
+  if (!/^#[\da-f]{6}$/i.test(color)) return color;
+  const target = luminance(background) > 0.5 ? 0 : 255;
+  let rgb = channels(color);
+  for (let step = 0; step < 50 && contrast(`#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`, background) < MIN_CONTRAST; step += 1) {
+    rgb = rgb.map((c) => Math.round(c + (target - c) * 0.05));
+  }
+  return `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
 const GRAMMARS = ["shellscript", "dockerfile", "yaml", "json", "toml", "markdown", "ini"];
 const ALIASES = { bash: "shellscript", sh: "shellscript", shell: "shellscript", zsh: "shellscript", console: "shellscript", yml: "yaml", md: "markdown", env: "ini" };
 const EXTENSIONS = { sh: "shellscript", bash: "shellscript", yml: "yaml", yaml: "yaml", json: "json", toml: "toml", md: "markdown", env: "ini", conf: "ini", ini: "ini" };
@@ -35,8 +62,8 @@ export async function createCodeHighlighter() {
   const classes = new Map();
 
   const className = (style) => {
-    const light = style["--shiki-light"] ?? "";
-    const dark = style["--shiki-dark"] ?? "";
+    const light = readable(style["--shiki-light"] ?? "", CODE_BG.light);
+    const dark = readable(style["--shiki-dark"] ?? "", CODE_BG.dark);
     const key = `${light}|${dark}`.toLowerCase();
     if (key === defaults || key === "|") return "";
     if (!classes.has(key)) classes.set(key, { name: `t${classes.size.toString(36)}`, light, dark });

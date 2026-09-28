@@ -41,7 +41,7 @@ export function homePage({ site, readme, icon }) {
 ${hero(site, readme, icon)}
 <form class="filter" role="search" aria-label="Filter images" data-filter>
 <div class="filter-input">${raw(icon("search"))}<input type="search" name="q" placeholder="Filter images…" aria-label="Filter images" autocomplete="off" spellcheck="false"></div>
-<select name="category" aria-label="Category"><option value="">All categories</option>${catalog.categories.map(({ slug, meta }) => html`<option value="${slug}">${meta.title}</option>`)}</select>
+<span class="select"><select name="category" aria-label="Category"><option value="">All categories</option>${catalog.categories.map(({ slug, meta }) => html`<option value="${slug}">${meta.title}</option>`)}</select>${raw(icon("chevron"))}</span>
 </form>
 <p class="filter-status" role="status" data-filter-status></p>
 ${catalog.categories.map(
