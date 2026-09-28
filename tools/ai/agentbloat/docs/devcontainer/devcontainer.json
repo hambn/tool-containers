@@ -1,0 +1,11 @@
+// Copy to .devcontainer/devcontainer.json in your project.
+{
+  "name": "agentbloat",
+  "image": "ghcr.io/hambn/agentbloat:ubuntu-browser",
+  // Naming the user lets Linux hosts remap sysadmin to your UID, so /workspace files keep your ownership.
+  "remoteUser": "sysadmin",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+  // Headless Chromium needs more than the 64 MB default /dev/shm.
+  "runArgs": ["--shm-size=1g"]
+}

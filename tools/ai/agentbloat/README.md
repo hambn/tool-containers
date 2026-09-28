@@ -84,6 +84,7 @@ Pins live in the [`Dockerfile`](./Dockerfile) `ARG` defaults and are recorded as
 - **Rootless multi-agent workstation** — [`docs/podman/`](./docs/podman/).
 - **Repeatable local multi-agent workspace** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **Long-lived cluster workspace** — [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
+- **Multi-agent workspace inside the editor** — [`docs/devcontainer/`](./docs/devcontainer/).
 
 ## Sources
 
