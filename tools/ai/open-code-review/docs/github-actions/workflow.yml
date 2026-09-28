@@ -1,0 +1,44 @@
+# Copy to .github/workflows/open-code-review.yml and add an ANTHROPIC_API_KEY repository secret and an OCR_MODEL variable.
+name: open-code-review
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review with Open Code Review
+    # GitHub does not pass secrets to workflows triggered from forks, so skip those pull requests.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The pull request merge commit and its first parent, the base branch, cover the diff.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Review
+        # An explicit bash shell adds pipefail, so a failed git diff fails the step.
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OCR_MODEL: ${{ vars.OCR_MODEL }}
+        run: |
+          # The checkout belongs to the runner user, so Git in the container needs it marked safe.
+          # ocr reads the provider and model from its config and the key from ANTHROPIC_API_KEY.
+          docker run --rm -e ANTHROPIC_API_KEY -e OCR_MODEL \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/workspace \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            --entrypoint sh ghcr.io/hambn/open-code-review:ubuntu -ec '
+              : "${OCR_MODEL:?Set the OCR_MODEL repository variable}"
+              ocr config set provider anthropic
+              ocr config set model "$OCR_MODEL"
+              ocr review --from HEAD^1 --to HEAD'

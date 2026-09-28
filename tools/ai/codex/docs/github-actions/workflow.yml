@@ -1,0 +1,42 @@
+# Copy to .github/workflows/codex-review.yml and add a CODEX_API_KEY repository secret.
+name: codex review
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review with Codex
+    # GitHub does not pass secrets to workflows triggered from forks, so skip those pull requests.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The pull request merge commit and its first parent, the base branch, cover the diff.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Review
+        # An explicit bash shell adds pipefail, so a failed git diff fails the step.
+        shell: bash
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+        run: |
+          # The checkout belongs to the runner user, so Git in the container needs it marked safe.
+          # Codex's own sandbox may not work inside Docker; the container and read-only mount isolate it.
+          git diff HEAD^1 HEAD |
+            docker run --rm -i -e CODEX_API_KEY \
+              -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/workspace \
+              -v "$GITHUB_WORKSPACE:/workspace:ro" \
+              ghcr.io/hambn/codex:ubuntu \
+              exec --sandbox danger-full-access "Review this pull request diff for bugs, security issues, and missing tests. Reply in Markdown." \
+            >> "$GITHUB_STEP_SUMMARY"

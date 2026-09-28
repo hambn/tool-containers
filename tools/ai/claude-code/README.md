@@ -60,6 +60,7 @@ The image runs as `sysadmin` (UID 1000) in `/workspace`; credentials are supplie
 - **Repeatable local sessions** — [`docs/docker-compose/`](./docs/docker-compose/).
 - **One-shot review in a cluster** — Kubernetes Job in [`docs/kubernetes/`](./docs/kubernetes/) or the Helm chart in [`docs/helm/`](./docs/helm/).
 - **Air-gapped hosts** — the `airgapped.*` files in [`docs/docker/`](./docs/docker/) and [`docs/docker-compose/`](./docs/docker-compose/).
+- **Code review in CI** — GitHub Actions in [`docs/github-actions/`](./docs/github-actions/) or GitLab CI in [`docs/gitlab-ci/`](./docs/gitlab-ci/).
 
 ## Sources
 
