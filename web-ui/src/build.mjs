@@ -5,6 +5,7 @@ import { assetHref, createOutput, pngToIco } from "./lib/assets.mjs";
 import { ConfigError, repoRoot, resolveConfig, uiRoot } from "./lib/config.mjs";
 import { ContentError, TOOLS_SECTION, assertValid, discover, readInlineFiles } from "./lib/content.mjs";
 import { combinedDates, commitDates, trackedFiles } from "./lib/git.mjs";
+import { FONTS, fontFaces, fontFile, fontLicense } from "./lib/fonts.mjs";
 import { createCodeHighlighter } from "./lib/highlight.mjs";
 import { createIcons, spriteSvg } from "./lib/icons.mjs";
 import { TEMPLATE_IDS, renderPage } from "./lib/layout.mjs";
@@ -85,8 +86,12 @@ export async function build({ env = process.env, root = repoRoot, outDir = path.
   try {
     const output = createOutput(staging, config);
     output.asset("icons", "svg", sprite);
+    const fonts = Object.fromEntries(FONTS.map((font) => [font.name, output.asset(font.file.replace(/\.woff2$/, ""), "woff2", fontFile(font))]));
+    // The fonts' licence travels with them.
+    output.write("assets/fonts-OFL.txt", fontLicense());
     const assets = {
-      css: await output.css(highlighter.css()),
+      css: await output.css(`${fontFaces(fonts)}\n${highlighter.css()}`),
+      fonts: FONTS.filter((font) => font.preload).map((font) => fonts[font.name]),
       js: await output.js(),
       theme: await output.inlineScript("theme.js"),
       index: output.asset("search", "json", JSON.stringify(searchIndex(site, rendered, meta))),
