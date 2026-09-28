@@ -6,6 +6,7 @@ validator must pass identically (web-ui/tests/fixtures.test.mjs).
 """
 
 import importlib.util
+import json
 import pathlib
 import unittest
 
@@ -67,6 +68,16 @@ class DocumentRules(unittest.TestCase):
     def test_tools_section_ends_at_the_next_section(self) -> None:
         body = "## Tools\n\n- [a](./a/) — Fine.\n\n## Tags\n\nAnything goes here.\n"
         self.assertEqual(check_repo.tools_section_problems(body, ["a"]), [])
+
+
+class JsoncRules(unittest.TestCase):
+    def test_comments_are_dropped_outside_strings(self) -> None:
+        text = '{\n  // line\n  "a": "http://x/*y*/", /* block */\n  "b": "q\\"//"\n}\n'
+        self.assertEqual(json.loads(check_repo.strip_jsonc(text)), {"a": "http://x/*y*/", "b": 'q"//'})
+
+    def test_unterminated_block_comment_fails(self) -> None:
+        with self.assertRaises(ValueError):
+            check_repo.strip_jsonc('{"a": 1 /* open\n}')
 
 
 if __name__ == "__main__":

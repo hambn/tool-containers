@@ -303,6 +303,44 @@ cases:
 
         # Podman
     invalid: [tools/ai/demo/docs/podman/README.md]
+  - name: the CI and dev container platforms are known
+    files:
+      tools/ai/demo/docs/github-actions/README.md: |
+        ---
+        name: GitHub Actions
+        description: Run the demo fixture image as a GitHub Actions job on pull requests, with the provider key read from a repository secret.
+        usecase: Review pull requests in GitHub Actions
+        ---
+
+        # GitHub Actions
+      tools/ai/demo/docs/gitlab-ci/README.md: |
+        ---
+        name: GitLab CI
+        description: Run the demo fixture image as a GitLab CI job on merge requests, with the provider key read from a masked CI/CD variable.
+        usecase: Review merge requests in GitLab CI
+        ---
+
+        # GitLab CI
+      tools/ai/demo/docs/devcontainer/README.md: |
+        ---
+        name: Dev Container
+        description: Open a checkout in the demo fixture image as a Dev Container, with the workspace mounted and the provider key passed from the host.
+        usecase: Editor-attached development container
+        ---
+
+        # Dev Container
+    invalid: []
+  - name: a CI platform name is fixed by its directory
+    files:
+      tools/ai/demo/docs/github-actions/README.md: |
+        ---
+        name: Github Actions
+        description: Run the demo fixture image as a GitHub Actions job on pull requests, with the provider key read from a repository secret.
+        usecase: Review pull requests in GitHub Actions
+        ---
+
+        # GitHub Actions
+    invalid: [tools/ai/demo/docs/github-actions/README.md]
   - name: an unknown platform directory
     files:
       tools/ai/demo/docs/nomad/README.md: "# Nomad\n"

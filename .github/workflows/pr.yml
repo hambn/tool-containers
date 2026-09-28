@@ -79,7 +79,9 @@ jobs:
           echo /tmp/lint/bin >>"$GITHUB_PATH"
 
       - name: actionlint
-        run: actionlint -color
+        run: |
+          actionlint -color
+          git ls-files -z 'tools/*/*/docs/github-actions/*.yml' | xargs -0 -r actionlint -color
 
       # Ignored by design: the base image arrives as the BASE_IMAGE build arg (DL3006),
       # devbox overlays its config stage as a whole filesystem (DL3067), build stages

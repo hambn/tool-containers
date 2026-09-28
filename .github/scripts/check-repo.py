@@ -63,8 +63,8 @@ def local_links(path: pathlib.Path) -> list[str]:
 
 # --- workflows ---------------------------------------------------------------
 
-def check_workflow_hardening() -> None:
-    for path in sorted(WORKFLOWS.glob("*.y*ml")):
+def check_workflow_hardening(paths: list[pathlib.Path] | None = None) -> None:
+    for path in sorted(WORKFLOWS.glob("*.y*ml")) if paths is None else paths:
         document = load(path)
         reusable_only = set(triggers(document)) == {"workflow_call"}
         if document.get("permissions") != {}:
@@ -304,6 +304,9 @@ def check_tools(all_files: list[pathlib.Path]) -> None:
         if not platforms:
             error(f"{tool}: missing docs/<platform>/")
         for platform in platforms:
+            required = PLATFORM_FILES.get(platform.name)
+            if required and not (platform / required).is_file():
+                error(f"{platform}: missing {required}")
             readme = platform / "README.md"
             if not readme.is_file():
                 error(f"{platform}: missing README.md")
@@ -353,8 +356,11 @@ TOOL_README = re.compile(r"tools/([^/]+)/([^/]+)/README\.md")
 PLATFORM_README = re.compile(r"tools/([^/]+)/([^/]+)/docs/([^/]+)/README\.md")
 PLATFORM_NAMES = {
     "docker": "Docker", "docker-compose": "Docker Compose", "podman": "Podman",
-    "kubernetes": "Kubernetes", "helm": "Helm",
+    "kubernetes": "Kubernetes", "helm": "Helm", "github-actions": "GitHub Actions",
+    "gitlab-ci": "GitLab CI", "devcontainer": "Dev Container",
 }
+# The runnable file each CI and editor platform directory must contain.
+PLATFORM_FILES = {"github-actions": "workflow.yml", "gitlab-ci": "gitlab-ci.yml", "devcontainer": "devcontainer.json"}
 REGISTRIES = ("ghcr.io/hambn/", "docker.io/hambn/")
 DESCRIPTION_LENGTH = (110, 160)
 USECASE_MAX = 80
@@ -691,6 +697,68 @@ def check_renders(all_files: list[pathlib.Path]) -> None:
         notice("Helm unavailable; skipped lint/template")
 
 
+def strip_jsonc(text: str) -> str:
+    """Drop // and /* */ comments outside strings; devcontainer.json is JSON with comments."""
+    out, index, length = [], 0, len(text)
+    while index < length:
+        char = text[index]
+        if char == '"':
+            end = index + 1
+            while end < length and text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            out.append(text[index:end + 1])
+            index = end + 1
+        elif text.startswith("//", index):
+            index = text.find("\n", index)
+            index = length if index < 0 else index
+        elif text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            if end < 0:
+                raise ValueError("unterminated /* comment")
+            index = end + 2
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
+def check_platform_files(all_files: list[pathlib.Path]) -> None:
+    def in_platform(path: pathlib.Path, platform: str) -> bool:
+        return path.parts[0] == "tools" and len(path.parts) > 2 and path.parts[-2] == platform and path.parts[-3] == "docs"
+
+    workflows = [p for p in all_files if in_platform(p, "github-actions") and p.suffix in {".yml", ".yaml"}]
+    check_workflow_hardening(workflows)
+    if workflows and shutil.which("actionlint"):
+        result = subprocess.run(["actionlint", *map(str, workflows)], capture_output=True, text=True)
+        if result.returncode:
+            error(f"actionlint failed:\n{(result.stdout + result.stderr).strip()}")
+    elif workflows:
+        notice("actionlint unavailable; skipped docs/github-actions lint")
+    for path in (p for p in all_files if in_platform(p, "gitlab-ci") and p.suffix in {".yml", ".yaml"}):
+        try:
+            document = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as exc:
+            error(f"{path}: invalid YAML: {exc}")
+            continue
+        if not isinstance(document, dict):
+            error(f"{path}: GitLab CI configuration must be a mapping")
+            continue
+        for job_id, job in document.items():
+            if isinstance(job, dict) and isinstance(job.get("script"), list):
+                script = "\n".join(map(str, job["script"]))
+                result = subprocess.run(["bash", "-n"], input=script, text=True, capture_output=True)
+                if result.returncode:
+                    error(f"{path}: job {job_id}: shell syntax error: {result.stderr.strip()}")
+    for path in (p for p in all_files if in_platform(p, "devcontainer") and p.suffix == ".json"):
+        try:
+            document = json.loads(strip_jsonc(path.read_text()))
+        except ValueError as exc:
+            error(f"{path}: invalid JSONC: {exc}")
+            continue
+        if not isinstance(document, dict) or not document.get("image"):
+            error(f"{path}: devcontainer.json must set image")
+
+
 def run_suites() -> None:
     for command in (
         ["bash", ".agents/skills/maintain-agent-workspace/scripts/check-agent-workspace.sh"],
@@ -715,6 +783,7 @@ def main() -> int:
     check_tools(all_files)
     check_files(all_files)
     check_renders(all_files)
+    check_platform_files(all_files)
     for message in errors:
         print(f"error: {message}", file=sys.stderr)
     if errors:
