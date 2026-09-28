@@ -54,6 +54,12 @@ The `agentimg` image and its old tag schemes are no longer published. Replace
 `agentimg:<variant>` with `devbox:<distro>-full`, or `devbox:<distro>-browser` if you
 used headless Chromium.
 
+Tags from earlier layouts are frozen: they still pull, but never get another build. That
+covers `<tool>-v<version>` release tags such as `claude-code-v<version>` and
+`ocr-v<version>`, `<variant>-<sha>` commit tags, dated `<variant>-<YYYYMMDD>-<sha7>` tags,
+and `<version>-<variant>` or bare `<version>` tags. Move to a current variant tag or a
+digest.
+
 ## How images are built
 
 Each tool directory holds a `Dockerfile` that pins every version as an `ARG` default,
