@@ -72,9 +72,11 @@ content list to update.
 - A `## Contents` section that holds only same-page links is dropped, because the
   page's table of contents replaces it.
 - A list item whose only link points at the page itself (such as a "Docs:" link to the
-  site) is dropped. A list left empty by this rule disappears.
-- On a category page, the `## Tools` section is replaced by a list generated from the
-  tool READMEs: each tool's title, description, and images.
+  site) is dropped. On tool and platform pages, so is one that links the page's own
+  source directory, because the facts panel shows it. A list left empty by this rule
+  disappears.
+- On a category page, the `## Tools` section is replaced by cards generated from the
+  tool READMEs: each tool's title, description, images, and platform links.
 - Categories and tools appear in frontmatter `order` everywhere; platforms follow the
   fixed platform order.
 - Links are resolved against the Git inventory:
@@ -85,19 +87,25 @@ content list to update.
   - Absolute links into `SITE_URL` follow `BASE_PATH`.
 - These fail the build: a link that climbs out of the repository, a link with any
   scheme other than `http:`, `https:`, or `mailto:`, and raw HTML.
+- Links that leave the site open in a new tab, with an arrow icon and hidden
+  "(opens in new tab)" text. Links to site pages and in-page anchors stay in the tab.
+- Code blocks get a header with the language and a copy button, and scroll as a
+  keyboard-focusable region. Token colours are adjusted at build time to at least
+  4.5:1 against the code background in both themes.
 - On platform pages, every sibling file (scripts, manifests, charts) appears under
   "File contents". Files over 40 lines start collapsed. Binary files and files over
   128 KiB keep their GitHub links.
 
 ## Features
 
-- **Catalog:** a table of images grouped by category. Each row shows:
-  - the title and description;
-  - the GHCR image reference, with a copy button;
-  - platform links, in a fixed column order.
+- **Catalog:** a hero from the root README (title, first sentence, search, and counts),
+  then the images grouped by category. Each row shows the title and description and
+  every `images` entry with its registry and a copy button. Platforms are left to the
+  docs.
 
-  You can filter by text, category, or platform. The filter state is kept in the URL
-  (`?platform=helm`), and the filter uses the same matcher as search.
+  You can filter by text and category; the state is kept in the URL (`?q=&category=`).
+  The filter uses the search matcher: exact and prefix matches first, and one-typo
+  matches only when nothing else matches.
 - **Search:** press `/` or Ctrl/Cmd+K to open the search dialog. With an empty query, it
   lists the images and your recently viewed pages. Results are grouped by page, with
   matching sections nested under each page. The same engine powers the `/search/?q=`
@@ -105,11 +113,17 @@ content list to update.
 - **Docs:**
   - A sidebar tree whose category labels open the category pages, breadcrumbs, and
     platform tabs.
-  - A category page per category, listing its tools with their images.
-  - A facts panel on each page: images, use case, upstream, source, and keywords.
-  - A table of contents, which becomes a collapsible panel below 1280px.
-  - Previous/next links and copy buttons.
-  - A light/dark theme that follows the OS until you choose one.
+  - A category page per category, with a card per tool: images and platform links.
+  - A facts panel on tool and platform pages: images, use case, upstream, and source.
+  - The page's keywords as "Topics" tags, each a link to a search for that keyword.
+  - A table of contents that highlights the section in view, and becomes a
+    collapsible panel below 1280px.
+  - A page footer with an "Edit this page on GitHub" link, the last Git change, and
+    previous/next links.
+  - Below 1024px the sidebar moves into a menu drawer, which also holds the theme
+    switch and the GitHub link.
+  - A light/dark theme that follows the OS until you choose one. Copy results are
+    announced to screen readers.
 - **SEO:**
   - Titles and descriptions come from frontmatter or from whole sentences of the root
     README lead.
@@ -160,8 +174,11 @@ default configuration, and publishes `dist/`.
 
 ```text
 src/build.mjs     build orchestration; exports build({ env, root, outDir })
-src/lib/          build-time modules: content discovery, links, Markdown, SEO, layout
-src/shared/       modules used by both the build and the browser (search, escaping)
+src/lib/          build-time modules: content discovery, links, Markdown, SEO, layout;
+                  ui.mjs holds shared markup (image lists, chips, external links) and
+                  text.mjs the sentence helpers
+src/shared/       modules used by both the build and the browser (search, escaping,
+                  fragment decoding)
 src/pages/        home, doc, search, and not-found templates
 src/client/       main.js, the lazy search-ui.js, and the pre-paint theme.js
 src/styles/       base, layout, components, and prose CSS
@@ -184,7 +201,10 @@ sets `SITE_URL` and `BASE_PATH` for a subpath. The tests parse every page and ch
 - canonical tags and the sitemap cover exactly the indexable pages;
 - JSON-LD parses and its breadcrumb matches the visible one;
 - the search index covers every `/docs/` page;
-- category pages list their tools in `order`, with images, and the sidebar links them;
+- category pages list their tools in `order`, with images and platform links, and the
+  sidebar links them;
+- off-site links open in a new tab and say so; keyword tags link to search;
+- code token colours meet 4.5:1 on the code background in both themes;
 - the favicon and manifest are valid;
 - raw size budgets hold (about twice the current output).
 
@@ -194,4 +214,5 @@ build that must report every problem and keep the previous output. Unit tests co
 - frontmatter and cross-document rules, including the shared fixture cases;
 - link resolution;
 - headings and rendering rules;
-- search ranking, typos, and highlighting.
+- search ranking, typos, highlighting, and the catalog filter's typo fallback;
+- fragment decoding for in-page links.

@@ -22,10 +22,13 @@ The site automatically showcases the repository's markdown as pages — nothing 
   under `tools/` or its READMEs — or the root catalog — updates the site through a
   normal rebuild; that is the only supported way to change site content.
 - Render the complete root README at `/docs/`; the home page is its derived catalog.
+- Render the home catalog as a hero from the root README, then every tool per category
+  with all its `images` entries and their registries. Platforms stay out of the
+  catalog; they live on the docs pages and category cards.
 - Each category README renders at `/docs/<category>/` with the breadcrumb Docs /
-  category. Its `## Tools` section is replaced by a tool list generated from the tool
-  READMEs (title, description, and every `images` entry), so the README's bullets never
-  drift from the site.
+  category. Its `## Tools` section is replaced by tool cards generated from the tool
+  READMEs (title, description, every `images` entry, and platform links), so the
+  README's bullets never drift from the site.
 - Categories and tools sort by frontmatter `order` everywhere: catalog, sidebar, docs
   overview, search empty state, `llms.txt`, and the sitemap. Platforms follow the fixed
   platform order in `$documentation`.
@@ -37,7 +40,12 @@ The site automatically showcases the repository's markdown as pages — nothing 
   - Drop a `## Contents` section whose content is only a list of same-page links; the
     page's table of contents replaces it.
   - Drop a list item whose only link targets the current page's own site URL (the
-    "Docs:" self-link), and drop a list this empties.
+    "Docs:" self-link), or on tool and platform pages its own source directory (the
+    facts panel shows it), and drop a list this empties.
+  - Show tool and platform keywords as "Topics" tags that link to `/search/?q=`, not
+    as a facts row.
+  - Off-site links open in a new tab with `rel="noopener noreferrer"`, an external
+    icon, and hidden "(opens in new tab)" text; site and in-page links never do.
   - The first `# Title` and paragraph become the page heading and lead; the frontmatter
     `description` feeds meta tags and search only, so the lead is never duplicated.
 - Resolve links against the Git inventory, never the working tree:
@@ -72,6 +80,8 @@ The site automatically showcases the repository's markdown as pages — nothing 
   - Every term must match. Matches are exact, prefix, or within one typo for terms of
     five or more characters. Fields rank title > headings > keywords/use case >
     description > prose.
+  - The home filter tries exact and prefix matches first and falls back to typo
+    matches only when nothing else matches, so a precise word stays precise.
   - Highlight raw text, then escape it.
 
 ## Technical contract
@@ -96,6 +106,14 @@ The site automatically showcases the repository's markdown as pages — nothing 
   - Tokens are CSS `light-dark()` values that follow the OS until the user picks a
     theme.
   - One radius scale (8/6/4/12px), the system font stack, and one shared container.
+  - Surfaces are `--bg`, `--surface` (cards and controls), `--surface-2` (headers and
+    table heads), and `--code-bg`. Controls share `--control` (36px height), the
+    `--input` border (at least 3:1), and the `--ring` focus shadow; `--success` marks
+    a completed copy.
+  - Code token colours are adjusted at build time (`highlight.mjs`) to at least 4.5:1
+    on `--code-bg` in both themes; never hand-tune a Shiki colour instead.
+  - Below 1024px the sidebar moves into the menu drawer, which also holds the theme
+    switch and the GitHub link; the table of contents collapses below 1280px.
   - The Markdown renderer plus the sidebar and nav are the core components.
   - Weight performance above decoration: small payload, no web fonts, and no heavy
     frameworks in the shipped bundle.
