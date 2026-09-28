@@ -210,19 +210,23 @@ export function robots(config) {
   return `User-agent: *\nAllow: /\n\nSitemap: ${config.canonical("/sitemap.xml")}\n`;
 }
 
+// Backslash-escape characters that would start or end Markdown syntax inside a link text or heading.
+const markdownText = (text) => text.replace(/[\\`*_[\]<>#]/g, "\\$&");
+
 /** llms.txt (llmstxt.org): a markdown map of the site built from the same metadata as the pages. */
 export function llmsTxt(site, meta, readme) {
   const { config } = site;
+  const md = markdownText;
   const docs = meta.get(site.docs);
   const lines = [`# ${SITE_NAME}`, "", `> ${meta.get(site.home).description}`, ""];
-  lines.push(`- [${site.docs.heading}](${config.canonical(site.docs.route)}): ${readme.headings.join(", ") || docs.description}`, "");
+  lines.push(`- [${md(site.docs.heading)}](${config.canonical(site.docs.route)}): ${readme.headings.join(", ") || docs.description}`, "");
   for (const page of site.pages) {
     if (page.kind === "category") {
-      lines.push(`## ${page.category.meta.title}`, "", `- [${page.category.meta.title}](${config.canonical(page.route)}): ${page.category.meta.description}`, "");
+      lines.push(`## ${md(page.category.meta.title)}`, "", `- [${md(page.category.meta.title)}](${config.canonical(page.route)}): ${page.category.meta.description}`, "");
     } else if (page.kind === "tool") {
-      lines.push(`### ${page.tool.meta.title}`, "", `- [${page.tool.meta.title}](${config.canonical(page.route)}): ${page.tool.meta.description}`);
+      lines.push(`### ${md(page.tool.meta.title)}`, "", `- [${md(page.tool.meta.title)}](${config.canonical(page.route)}): ${page.tool.meta.description}`);
     } else if (page.kind === "platform") {
-      lines.push(`- [${page.heading}](${config.canonical(page.route)}): ${page.platform.meta.usecase}`);
+      lines.push(`- [${md(page.heading)}](${config.canonical(page.route)}): ${page.platform.meta.usecase}`);
     }
     if (page.tool && page === site.toolFamily(page.tool).at(-1)) lines.push("");
   }

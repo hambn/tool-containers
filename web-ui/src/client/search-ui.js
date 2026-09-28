@@ -29,8 +29,6 @@ function loadEngine() {
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const sectionHref = (page, section) => `${page.u}#${encodeURIComponent(section.id)}`;
 
-// Search dialog
-
 const dialog = document.getElementById("search");
 const input = document.getElementById("search-input");
 const listbox = document.getElementById("search-results");
@@ -163,8 +161,6 @@ listbox.addEventListener("click", (event) => {
 dialog.addEventListener("click", (event) => {
   if (event.target === dialog || event.target.closest("[data-search-close]")) dialog.close();
 });
-
-// The /search/ page
 
 function pageResults(results, terms) {
   return results

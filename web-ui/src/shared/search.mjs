@@ -14,8 +14,8 @@ import { escapeHtml } from "./escape.mjs";
  * @property {[string, string, string][]} s sections as [heading, id, text]; the preamble has an empty id
  */
 
-// Title beats headings beats keywords/use case beats prose.
-export const WEIGHTS = { title: 10, heading: 6, keywords: 4, description: 2, prose: 1 };
+// Title beats headings beats keywords/use case beats description beats prose.
+const WEIGHTS = { title: 10, heading: 6, keywords: 4, description: 2, prose: 1 };
 const EXACT = 1;
 const PREFIX = 0.75;
 const TYPO = 0.5;
@@ -84,13 +84,13 @@ export function createSearch(index) {
       order,
       page,
       sections,
-      fields: [
-        [WEIGHTS.title, wordSet(page.t)],
-        [WEIGHTS.heading, union("headingWords")],
-        [WEIGHTS.keywords, wordSet(page.w)],
-        [WEIGHTS.description, wordSet(page.d)],
-        [WEIGHTS.prose, union("textWords")],
-      ],
+      fields: {
+        title: wordSet(page.t),
+        heading: union("headingWords"),
+        keywords: wordSet(page.w),
+        description: wordSet(page.d),
+        prose: union("textWords"),
+      },
     };
   });
 
@@ -127,7 +127,7 @@ export function createSearch(index) {
     for (const entry of pages) {
       let score = 0;
       for (const termMatches of matches) {
-        const termScore = Math.max(...entry.fields.map(([weight, set]) => best(termMatches, set, weight)));
+        const termScore = Math.max(...Object.entries(entry.fields).map(([field, set]) => best(termMatches, set, WEIGHTS[field])));
         if (!termScore) {
           score = 0;
           break;
@@ -139,8 +139,8 @@ export function createSearch(index) {
 
       // A term the page's title or keywords already satisfy need not repeat in
       // the section: "claude helm variables" finds Helm's Variables section.
-      const [title, , keywords] = entry.fields;
-      const pageLevel = matches.map((termMatches) => best(termMatches, title[1]) > 0 || best(termMatches, keywords[1]) > 0);
+      const { title, keywords } = entry.fields;
+      const pageLevel = matches.map((termMatches) => best(termMatches, title) > 0 || best(termMatches, keywords) > 0);
       const sections = entry.sections
         .map((section) => {
           let sectionScore = 0;

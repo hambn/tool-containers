@@ -4,7 +4,7 @@ import path from "node:path";
 import * as esbuild from "esbuild";
 import { uiRoot } from "./config.mjs";
 
-// Browsers with native `light-dark()`, `:has()`, and `<dialog>`; esbuild lowers nothing older.
+// Browsers with native `light-dark()`, `:has()`, and `<dialog>`. esbuild lowers any newer syntax to what they support.
 const TARGETS = ["chrome123", "edge123", "firefox120", "safari17.5"];
 const STYLES = ["base.css", "layout.css", "components.css", "prose.css"];
 
@@ -42,7 +42,9 @@ export function createOutput(outDir, config) {
     },
     /**
      * Bundle the client entry; the search UI is split into a chunk that loads
-     * on first use. Returns the entry's href.
+     * on first use. Returns the entry's href and the chunks it imports
+     * statically, which pages preload so they do not wait for the entry to parse.
+     * @returns {Promise<{ src: string, preload: string[] }>}
      */
     async js() {
       const main = path.join(uiRoot, "src/client/main.js");
@@ -61,13 +63,18 @@ export function createOutput(outDir, config) {
       });
       // Metafile paths are relative to the working directory; dynamic imports are entry points too.
       const relative = (file) => path.relative(process.cwd(), file);
-      let entry = "";
+      let entry;
       for (const file of result.outputFiles) {
         writeFileSync(file.path, file.contents);
-        if (result.metafile.outputs[relative(file.path)]?.entryPoint === relative(main)) entry = path.basename(file.path);
+        const output = result.metafile.outputs[relative(file.path)];
+        if (output?.entryPoint === relative(main)) entry = { file: path.basename(file.path), output };
       }
       if (!entry) throw new Error("esbuild produced no entry chunk");
-      return config.href(`/assets/${entry}`);
+      const href = (file) => config.href(`/assets/${path.basename(file)}`);
+      return {
+        src: href(entry.file),
+        preload: entry.output.imports.filter((item) => item.kind === "import-statement").map((item) => href(item.path)),
+      };
     },
     /** Minified source for inlining in `<head>`. */
     async inlineScript(file) {

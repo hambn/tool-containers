@@ -20,7 +20,8 @@ export function trackedFiles(root) {
 export function commitDates(root) {
   const dates = new Map();
   let date = "";
-  for (const line of git(root, ["log", "--format=%x00%cI", "--name-only", "--", "README.md", "tools"]).split("\n")) {
+  // Unquoted paths: with quoting on, Git escapes non-ASCII names and they never match.
+  for (const line of git(root, ["-c", "core.quotePath=false", "log", "--format=%x00%cI", "--name-only", "--", "README.md", "tools"]).split("\n")) {
     if (line.startsWith("\0")) date = line.slice(1);
     else if (line) {
       // The walk runs newest first: the first sighting is the last change.

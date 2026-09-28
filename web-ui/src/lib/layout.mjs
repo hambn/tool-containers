@@ -8,7 +8,7 @@ export const TEMPLATE_IDS = ["main", "menu", "menu-title", "search", "search-inp
 
 const NAV = [
   { label: "Catalog", kinds: ["home"], page: (site) => site.home },
-  { label: "Docs", kinds: ["docs", "tool", "platform"], page: (site) => site.docs },
+  { label: "Docs", kinds: ["docs", "category", "tool", "platform"], page: (site) => site.docs },
 ];
 
 const LOGO = raw(
@@ -16,15 +16,15 @@ const LOGO = raw(
 );
 
 /**
- * Primary navigation. `aria-current="page"` marks only the page itself;
- * a section's descendants get the active style without claiming to be it.
+ * Primary navigation. `aria-current="page"` marks the page itself; inside a
+ * section, its link is `aria-current="true"`: current, without being the page.
  */
 function mainNav(page, site, className) {
   return NAV.map(({ label, kinds, page: target }) => {
     const self = target(site);
-    const current = page === self ? raw(' aria-current="page"') : "";
-    const active = kinds.includes(page.kind) ? " active" : "";
-    return html`<a class="${className}${active}" href="${site.config.href(self.route)}"${current}>${label}</a>`;
+    const active = kinds.includes(page.kind);
+    const current = page === self ? raw(' aria-current="page"') : active ? raw(' aria-current="true"') : "";
+    return html`<a class="${className}${active ? " active" : ""}" href="${site.config.href(self.route)}"${current}>${label}</a>`;
   });
 }
 
@@ -69,7 +69,10 @@ function menu(page, site, icon) {
 <div class="sheet-head"><span class="sheet-title" id="menu-title">Menu</span><button class="icon-btn" type="button" data-menu-close aria-label="Close menu">${raw(icon("close"))}</button></div>
 <nav class="sheet-nav" aria-label="Main">${mainNav(page, site, "sheet-link")}</nav>
 <nav class="sheet-docs" aria-label="Documentation">${docsNav(page, site)}</nav>
-<button class="sheet-theme" type="button" data-theme-toggle>${raw(icon("sun"))}${raw(icon("moon"))}<span>Toggle theme</span></button>
+<div class="sheet-foot">
+<button class="sheet-theme" type="button" data-theme-toggle><span>Dark theme</span><span class="switch" aria-hidden="true"></span></button>
+${externalLink(site.config.repoUrl, html`${raw(icon("github"))}<span>GitHub</span>`, { className: "sheet-github" })}
+</div>
 </dialog>`;
 }
 
@@ -103,13 +106,15 @@ export function renderPage({ page, site, seo, main, assets, icon }) {
 ${raw(headTags(page, site, seo))}
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="${THEME_COLORS.light}">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${THEME_COLORS.dark}">
-<link rel="icon" href="${config.href("/favicon.ico")}" sizes="180x180">
+<link rel="icon" href="${config.href("/favicon.ico")}" sizes="180x180" type="image/x-icon">
 <link rel="icon" href="${config.href("/favicon.svg")}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${config.href("/apple-touch-icon.png")}">
 <link rel="manifest" href="${config.href("/site.webmanifest")}">
 <link rel="stylesheet" href="${assets.css}">
 <script>${raw(assets.theme)}</script>
-<script type="module" src="${assets.js}"></script>
+<script type="module" src="${assets.js.src}"></script>
+${assets.js.preload.map((href) => html`<link rel="modulepreload" href="${href}">
+`)}
 ${raw(jsonLdScript(seo.structuredData))}
 </head>
 <body class="page-${page.kind}" data-search-index="${assets.index}" data-page-name="${page.reading ? page.name : ""}">
@@ -119,6 +124,7 @@ ${menu(page, site, icon)}
 <main id="main">${main}</main>
 ${footer(site)}
 ${searchDialog(icon)}
+<div class="sr-only" role="status" data-announce></div>
 </body>
 </html>
 `);

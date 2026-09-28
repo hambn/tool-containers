@@ -1,3 +1,4 @@
+import { fragmentId } from "../shared/fragment.mjs";
 import { matchesAll, parseQuery } from "../shared/search.mjs";
 import { load, save } from "./storage.js";
 
@@ -11,6 +12,11 @@ const prefersDark = matchMedia("(prefers-color-scheme: dark)");
 const isDark = () => root.classList.contains("dark") || (!root.classList.contains("light") && prefersDark.matches);
 function syncThemeButtons() {
   for (const button of document.querySelectorAll("[data-theme-toggle]")) button.setAttribute("aria-pressed", String(isDark()));
+  // The browser chrome follows the chosen theme, not only the OS one.
+  if (root.classList.contains("light") || root.classList.contains("dark")) {
+    const color = getComputedStyle(document.body).backgroundColor;
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]')) meta.content = color;
+  }
 }
 for (const button of document.querySelectorAll("[data-theme-toggle]")) {
   button.addEventListener("click", () => {
@@ -24,7 +30,8 @@ for (const button of document.querySelectorAll("[data-theme-toggle]")) {
 prefersDark.addEventListener("change", syncThemeButtons);
 syncThemeButtons();
 
-// Copy buttons copy the text of their nearest [data-copy-source], minus the button itself.
+// Copy buttons copy the code in their nearest [data-copy-source]; a live region announces it.
+const announcer = document.querySelector("[data-announce]");
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-copy]");
   if (!button) return;
@@ -34,8 +41,14 @@ document.addEventListener("click", async (event) => {
   try {
     await navigator.clipboard.writeText((code ?? source).textContent.trimEnd());
     button.dataset.copied = "";
-    setTimeout(() => delete button.dataset.copied, 1500);
-  } catch {}
+    announcer.textContent = "Copied to clipboard";
+    setTimeout(() => {
+      delete button.dataset.copied;
+      announcer.textContent = "";
+    }, 1500);
+  } catch {
+    announcer.textContent = "Copy failed";
+  }
 });
 
 // Mobile menu sheet: <dialog> gives the focus trap, Esc, and focus return.
@@ -68,7 +81,8 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   const typing = event.target.closest?.("input, textarea, select, [contenteditable]");
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !event.altKey) {
+  // Autofill fires keydown events without a key.
+  if ((event.metaKey || event.ctrlKey) && event.key?.toLowerCase() === "k" && !event.altKey) {
     // Also while the dialog is open, so the browser's own Ctrl+K never fires.
     event.preventDefault();
     const dialog = document.getElementById("search");
@@ -83,21 +97,61 @@ document.addEventListener("keydown", (event) => {
 document.querySelector("[data-search-open]")?.addEventListener("pointerenter", () => loadSearch().catch(() => {}), { once: true });
 
 const searchForm = document.querySelector("[data-search-page]");
-if (searchForm) loadSearch().then((ui) => ui.mountPage(searchForm));
+if (searchForm) {
+  loadSearch()
+    .then((ui) => ui.mountPage(searchForm))
+    .catch(() => {
+      document.querySelector("[data-search-count]").textContent = "Search could not load. Reload the page to try again.";
+    });
+}
 
-// A link to a collapsed recipe file opens it.
+const hashTarget = (hash) => {
+  const id = fragmentId(hash);
+  return id === null ? null : document.getElementById(id);
+};
+
+// A link to a collapsed recipe file opens it, then scrolls to it: the
+// browser scrolled before the content above it had its final height.
 function revealHash() {
-  const target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
-  if (target instanceof HTMLDetailsElement) target.open = true;
+  const target = hashTarget(location.hash);
+  if (target instanceof HTMLDetailsElement && !target.open) {
+    target.open = true;
+    target.scrollIntoView();
+  }
 }
 addEventListener("hashchange", revealHash);
 revealHash();
 
-// Keep the current platform tab in view when the switcher scrolls sideways.
-const currentTab = document.querySelector(".tabs-link[aria-current=page]");
-if (currentTab) {
-  const strip = currentTab.parentElement;
-  strip.scrollLeft = currentTab.offsetLeft - (strip.clientWidth - currentTab.offsetWidth) / 2;
+// Keep the current platform tab in view, and fade the edges that hide more tabs.
+const strip = document.querySelector(".tabs-scroll");
+if (strip) {
+  const currentTab = strip.querySelector("[aria-current=page]");
+  if (currentTab) strip.scrollLeft = currentTab.offsetLeft - (strip.clientWidth - currentTab.offsetWidth) / 2;
+  const fade = () => {
+    strip.toggleAttribute("data-more-start", strip.scrollLeft > 1);
+    strip.toggleAttribute("data-more-end", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
+  };
+  strip.addEventListener("scroll", fade, { passive: true });
+  new ResizeObserver(fade).observe(strip);
+}
+
+// "On this page" marks the section being read: the last heading above the top third.
+const tocLinks = new Map([...document.querySelectorAll(".toc a")].map((link) => [fragmentId(link.hash), link]));
+const headings = [...tocLinks.keys()].map((id) => id !== null && document.getElementById(id)).filter(Boolean);
+if (headings.length) {
+  let current;
+  const spy = () => {
+    const line = innerHeight / 3;
+    const active = headings.findLast((heading) => heading.getBoundingClientRect().top < line) ?? headings[0];
+    if (active === current) return;
+    tocLinks.get(current?.id)?.removeAttribute("aria-current");
+    tocLinks.get(active.id)?.setAttribute("aria-current", "true");
+    current = active;
+  };
+  // Fires whenever a heading crosses the line a third of the way down the viewport.
+  const observer = new IntersectionObserver(spy, { rootMargin: "0px 0px -66% 0px" });
+  for (const heading of headings) observer.observe(heading);
+  spy();
 }
 
 // "On this page" below 1280px: close after a jump so the content is visible.
@@ -110,7 +164,7 @@ const pageName = document.body.dataset.pageName;
 if (pageName) {
   const path = location.pathname;
   const recent = load(RECENT_KEY, []).filter((item) => item && item.u !== path);
-  save(RECENT_KEY, [{ t: pageName, u: path }, ...recent].slice(0, RECENT_MAX));
+  save(RECENT_KEY, [{ u: path }, ...recent].slice(0, RECENT_MAX));
 }
 
 // Home catalog filter, matching words as search does; state lives in the URL.

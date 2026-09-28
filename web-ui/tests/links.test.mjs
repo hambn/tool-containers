@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { resolveConfig } from "../src/lib/config.mjs";
 import { createLinkResolver } from "../src/lib/links.mjs";
+import { fragmentId } from "../src/shared/fragment.mjs";
 
 const config = resolveConfig({ SITE_URL: "https://example.com/sub", BASE_PATH: "/sub", GITHUB_REPOSITORY: "owner/repo" });
 const repo = "https://github.com/owner/repo";
@@ -61,4 +62,13 @@ test("absolute links into the public site follow BASE_PATH; others pass through"
   assert.equal(from("https://example.com/subway"), "https://example.com/subway");
   assert.equal(from("mailto:a@example.com"), "mailto:a@example.com");
   assert.equal(from("#local"), "#local");
+});
+
+test("fragments decode to element ids, and malformed ones are ignored instead of throwing", () => {
+  assert.equal(fragmentId("#file-chart-values-yaml"), "file-chart-values-yaml");
+  assert.equal(fragmentId("#%C3%BCber"), "über");
+  assert.equal(fragmentId("#%"), null);
+  assert.equal(fragmentId("#%E0%A4%A"), null);
+  assert.equal(fragmentId("#"), null);
+  assert.equal(fragmentId(""), null);
 });

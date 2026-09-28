@@ -258,6 +258,15 @@ for (const mode of MODES) {
       }
     });
 
+    test("pages preload the chunks the entry script imports", () => {
+      for (const [route, dom] of site.pages) {
+        const entry = dom.querySelector('script[type="module"]').getAttribute("src");
+        const imported = [...site.read(entry.slice(mode.basePath.length + 1)).matchAll(/(?:^|[;}])import\s*[^"(]*?"\.\/([^"]+)"/g)].map((match) => `${mode.basePath}/assets/${match[1]}`);
+        assert.ok(imported.length > 0, route);
+        assert.deepEqual(dom.querySelectorAll('link[rel="modulepreload"]').map((link) => link.getAttribute("href")), imported, route);
+      }
+    });
+
     test("output stays within size budgets", () => {
       const size = (file) => statSync(path.join(site.outDir, file)).size;
       const total = (pattern) => site.files.filter((file) => pattern.test(file)).reduce((sum, file) => sum + size(file), 0);
