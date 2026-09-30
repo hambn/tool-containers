@@ -49,4 +49,6 @@ reinstalls OS packages from the current repositories without touching any other 
 there are no in-image upgrades. The daily scheduled run of each tool workflow rescans
 the published variants and rebuilds those with fixable HIGH/CRITICAL OS vulnerabilities
 with `OS_REFRESH=<today>` as a build arg, so the committed default changes only when
-bumped by hand ([CI](ci.md)).
+bumped by hand ([CI](ci.md)). CI records the effective date in the image's
+`io.github.hambn.containers.os-refresh` label and retains the newest of that date and
+the Dockerfile default on subsequent builds.

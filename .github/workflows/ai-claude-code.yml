@@ -7,6 +7,7 @@ on:
       - "tools/trivyignore.yaml"
       - ".github/workflows/ai-claude-code.yml"
       - ".github/workflows/tool-image.yml"
+      - ".github/scripts/**"
   push:
     branches: [main]
     paths: *paths
@@ -43,13 +44,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/ai/claude-code
-      tags: |
-        # Stable variant tags; latest is the lightest Ubuntu variant, which also
-        # carries the upstream version.
-        echo "$VARIANT"
-        if [ "$VARIANT" = ubuntu ]; then
-            echo latest
-            echo "claude-code-$VERSION"
-        fi
+      latest-variant: ubuntu
+      version-prefix: claude-code
       version-arg: CLAUDE_CODE_VERSION
       outdated-only: ${{ inputs.outdated-only || false }}

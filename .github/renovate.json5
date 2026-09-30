@@ -11,6 +11,22 @@
   prFooter: "## Validation\n\n- The pull request gate and each tool workflow builds, tests, and scans its images on this pull request.",
   customManagers: [
     {
+      customType: "regex",
+      description: "Image CI builder digest",
+      managerFilePatterns: ["/^\\.github/workflows/tool-image\\.yml$/"],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>docker) depName=(?<depName>\\S+)\\n  BUILDKIT_IMAGE: [^:\\s]+:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})',
+      ],
+    },
+    {
+      customType: "regex",
+      description: "Image CI Buildx version",
+      managerFilePatterns: ["/^\\.github/workflows/tool-image\\.yml$/"],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>github-releases) depName=(?<depName>\\S+)\\n  BUILDX_VERSION: (?<currentValue>\\S+)',
+      ],
+    },
+    {
       // Container images pinned as name:tag@sha256:digest.
       customType: "regex",
       description: "Image pins in tool Dockerfiles",

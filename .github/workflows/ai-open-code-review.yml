@@ -7,6 +7,7 @@ on:
       - "tools/trivyignore.yaml"
       - ".github/workflows/ai-open-code-review.yml"
       - ".github/workflows/tool-image.yml"
+      - ".github/scripts/**"
   push:
     branches: [main]
     paths: *paths
@@ -43,13 +44,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/ai/open-code-review
-      tags: |
-        # Stable variant tags; latest is the lightest Ubuntu variant, which also
-        # carries the upstream version.
-        echo "$VARIANT"
-        if [ "$VARIANT" = ubuntu ]; then
-            echo latest
-            echo "open-code-review-$VERSION"
-        fi
+      latest-variant: ubuntu
+      version-prefix: open-code-review
       version-arg: OPEN_CODE_REVIEW_VERSION
       outdated-only: ${{ inputs.outdated-only || false }}

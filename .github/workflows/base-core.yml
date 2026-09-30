@@ -7,6 +7,7 @@ on:
       - "tools/trivyignore.yaml"
       - ".github/workflows/base-core.yml"
       - ".github/workflows/tool-image.yml"
+      - ".github/scripts/**"
   push:
     branches: [main]
     paths: *paths
@@ -41,11 +42,6 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/base/core
-      tags: |
-        # Base image: stable variant tags; latest is the largest variant.
-        echo "$VARIANT"
-        if [ "$VARIANT" = ubuntu ]; then
-            echo latest
-        fi
+      latest-variant: ubuntu
       outdated-only: ${{ inputs.outdated-only || false }}
       dependents: base-devbox.yml

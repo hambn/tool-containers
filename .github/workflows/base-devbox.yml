@@ -7,6 +7,7 @@ on:
       - "tools/trivyignore.yaml"
       - ".github/workflows/base-devbox.yml"
       - ".github/workflows/tool-image.yml"
+      - ".github/scripts/**"
   push:
     branches: [main]
     paths: *paths
@@ -43,11 +44,6 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/base/devbox
-      tags: |
-        # Base image: stable variant tags; latest is the largest variant.
-        echo "$VARIANT"
-        if [ "$VARIANT" = ubuntu-browser ]; then
-            echo latest
-        fi
+      latest-variant: ubuntu-browser
       outdated-only: ${{ inputs.outdated-only || false }}
       dependents: ai-agentbloat.yml ai-claude-code.yml ai-codex.yml ai-open-code-review.yml ai-pi-agent.yml

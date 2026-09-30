@@ -40,15 +40,22 @@ mechanics. There are no global agent references, memory logs, or secondary route
 ├── labeler.yml                   # path-based pull-request labels
 ├── pull_request_template.md      # Summary/Validation/Checklist PR shape
 ├── renovate.json5                # dependency updates for pins and actions
-├── requirements.txt              # Python dependencies of repository scripts
+├── requirements.txt              # repository validation dependency
+├── requirements-lint.txt         # Python lint pin
+├── ruff.toml                     # Python lint and formatting rules
 ├── ISSUE_TEMPLATE/
 ├── scripts/
-│   ├── check-repo.py             # static repository validator
-│   ├── test_check_repo.py        # its document-rule tests (shared web-ui fixtures)
-│   ├── ghcr-cleanup.py           # prune untagged GHCR versions after publishing
-│   ├── hub-readme.py             # sync a Docker Hub README after publishing
-│   ├── validate_pr_metadata.py   # PR title/body policy
-│   └── test_validate_pr_metadata.py
+│   ├── plan.py                  # parent pinning and build matrix selection
+│   ├── build.py                 # per-architecture build, tests, scan and digest export
+│   ├── publish.py               # registry tags, architecture pairs and signing
+│   ├── dependents.py            # outdated-only workflow dispatches
+│   ├── ci.py, image_common.py   # process helpers and shared layer/cache policy
+│   ├── lint.py                  # verified lint tools and source checks
+│   ├── check-repo.py            # CLI for repository_check.py + document_rules.py
+│   ├── ghcr-cleanup.py          # CLI for ghcr_cleanup.py
+│   ├── hub-readme.py            # CLI for hub_readme.py
+│   ├── validate_pr_metadata.py  # PR title/body policy
+│   └── test_*.py                # job, cache, maintenance and document regressions
 └── workflows/
     ├── tool-image.yml            # reusable image pipeline: plan → build → publish
     ├── <category>-<tool>.yml     # one per tool (base-core.yml, ai-codex.yml, …)

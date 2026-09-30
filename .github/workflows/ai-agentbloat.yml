@@ -7,6 +7,7 @@ on:
       - "tools/trivyignore.yaml"
       - ".github/workflows/ai-agentbloat.yml"
       - ".github/workflows/tool-image.yml"
+      - ".github/scripts/**"
   push:
     branches: [main]
     paths: *paths
@@ -43,11 +44,6 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     with:
       tool: tools/ai/agentbloat
-      tags: |
-        # Stable variant tags; latest is the lightest Ubuntu variant.
-        echo "$VARIANT"
-        if [ "$VARIANT" = ubuntu ]; then
-            echo latest
-        fi
+      latest-variant: ubuntu
       outdated-only: ${{ inputs.outdated-only || false }}
       dependents: ai-omnigent.yml ai-t3code.yml
