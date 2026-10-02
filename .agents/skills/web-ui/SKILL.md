@@ -122,10 +122,11 @@ The site automatically showcases the repository's markdown as pages — nothing 
     placeholders, kbd hints); meaningful glyphs 3:1 (`--faint`: separators, icons, list
     markers, the rail marker) and control borders 3:1 (`--input`). `--border` and
     `--border-strong` only divide or frame and may be calmer.
-  - The platform switcher is Overview plus platform pages grouped by use
-    (`PLATFORM_GROUPS` in `pages/doc.mjs`; a new platform needs a group there or falls
-    under "More"). Groups wrap as units; on phones each group is a labelled row. Never
-    make it a horizontally scrolling tab strip.
+  - The platform switcher is an Overview link beside a compact native `details`
+    dropdown of platform links. Show Platform on overview pages and the current
+    platform label on recipe pages. Preserve platform order and current-page
+    markers. Close it on Escape, outside clicks, or focus leaving the dropdown.
+    Keep links usable without JavaScript and avoid horizontal scrolling.
   - "On this page" is a thin rail: same-weight muted entries, h3 entries indented and
     smaller, the section in view in foreground with a rail marker.
   - Code token colours are adjusted at build time (`highlight.mjs`) to at least 4.5:1

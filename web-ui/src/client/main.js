@@ -61,6 +61,25 @@ menu?.addEventListener("click", (event) => {
   if (event.target === menu || event.target.closest("[data-menu-close]")) menu.close();
 });
 
+// Platform links work without JavaScript; enhance dismissal and focus return.
+const platformDropdown = document.querySelector(".platform-dropdown");
+if (platformDropdown) {
+  const summary = platformDropdown.querySelector("summary");
+  document.addEventListener("click", (event) => {
+    if (!platformDropdown.contains(event.target)) platformDropdown.open = false;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && platformDropdown.open) {
+      event.preventDefault();
+      platformDropdown.open = false;
+      summary.focus();
+    }
+  });
+  platformDropdown.addEventListener("focusout", (event) => {
+    if (!platformDropdown.contains(event.relatedTarget)) platformDropdown.open = false;
+  });
+}
+
 // Search: the UI loads on first use; triggers are links to /search/ until then.
 let searchUi;
 const loadSearch = () => (searchUi ??= import("./search-ui.js").catch((error) => {

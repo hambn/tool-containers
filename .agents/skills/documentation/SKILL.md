@@ -170,9 +170,7 @@ content; the `# Title` heading and body stay unchanged below the frontmatter:
   category README's `## Tools` section in the same change.
 
 When a rule changes, change `.github/scripts/document_rules.py`,
-`web-ui/src/lib/frontmatter.mjs` (and `content.mjs` for cross-document rules), and the shared fixture cases together. A new
-platform also needs a group in `PLATFORM_GROUPS` (`web-ui/src/pages/doc.mjs`), or the
-site's platform switcher lists it under "More".
+`web-ui/src/lib/frontmatter.mjs` (and `content.mjs` for cross-document rules), and the shared fixture cases together. The site's platform dropdown follows the fixed platform order automatically.
 
 ## Cross-linking contract
 
