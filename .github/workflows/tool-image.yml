@@ -97,7 +97,6 @@ jobs:
     permissions:
       contents: read
       packages: write # Push digests and the build cache on main.
-      security-events: write # Upload the Trivy report to code scanning.
     strategy:
       fail-fast: false
       matrix:
@@ -154,15 +153,8 @@ jobs:
           version: v0.70.0
           cache: true
 
-      - name: Scan
+      - name: Secret scan
         run: python3 .github/scripts/build.py scan
-
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
-        if: ${{ !cancelled() && env.PUBLISH == 'true' && hashFiles('trivy.sarif') != '' }}
-        continue-on-error: true
-        with:
-          sarif_file: trivy.sarif
-          category: trivy-${{ needs.plan.outputs.image }}-${{ matrix.variant }}-${{ matrix.arch }}
 
       - name: Push by digest
         if: env.PUBLISH == 'true'

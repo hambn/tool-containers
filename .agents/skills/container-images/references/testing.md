@@ -34,12 +34,11 @@ Follow the repository shell style (`#!/usr/bin/env bash`, `set -euo pipefail`, s
 shellcheck-clean). Never run it locally in this repository's agent sessions unless the
 user authorizes running containers.
 
-## Scan gate
+## Secret scan
 
-CI scans every variant on both architectures with Trivy. The full report (every severity
-and package type) goes to code scanning as SARIF. The gate fails only on what a rebuild
-of this repository can fix: HIGH or CRITICAL OS-package vulnerabilities with a released
-fix (bump `OS_REFRESH`), except those accepted in `tools/trivyignore.yaml`, and secrets
-outside the vendored directories `/usr/local/lib/node_modules`, `/usr/local/go`, and
-`/opt`. Vulnerabilities inside upstream binaries only get fixes from a new upstream
-release, which Renovate bumps, so they are reported but never block a publish.
+CI scans every variant on both architectures with Trivy for secrets outside the vendored
+directories `/usr/local/lib/node_modules`, `/usr/local/go`, and `/opt`, and fails the
+build on a finding not accepted in `tools/trivyignore.yaml`. Builds do not gate on
+vulnerabilities or upload reports to code scanning: this repository does not maintain the
+upstream tools, and fixable OS-package vulnerabilities in published images are refreshed
+by the daily rescan ([OS_REFRESH](versions.md#os_refresh)).

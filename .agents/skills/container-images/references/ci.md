@@ -8,7 +8,7 @@ build matrix → registry publish matrix → dependent dispatch graph.
 | `.github/workflows/<category>-<tool>.yml` | tool triggers and reusable-workflow inputs |
 | `.github/workflows/tool-image.yml` | job graph, actions, permissions, environments and matrices |
 | `.github/scripts/plan.py` | parent resolution, variant selection and matrix outputs |
-| `.github/scripts/build.py` | parent builds, saved build options, tests, scans and digest exports |
+| `.github/scripts/build.py` | parent builds, saved build options, tests, secret scans and digest exports |
 | `.github/scripts/publish.py` | architecture-pair validation, tags and cosign signing |
 | `.github/scripts/dependents.py` | outdated-only dispatches after publication |
 | `.github/scripts/image_common.py` | image references, bake targets and layer/cache policy |
@@ -16,7 +16,7 @@ build matrix → registry publish matrix → dependent dispatch graph.
 | `.github/workflows/pr.yml` | repository gate and lint jobs |
 | `.github/scripts/lint.py` | verified lint tools and Python/shell/workflow checks |
 | `.github/renovate.json5` | tool pins, builder pins and Actions updates |
-| `tools/trivyignore.yaml` | reviewed vulnerability exceptions |
+| `tools/trivyignore.yaml` | reviewed Trivy exceptions for the daily rescan and secret scan |
 
 ## Per-tool workflows
 
@@ -75,7 +75,7 @@ Keep these settings together in `image_common.py` and `build.py`:
 - Save the resolved build options once. The tested Docker export and the attested
   registry export must use those same inputs; changing the revision/created labels
   must not change the timestamp argument.
-- Export `mode=max` registry cache only after structure, smoke and Trivy checks pass,
+- Export `mode=max` registry cache only after structure, smoke and secret checks pass,
   and only on main outside pull requests. A failed cache export fails the build rather
   than silently losing the next run's cache. Source-parent fallback builds import
   cache but do not publish untested parents or overwrite their caches.
@@ -86,12 +86,11 @@ Keep Dockerfile layers independent as described in [Dockerfiles](images/dockerfi
 Scripts cannot make an unpinned npm dependency tree or mutable package repository
 reproducible after a cold build.
 
-The [structure and smoke tests](testing.md) run against the loaded image. Trivy writes
-all vulnerability severities/package types to SARIF; the gate fails on fixable
-HIGH/CRITICAL OS packages and on secrets outside `/usr/local/lib/node_modules`,
-`/usr/local/go` and `/opt`. Upstream binary vulnerabilities are reported and updated
-through Renovate. SARIF uploads run on main and cannot override the scan gate. Fork
-pull requests do not log in to GHCR; no pull request writes image or cache data.
+The [structure and smoke tests](testing.md) run against the loaded image, followed by
+the [secret scan](testing.md#secret-scan). Builds do not scan for vulnerabilities or
+upload code-scanning reports; the scheduled rescan above refreshes OS packages and
+Renovate updates upstream binaries. Fork pull requests do not log in to GHCR; no pull
+request writes image or cache data.
 
 ## Publish and maintenance
 
@@ -118,4 +117,4 @@ Pin third-party actions to full SHAs with version comments. Deny permissions at
 workflow scope and grant only each job's needs. Keep publication in its registry
 secret environment, non-canceling main concurrency and finite job timeouts. Do not
 print credentials or pass them as build args. Static validation does not prove image
-runtime behavior; the per-tool workflows build, test and scan every variant on PRs.
+runtime behavior; the per-tool workflows build, test and secret-scan every variant on PRs.
