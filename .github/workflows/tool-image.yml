@@ -174,7 +174,8 @@ jobs:
     name: Publish to ${{ matrix.name }}
     needs: [plan, build]
     # A failed variant must not prevent publication of other complete architecture pairs.
-    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.plan.outputs.variants != '[]' }}
+    # Run even without builds so Docker Hub can catch up with signed GHCR releases.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.publish == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: dockerhub
@@ -193,6 +194,8 @@ jobs:
             name: Docker Hub
             repo: docker.io/hambn
     env:
+      TOOL: ${{ inputs.tool }}
+      RECOVER: ${{ matrix.registry == 'dockerhub' }}
       IMAGE: ${{ needs.plan.outputs.image }}
       VERSION: ${{ needs.plan.outputs.version }}
       VARIANTS: ${{ needs.plan.outputs.variants }}
@@ -204,6 +207,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.plan.outputs.variants != '[]'
         with:
           pattern: digest-*
           merge-multiple: true
@@ -228,19 +232,19 @@ jobs:
         run: python3 .github/scripts/publish.py
 
       - name: Prune untagged versions older than 14 days
-        if: ${{ !cancelled() && matrix.registry == 'ghcr' }}
+        if: ${{ !cancelled() && matrix.registry == 'ghcr' && needs.plan.outputs.variants != '[]' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/ghcr_cleanup.py "$IMAGE"
 
       - name: Rewrite README links for Docker Hub
         id: readme
-        if: ${{ !cancelled() && matrix.registry == 'dockerhub' }}
+        if: ${{ !cancelled() && matrix.registry == 'dockerhub' && needs.plan.outputs.variants != '[]' }}
         env:
           TOOL: ${{ inputs.tool }}
         run: python3 .github/scripts/hub_readme.py "$TOOL/README.md" --output "$RUNNER_TEMP/README.md" --actions
 
-      - if: ${{ !cancelled() && matrix.registry == 'dockerhub' }}
+      - if: ${{ !cancelled() && matrix.registry == 'dockerhub' && needs.plan.outputs.variants != '[]' }}
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -251,8 +255,8 @@ jobs:
 
   dependents:
     name: Dispatch dependent images
-    needs: publish
-    if: ${{ !cancelled() && inputs.dependents != '' && needs.publish.result != 'skipped' }}
+    needs: [plan, publish]
+    if: ${{ !cancelled() && inputs.dependents != '' && needs.plan.outputs.variants != '[]' && needs.publish.result != 'skipped' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

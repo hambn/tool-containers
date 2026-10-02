@@ -4,10 +4,20 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 from ci import annotation, entrypoint, required, run, summary
-from image_common import ARCHITECTURES, digest, identifier, inspect, pinned, platform_manifests
+from image_common import (
+    ARCHITECTURES,
+    LABEL_PREFIX,
+    bake_targets,
+    digest,
+    identifier,
+    inspect,
+    pinned,
+    platform_manifests,
+)
 
 
 def tags(variant: str, version: str, latest_variant: str, version_prefix: str) -> list[str]:
@@ -31,15 +41,101 @@ def publication_sources(directory: Path, reference: str, variant: str) -> list[s
 
 def validate_sources(sources: list[str]) -> None:
     for arch, source in zip(ARCHITECTURES, sources, strict=True):
-        manifest = inspect(source)
+        manifest = inspect(source, retry_rate_limit=True)
         platforms = platform_manifests(manifest)
         if platforms:
             if set(platforms) != {arch}:
                 raise ValueError(f"{source}: expected only linux/{arch}, got {sorted(platforms)}")
         else:
-            image = inspect(source, "Image")
+            image = inspect(source, "Image", retry_rate_limit=True)
             if image.get("os") != "linux" or image.get("architecture") != arch:
                 raise ValueError(f"{source}: expected linux/{arch}")
+
+
+def verify_signature(reference: str, *, missing_ok: bool = False) -> bool:
+    # Accept only this repository's main-branch workflows, including the reusable one.
+    identity = (
+        "^"
+        + re.escape(f"https://github.com/{required('GITHUB_REPOSITORY')}/.github/workflows/")
+        + r"[^/]+\.yml@refs/heads/main$"
+    )
+    result = run(
+        [
+            "cosign",
+            "verify",
+            "--certificate-identity-regexp=" + identity,
+            "--certificate-oidc-issuer=https://token.actions.githubusercontent.com",
+            reference,
+        ],
+        capture=True,
+        check=False,
+        retry_rate_limit=True,
+    )
+    if result.returncode:
+        message = (result.stderr or result.stdout or "").strip()
+        if (
+            missing_ok
+            and re.search(r"no signatures found|no matching signatures", message, re.I)
+            and not re.search(
+                r"\b(?:401|403|429|5\d\d)\b|unauthorized|forbidden|timed out|timeout|connection",
+                message,
+                re.I,
+            )
+        ):
+            return False
+        raise RuntimeError(f"Cannot verify {reference}: {message}")
+    return True
+
+
+def recover_variant(source: str, reference: str, variant: str, latest: str, prefix: str) -> str:
+    manifest = inspect(f"{source}:{variant}", missing_ok=True, retry_rate_limit=True)
+    if manifest is None:
+        return f"- `{variant}` has no GHCR release to recover."
+    platforms = platform_manifests(manifest)
+    if set(platforms) != set(ARCHITECTURES):
+        raise ValueError(f"{variant}: GHCR release is missing an architecture")
+    image_digest = digest(manifest["digest"])
+    immutable = pinned(source, image_digest)
+    versions = set()
+    for arch_digest in platforms.values():
+        image = inspect(pinned(source, arch_digest), "Image", retry_rate_limit=True)
+        labels = image.get("config", {}).get("Labels", {})
+        if labels.get(LABEL_PREFIX + "variant") != variant:
+            raise ValueError(f"{variant}: GHCR release has inconsistent variant labels")
+        versions.add(labels.get("org.opencontainers.image.version", ""))
+    if len(versions) != 1 or not next(iter(versions)):
+        raise ValueError(f"{variant}: GHCR release has inconsistent or missing versions")
+    # Recovery tags describe the published release, not today's Dockerfile version.
+    names = tags(variant, versions.pop(), latest, prefix)
+    current = True
+    for name in names:
+        destination = inspect(f"{reference}:{name}", missing_ok=True, retry_rate_limit=True)
+        if destination is None or digest(destination["digest"]) != image_digest:
+            current = False
+    if current and verify_signature(pinned(reference, image_digest), missing_ok=True):
+        return f"- `{reference}:{variant}` is current and signed."
+    # Only recover a previously signed release, never an untested digest export.
+    verify_signature(immutable)
+    if not current:
+        run(
+            [
+                "docker",
+                "buildx",
+                "imagetools",
+                "create",
+                *(f"--tag={reference}:{name}" for name in names),
+                immutable,
+            ],
+            retry_rate_limit=True,
+        )
+        for name in names:
+            destination = inspect(f"{reference}:{name}", retry_rate_limit=True)
+            if digest(destination["digest"]) != image_digest or set(
+                platform_manifests(destination)
+            ) != set(ARCHITECTURES):
+                raise ValueError(f"{variant}: recovered tag {name} does not match GHCR")
+    run(["cosign", "sign", "--yes", pinned(reference, image_digest)], retry_rate_limit=True)
+    return f"- Recovered `{reference}:{', '.join(names)}` → `{image_digest}`"
 
 
 def main() -> int:
@@ -73,17 +169,36 @@ def main() -> int:
                     "create",
                     *(f"--tag={reference}:{name}" for name in names),
                     *sources,
-                ]
+                ],
+                retry_rate_limit=True,
             )
-            manifest = inspect(f"{reference}:{names[0]}")
+            manifest = inspect(f"{reference}:{names[0]}", retry_rate_limit=True)
             if set(platform_manifests(manifest)) != set(ARCHITECTURES):
                 raise ValueError(f"{variant}: published index is missing an architecture")
             image_digest = digest(manifest["digest"])
-            run(["cosign", "sign", "--yes", pinned(reference, image_digest)])
+            run(["cosign", "sign", "--yes", pinned(reference, image_digest)], retry_rate_limit=True)
             rows.append(f"- `{reference}:{', '.join(names)}` → `{image_digest}`")
         except (OSError, RuntimeError, ValueError) as exc:
             annotation("error", str(exc))
             failures.append(variant)
+    if os.environ.get("RECOVER") == "true":
+        if not reference.startswith("docker.io/"):
+            raise ValueError("Publication recovery is only supported for Docker Hub")
+        selected = {item["variant"] for item in variants}
+        available = {
+            identifier(settings["labels"][LABEL_PREFIX + "variant"])
+            for settings in bake_targets(Path(required("TOOL"))).values()
+        }
+        for variant in sorted(available - selected):
+            try:
+                rows.append(
+                    recover_variant(
+                        source, reference, variant, latest, os.environ.get("VERSION_PREFIX", "")
+                    )
+                )
+            except (OSError, RuntimeError, ValueError) as exc:
+                annotation("error", str(exc))
+                failures.append(variant)
     summary(
         f"### Published to {required('REPO')}\n\n"
         + "\n".join(rows)

@@ -57,7 +57,11 @@ def missing_image(message: str) -> bool:
 
 
 def inspect(
-    reference: str, field: str = "Manifest", *, missing_ok: bool = False
+    reference: str,
+    field: str = "Manifest",
+    *,
+    missing_ok: bool = False,
+    retry_rate_limit: bool = False,
 ) -> dict[str, Any] | None:
     result = run(
         [
@@ -71,6 +75,7 @@ def inspect(
         ],
         capture=True,
         check=False,
+        retry_rate_limit=retry_rate_limit,
     )
     if result.returncode:
         message = result.stderr.strip()

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import os
+import random
+import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import uuid
 from collections.abc import Callable, Mapping, Sequence
@@ -34,15 +37,33 @@ def run(
     env: Mapping[str, str] | None = None,
     capture: bool = False,
     check: bool = True,
+    retry_rate_limit: bool = False,
 ) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        list(map(str, command)),
-        cwd=cwd,
-        env=env,
-        text=True,
-        capture_output=capture,
-        check=False,
-    )
+    delays = (30, 60, 120, 240) if retry_rate_limit else ()
+    for attempt in range(len(delays) + 1):
+        result = subprocess.run(
+            list(map(str, command)),
+            cwd=cwd,
+            env=env,
+            text=True,
+            capture_output=capture or retry_rate_limit,
+            check=False,
+        )
+        if retry_rate_limit and not capture:
+            print(result.stdout or "", end="", flush=True)
+            print(result.stderr or "", end="", file=sys.stderr, flush=True)
+        message = (result.stderr or "") + (result.stdout or "")
+        if (
+            not result.returncode
+            or attempt == len(delays)
+            or not re.search(r"\b429\b|too many requests|toomanyrequests", message, re.I)
+            # A six-hour pull quota needs a later run, not short backoff.
+            or "pull rate limit" in message.lower()
+        ):
+            break
+        delay = delays[attempt] + random.uniform(0, 10)
+        annotation("warning", f"{command[0]} rate limited; retry {attempt + 1}/4 in {delay:.1f}s")
+        time.sleep(delay)
     if check and result.returncode:
         detail = (result.stderr or result.stdout or "").strip()
         raise RuntimeError(
