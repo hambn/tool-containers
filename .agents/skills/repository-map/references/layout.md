@@ -52,8 +52,8 @@ mechanics. There are no global agent references, memory logs, or secondary route
 │   ├── ci.py, image_common.py   # process helpers and shared layer/cache policy
 │   ├── lint.py                  # verified lint tools and source checks
 │   ├── check-repo.py            # CLI for repository_check.py + document_rules.py
-│   ├── ghcr-cleanup.py          # CLI for ghcr_cleanup.py
-│   ├── hub-readme.py            # CLI for hub_readme.py
+│   ├── ghcr_cleanup.py          # GHCR pruning that keeps tagged images and signatures
+│   ├── hub_readme.py            # Docker Hub README with absolute links
 │   ├── validate_pr_metadata.py  # PR title/body policy
 │   └── test_*.py                # job, cache, maintenance and document regressions
 └── workflows/

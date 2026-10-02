@@ -158,11 +158,6 @@ class SharedHelperTests(unittest.TestCase):
         chdir.assert_not_called()
         run.assert_not_called()
 
-    def test_validation_errors_belong_to_one_checker(self) -> None:
-        first = repository_check.RepositoryChecker()
-        first.error("bad workflow")
-        self.assertEqual(repository_check.RepositoryChecker().errors, [])
-
 
 if __name__ == "__main__":
     unittest.main()

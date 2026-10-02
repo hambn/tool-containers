@@ -32,8 +32,10 @@ DOWNLOADS = {
         "",
     ),
 }
-# BASE_IMAGE is a build arg; rootfs overlays intentionally copy /. Temporary stages
-# may end as root, and OS package versions are refreshed through OS_REFRESH.
+# Ignored by design: the base image arrives as the BASE_IMAGE build arg (DL3006),
+# devbox overlays its config stage as a whole filesystem (DL3067), build stages end as
+# root and the final stage switches to the named user (DL3002, DL3066), and OS packages
+# float with OS_REFRESH instead of version pins (DL3008, DL3018).
 HADOLINT_IGNORES = ("DL3002", "DL3006", "DL3008", "DL3018", "DL3066", "DL3067")
 
 
@@ -102,9 +104,10 @@ def lint(name: str) -> None:
     else:
         files = tracked("*.sh")
         options = ["-d", "-i", "4"] if name == "shfmt" else []
-    # Invoke once per file to avoid ARG_MAX on growing catalogs and report the exact file.
-    for path in files:
-        run([name, *options, path])
+    # Check every file before failing, so one run reports all of them.
+    failed = [path for path in files if run([name, *options, path], check=False).returncode]
+    if failed:
+        raise RuntimeError(f"{name} failed for {', '.join(failed)}")
 
 
 def main() -> None:

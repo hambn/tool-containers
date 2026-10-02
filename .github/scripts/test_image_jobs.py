@@ -61,13 +61,20 @@ class ImagePolicyTests(unittest.TestCase):
                 self.assertRaises(RuntimeError),
             ):
                 images.inspect(GHCR + "/core:ubuntu", missing_ok=True)
-        with patch(
-            "image_common.run",
-            return_value=subprocess.CompletedProcess(
-                [], 1, "", "ghcr.io/hambn/core:ubuntu: not found"
-            ),
+        for message in (
+            "ghcr.io/hambn/core:ubuntu: not found",
+            # A tool's first run: its GHCR repository does not exist yet.
+            "failed to authorize: failed to fetch anonymous token: unexpected status from GET "
+            "request to https://ghcr.io/token?scope=repository%3Ahambn%2Fnew%3Apull"
+            "&service=ghcr.io: 403 Forbidden",
         ):
-            self.assertIsNone(images.inspect(GHCR + "/core:ubuntu", missing_ok=True))
+            with (
+                self.subTest(message=message),
+                patch(
+                    "image_common.run", return_value=subprocess.CompletedProcess([], 1, "", message)
+                ),
+            ):
+                self.assertIsNone(images.inspect(GHCR + "/core:ubuntu", missing_ok=True))
 
     def test_attestations_are_not_runtime_architectures(self) -> None:
         manifest = index()
@@ -423,7 +430,15 @@ class WorkflowContractTests(unittest.TestCase):
                 inputs = caller["jobs"]["image"]["with"]
                 self.assertIn("latest-variant", inputs)
                 self.assertNotIn("tags", inputs)
-                self.assertIn(".github/scripts/**", caller[True]["pull_request"]["paths"])
+                scripts = {
+                    item
+                    for item in caller[True]["pull_request"]["paths"]
+                    if item.startswith(".github/scripts/")
+                }
+                # Job scripts rebuild images; repository checks and tests do not.
+                self.assertIn(".github/scripts/build.py", scripts)
+                self.assertNotIn(".github/scripts/**", scripts)
+                self.assertNotIn(".github/scripts/repository_check.py", scripts)
 
 
 if __name__ == "__main__":

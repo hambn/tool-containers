@@ -239,14 +239,14 @@ jobs:
         if: ${{ !cancelled() && matrix.registry == 'ghcr' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/ghcr-cleanup.py "$IMAGE"
+        run: python3 .github/scripts/ghcr_cleanup.py "$IMAGE"
 
       - name: Rewrite README links for Docker Hub
         id: readme
         if: ${{ !cancelled() && matrix.registry == 'dockerhub' }}
         env:
           TOOL: ${{ inputs.tool }}
-        run: python3 .github/scripts/hub-readme.py "$TOOL/README.md" --output "$RUNNER_TEMP/README.md" --actions
+        run: python3 .github/scripts/hub_readme.py "$TOOL/README.md" --output "$RUNNER_TEMP/README.md" --actions
 
       - if: ${{ !cancelled() && matrix.registry == 'dockerhub' }}
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0

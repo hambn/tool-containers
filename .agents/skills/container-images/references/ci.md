@@ -32,8 +32,10 @@ The tag rules remain owned by each caller ([tags](registries-and-tags.md)). Do n
 pass executable Bash as a reusable-workflow input.
 
 Triggers cover the tool directory, `tools/trivyignore.yaml`, its workflow,
-`tool-image.yml` and `.github/scripts/**` on pull requests and pushes to main. Keep
-the daily schedule and `workflow_dispatch` with `outdated-only`. A parent's run
+`tool-image.yml` and the image job scripts on pull requests and pushes to main. The
+job scripts are those `tool-image.yml` runs plus the local modules they import;
+`check-repo.py` requires exactly that list, so repository checks and tests never
+rebuild images. Keep the daily schedule and `workflow_dispatch` with `outdated-only`. A parent's run
 requests outdated-only builds after publishing. Do not use `workflow_run`.
 
 ## Plan
@@ -98,12 +100,11 @@ applies the caller's tags, and signs the result. Publish complete architecture p
 even if another variant failed; report skipped/failed variants and fail that registry
 job after processing the rest. Digest artifacts and tag names must be validated.
 
-The GHCR job calls `ghcr-cleanup.py`; its implementation in `ghcr_cleanup.py` preserves
-tagged and recent indexes and their children, and OCI subject manifests. It resolves
-cosign fallback tags against their subjects. Finish all registry reads before deleting
-anything, and stop on errors. Docker Hub uses `hub-readme.py`/`hub_readme.py` to strip
-frontmatter and resolve links, then syncs the description with a token that has Read,
-Write and Delete scope.
+The GHCR job runs `ghcr_cleanup.py`, which preserves tagged and recent indexes and
+their children, and OCI subject manifests. It resolves cosign fallback tags against
+their subjects. Finish all registry reads before deleting anything, and stop on
+errors. Docker Hub uses `hub_readme.py` to strip frontmatter and resolve links, then
+syncs the description with a token that has Read, Write and Delete scope.
 
 ## Validation and security
 

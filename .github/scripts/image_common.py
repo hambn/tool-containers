@@ -44,6 +44,18 @@ def pinned(reference: str, image_digest: str) -> str:
     return f"{repository(reference)}@{digest(image_digest)}"
 
 
+def missing_image(message: str) -> bool:
+    # Authentication, rate limits, and network failures are errors, not missing images.
+    # GHCR refuses an anonymous token for a repository that was never published.
+    return bool(
+        re.search(
+            r"manifest unknown|name unknown|\S+: not found|anonymous token: .*403 Forbidden",
+            message,
+            re.I,
+        )
+    )
+
+
 def inspect(
     reference: str, field: str = "Manifest", *, missing_ok: bool = False
 ) -> dict[str, Any] | None:
@@ -62,9 +74,7 @@ def inspect(
     )
     if result.returncode:
         message = result.stderr.strip()
-        # Authentication, rate limits, and network failures must not trigger source builds.
-        missing = re.search(r"manifest unknown|name unknown|(?:\S+): not found", message, re.I)
-        if missing_ok and missing:
+        if missing_ok and missing_image(message):
             return None
         raise RuntimeError(f"Cannot inspect {reference}: {message}")
     document = json.loads(result.stdout)

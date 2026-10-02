@@ -10,8 +10,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
-from ci import output, run
-from image_common import digest
+from ci import entrypoint, output, run
+from image_common import digest, missing_image
 
 FALLBACK_TAG = re.compile(r"sha256-([0-9a-f]{64})(?:\.(?:sig|att|sbom))?")
 
@@ -64,9 +64,7 @@ class Package:
                 check=False,
             )
             if result.returncode:
-                if not re.search(
-                    r"manifest unknown|name unknown|(?:\S+): not found", result.stderr, re.I
-                ):
+                if not missing_image(result.stderr):
                     raise RuntimeError(
                         f"Inspecting {self.reference}@{image_digest} failed: {result.stderr.strip()}"
                     )
@@ -110,7 +108,7 @@ class Package:
         for version in versions:
             if version.digest in kept or version.updated > cutoff:
                 continue
-            # OCI referrers may not be listed under a tag. Preserve their subjects/signatures.
+            # Signatures and attestations are untagged referrers; keep anything with a subject.
             if "subject" not in (self.manifest(version.digest) or {}):
                 candidates.append(version)
         return candidates
@@ -139,3 +137,7 @@ def main() -> None:
         parser.error("--min-age-days must be nonnegative")
     for name in args.packages:
         Package(args.owner, name).clean(timedelta(days=args.min_age_days), args.dry_run)
+
+
+if __name__ == "__main__":
+    entrypoint(main)

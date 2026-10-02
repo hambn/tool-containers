@@ -7,7 +7,14 @@ on:
       - "tools/trivyignore.yaml"
       - ".github/workflows/ai-t3code.yml"
       - ".github/workflows/tool-image.yml"
-      - ".github/scripts/**"
+      - ".github/scripts/build.py"
+      - ".github/scripts/ci.py"
+      - ".github/scripts/dependents.py"
+      - ".github/scripts/ghcr_cleanup.py"
+      - ".github/scripts/hub_readme.py"
+      - ".github/scripts/image_common.py"
+      - ".github/scripts/plan.py"
+      - ".github/scripts/publish.py"
   push:
     branches: [main]
     paths: *paths

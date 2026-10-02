@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 """Static repository contract checks. Never builds, pulls, or runs images."""
 
 from __future__ import annotations
 
 import ast
+import functools
 import json
 import os
 import pathlib
@@ -76,6 +76,36 @@ def tool_dirs() -> list[pathlib.Path]:
     return sorted(
         tool for category in category_dirs() for tool in category.iterdir() if tool.is_dir()
     )
+
+
+@functools.cache
+def image_job_scripts() -> frozenset[str]:
+    """Scripts run by tool-image.yml and the local modules they import, transitively.
+
+    Tool workflows trigger on exactly these, so editing a repository check or a test
+    does not rebuild and republish every image.
+    """
+    scripts = pathlib.Path(".github/scripts")
+    pending = re.findall(
+        r"python3 (\.github/scripts/\w+\.py)", (WORKFLOWS / "tool-image.yml").read_text()
+    )
+    found = set()
+    while pending:
+        path = pathlib.Path(pending.pop())
+        if path.as_posix() in found:
+            continue
+        found.add(path.as_posix())
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module]
+            else:
+                continue
+            pending += [
+                scripts / f"{name}.py" for name in names if (scripts / f"{name}.py").is_file()
+            ]
+    return frozenset(found)
 
 
 # Build args that are set per variant or by CI rather than pinned to an upstream release.
@@ -359,10 +389,15 @@ class RepositoryChecker:
             f"{tool.as_posix()}/**",
             path.as_posix(),
             ".github/workflows/tool-image.yml",
-            ".github/scripts/**",
         ):
             if needed not in paths:
                 self.error(f"{path}: pull_request.paths must include {needed}")
+        scripts = image_job_scripts()
+        if {item for item in paths if item.startswith(".github/scripts/")} != scripts:
+            self.error(
+                f"{path}: pull_request.paths must list exactly the image job scripts: "
+                + ", ".join(sorted(scripts))
+            )
 
     def check_tools(self, all_files: list[pathlib.Path]) -> None:
         categories = category_dirs()
@@ -632,3 +667,7 @@ def main() -> int:
         return RepositoryChecker().validate()
     finally:
         os.chdir(previous)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

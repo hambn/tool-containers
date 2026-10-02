@@ -8,7 +8,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, urlsplit
 
-from ci import write_actions
+from ci import entrypoint, write_actions
 from image_common import bake_targets
 
 REPOSITORY = "https://github.com/hambn/tool-containers"
@@ -24,9 +24,9 @@ def rewrite(readme: Path, text: str, *, root: Path | None = None) -> str:
 
     def absolute(match: re.Match[str]) -> str:
         target = match[2]
-        if urlsplit(target).scheme or target.startswith(("#", "//")):
-            return match[0]
         parsed = urlsplit(target)
+        if parsed.scheme or target.startswith(("#", "//")):
+            return match[0]
         resolved = (root / relative.parent / parsed.path).resolve()
         path = PurePosixPath(resolved.relative_to(root).as_posix())
         if match[1].startswith("!"):
@@ -77,3 +77,7 @@ def main() -> None:
         targets = bake_targets(args.readme.parent)
         description = next(iter(targets.values()))["labels"]["org.opencontainers.image.description"]
         write_actions("GITHUB_OUTPUT", {"description": description[:100]})
+
+
+if __name__ == "__main__":
+    entrypoint(main)
