@@ -48,4 +48,4 @@ Report each exact command and outcome. If Docker, Helm, a linter, network access
 credentials are unavailable, name the skipped check and the reason. Do not claim a
 runtime result from static validation: the `Pull request gate` covers metadata policy,
 dependency review, and the static validator; `lint` covers linters; image build, tests,
-Trivy scan, and publication happen in the per-tool image workflows.
+Trivy secret scan, and publication happen in the per-tool image workflows.

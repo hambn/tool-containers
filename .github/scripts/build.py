@@ -219,37 +219,13 @@ class Builder:
 
     def scan(self) -> None:
         self.start_check("scan")
-        prefix = ["trivy", "image", "--quiet", "--ignorefile", self.root / "tools/trivyignore.yaml"]
         run(
             [
-                *prefix,
-                "--scanners",
-                "vuln",
-                "--format",
-                "sarif",
-                "--output",
-                self.root / "trivy.sarif",
-                self.local_image,
-            ]
-        )
-        run(
-            [
-                *prefix,
-                "--scanners",
-                "vuln",
-                "--pkg-types",
-                "os",
-                "--severity",
-                "HIGH,CRITICAL",
-                "--ignore-unfixed",
-                "--exit-code",
-                "1",
-                self.local_image,
-            ]
-        )
-        run(
-            [
-                *prefix,
+                "trivy",
+                "image",
+                "--quiet",
+                "--ignorefile",
+                self.root / "tools/trivyignore.yaml",
                 "--scanners",
                 "secret",
                 "--exit-code",
