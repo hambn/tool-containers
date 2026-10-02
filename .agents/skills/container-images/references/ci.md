@@ -99,6 +99,21 @@ applies the caller's tags, and signs the result. Publish complete architecture p
 even if another variant failed; report skipped/failed variants and fail that registry
 job after processing the rest. Digest artifacts and tag names must be validated.
 
+Publication operations capture their errors and retry HTTP 429 abuse throttling with
+bounded exponential backoff and jitter. Keep create, inspect, and sign retries separate;
+authentication, validation, and six-hour pull-quota errors do not use short retries.
+
+Run publication on main even when planning selects no builds. The Docker Hub matrix
+entry recovers unselected variants from signed GHCR releases, preserving the exact
+multi-arch index, attestations, and the release's recorded version tags. Verify the GHCR
+signature against this repository's main-branch workflow identity before copying or
+signing. Compare all destination tags and verify the destination signature; skip current,
+signed releases and repair missing signatures without copying layers again. A selected
+variant with missing build artifacts must fail, never fall back to an older release.
+Recovery-only runs need no digest artifacts, README API updates, cleanup, or dependent
+dispatches. Registry/authentication errors must fail recovery rather than imply a
+missing release or signature.
+
 The GHCR job runs `ghcr_cleanup.py`, which preserves tagged and recent indexes and
 their children, and OCI subject manifests. It resolves cosign fallback tags against
 their subjects. Finish all registry reads before deleting anything, and stop on

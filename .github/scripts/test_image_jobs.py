@@ -349,6 +349,261 @@ class BuildBoundaryTests(unittest.TestCase):
 
 
 class PublicationTests(unittest.TestCase):
+    def test_rate_limit_retry_preserves_error_and_bounds_attempts(self) -> None:
+        for capture in (False, True):
+            with (
+                self.subTest(capture=capture),
+                patch(
+                    "ci.subprocess.run",
+                    return_value=subprocess.CompletedProcess(
+                        [], 1, "", "HEAD request: 429 Too Many Requests"
+                    ),
+                ) as execute,
+                patch("ci.time.sleep") as sleep,
+                patch("ci.random.uniform", return_value=3),
+                self.assertRaisesRegex(RuntimeError, "HEAD request: 429 Too Many Requests"),
+            ):
+                ci.run(["docker", "buildx"], retry_rate_limit=True, capture=capture)
+            self.assertEqual(execute.call_count, 5)
+            self.assertEqual([call.args[0] for call in sleep.call_args_list], [33, 63, 123, 243])
+
+    def test_retry_recovers_and_does_not_retry_other_failures(self) -> None:
+        with (
+            patch(
+                "ci.subprocess.run",
+                side_effect=[
+                    subprocess.CompletedProcess([], 1, "", "429 Too Many Requests"),
+                    subprocess.CompletedProcess([], 0, "ok", ""),
+                ],
+            ) as execute,
+            patch("ci.time.sleep") as sleep,
+        ):
+            self.assertEqual(ci.run(["cosign"], retry_rate_limit=True, capture=True).stdout, "ok")
+            self.assertEqual(execute.call_count, 2)
+            sleep.assert_called_once()
+        for message in (
+            "401 Unauthorized",
+            "403 Forbidden",
+            "invalid digest",
+            "429: You have reached your pull rate limit",
+        ):
+            with (
+                self.subTest(message=message),
+                patch(
+                    "ci.subprocess.run",
+                    return_value=subprocess.CompletedProcess([], 1, "", message),
+                ) as execute,
+                patch("ci.time.sleep") as sleep,
+                self.assertRaises(RuntimeError),
+            ):
+                ci.run(["docker"], retry_rate_limit=True, capture=True)
+            execute.assert_called_once()
+            sleep.assert_not_called()
+
+    def recovery_inspect(self, reference: str, field: str = "Manifest", **kwargs) -> dict | None:
+        if field == "Image":
+            return {
+                "config": {
+                    "Labels": {
+                        images.LABEL_PREFIX + "variant": "ubuntu",
+                        "org.opencontainers.image.version": "0.0.41",
+                    }
+                }
+            }
+        if reference.startswith(GHCR) or not kwargs.get("missing_ok"):
+            return index()
+        return None
+
+    def test_recovery_copies_signed_index_and_uses_release_version(self) -> None:
+        with (
+            patch("publish.inspect", side_effect=self.recovery_inspect),
+            patch("publish.verify_signature", return_value=True) as verify,
+            patch("publish.run") as execute,
+        ):
+            publish.recover_variant(
+                GHCR + "/t3code", "docker.io/hambn/t3code", "ubuntu", "ubuntu", "t3code"
+            )
+        verify.assert_called_once_with(GHCR + "/t3code@" + D1)
+        create = execute.call_args_list[0].args[0]
+        self.assertEqual(create[-1], GHCR + "/t3code@" + D1)
+        self.assertIn("--tag=docker.io/hambn/t3code:t3code-0.0.41", create)
+        self.assertIn("--tag=docker.io/hambn/t3code:latest", create)
+        self.assertEqual(
+            execute.call_args_list[1].args[0],
+            ["cosign", "sign", "--yes", "docker.io/hambn/t3code@" + D1],
+        )
+
+    def test_recovery_skips_current_signed_release_and_repairs_missing_signature(self) -> None:
+        def current(reference, field="Manifest", **kwargs):
+            return (
+                self.recovery_inspect(reference, field, **kwargs) if field == "Image" else index()
+            )
+
+        for signed in (True, False):
+            with (
+                self.subTest(signed=signed),
+                patch("publish.inspect", side_effect=current),
+                patch("publish.verify_signature", side_effect=[signed, True]) as verify,
+                patch("publish.run") as execute,
+            ):
+                publish.recover_variant(
+                    GHCR + "/t3code", "docker.io/hambn/t3code", "ubuntu", "ubuntu", "t3code"
+                )
+            if signed:
+                execute.assert_not_called()
+                self.assertEqual(verify.call_count, 1)
+            else:
+                execute.assert_called_once_with(
+                    ["cosign", "sign", "--yes", "docker.io/hambn/t3code@" + D1],
+                    retry_rate_limit=True,
+                )
+                self.assertEqual(verify.call_count, 2)
+
+    def test_recovery_rejects_incomplete_and_unsigned_sources(self) -> None:
+        with (
+            patch("publish.inspect", return_value=index(arches=("amd64",))),
+            patch("publish.run") as execute,
+            self.assertRaisesRegex(ValueError, "missing an architecture"),
+        ):
+            publish.recover_variant(
+                GHCR + "/t3code", "docker.io/hambn/t3code", "ubuntu", "ubuntu", "t3code"
+            )
+        execute.assert_not_called()
+        with (
+            patch("publish.inspect", side_effect=self.recovery_inspect),
+            patch("publish.verify_signature", side_effect=RuntimeError("unsigned source")),
+            patch("publish.run") as execute,
+            self.assertRaisesRegex(RuntimeError, "unsigned source"),
+        ):
+            publish.recover_variant(
+                GHCR + "/t3code", "docker.io/hambn/t3code", "ubuntu", "ubuntu", "t3code"
+            )
+        execute.assert_not_called()
+
+    def test_recovery_rejects_mixed_versions_and_wrong_destination_digest(self) -> None:
+        for failure in ("mixed versions", "wrong destination"):
+            image_count = 0
+
+            def inspect(reference, field="Manifest", failure=failure, **kwargs):
+                nonlocal image_count
+                result = self.recovery_inspect(reference, field, **kwargs)
+                if field == "Image":
+                    image_count += 1
+                    if failure == "mixed versions" and image_count == 2:
+                        result["config"]["Labels"]["org.opencontainers.image.version"] = "0.0.42"
+                elif failure == "wrong destination" and reference.startswith("docker.io/"):
+                    if not kwargs.get("missing_ok"):
+                        return index(D2)
+                return result
+
+            with (
+                self.subTest(failure=failure),
+                patch("publish.inspect", side_effect=inspect),
+                patch("publish.verify_signature", return_value=True),
+                patch("publish.run") as execute,
+                self.assertRaises(ValueError),
+            ):
+                publish.recover_variant(
+                    GHCR + "/t3code", "docker.io/hambn/t3code", "ubuntu", "ubuntu", "t3code"
+                )
+            self.assertFalse(any(call.args[0][0] == "cosign" for call in execute.call_args_list))
+
+    def test_recovery_runs_with_no_builds_but_never_falls_back_for_failed_build(self) -> None:
+        for variants in ([], [{"variant": "ubuntu"}]):
+            with (
+                self.subTest(variants=variants),
+                tempfile.TemporaryDirectory() as directory,
+                patch.dict(
+                    os.environ,
+                    {
+                        "GITHUB_REF": "refs/heads/main",
+                        "GITHUB_EVENT_NAME": "schedule",
+                        "IMAGE": "t3code",
+                        "REPO": "docker.io/hambn",
+                        "GHCR": GHCR,
+                        "VERSION": "0.0.42",
+                        "VARIANTS": json.dumps(variants),
+                        "RUNNER_TEMP": directory,
+                        "LATEST_VARIANT": "ubuntu",
+                        "VERSION_PREFIX": "t3code",
+                        "TOOL": "tools/ai/t3code",
+                        "RECOVER": "true",
+                    },
+                ),
+                patch("publish.bake_targets", return_value={"t3code-ubuntu": target()}),
+                patch("publish.recover_variant", return_value="recovered") as recover,
+                patch("publish.summary"),
+            ):
+                self.assertEqual(publish.main(), int(bool(variants)))
+                self.assertEqual(recover.call_count, 0 if variants else 1)
+
+    def test_signature_read_errors_are_not_missing_signatures(self) -> None:
+        for message in (
+            "no signatures found",
+            "429 Too Many Requests",
+            "401 Unauthorized",
+            "no matching signatures: 429 Too Many Requests",
+        ):
+            with (
+                self.subTest(message=message),
+                patch.dict(os.environ, {"GITHUB_REPOSITORY": "hambn/tool-containers"}),
+                patch("publish.run", return_value=subprocess.CompletedProcess([], 1, "", message)),
+            ):
+                if message == "no signatures found":
+                    self.assertFalse(
+                        publish.verify_signature("docker.io/hambn/t3code@" + D1, missing_ok=True)
+                    )
+                else:
+                    with self.assertRaises(RuntimeError):
+                        publish.verify_signature("docker.io/hambn/t3code@" + D1, missing_ok=True)
+
+    def test_retrying_signing_does_not_repeat_image_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "digests").mkdir()
+            for arch in images.ARCHITECTURES:
+                (root / "digests" / f"ubuntu-{arch}").write_text(D1)
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "GITHUB_REF": "refs/heads/main",
+                        "GITHUB_EVENT_NAME": "push",
+                        "IMAGE": "t3code",
+                        "REPO": GHCR,
+                        "GHCR": GHCR,
+                        "VERSION": "0.0.42",
+                        "VARIANTS": '[{"variant":"ubuntu"}]',
+                        "RUNNER_TEMP": directory,
+                        "LATEST_VARIANT": "ubuntu",
+                        "VERSION_PREFIX": "t3code",
+                        "RECOVER": "false",
+                    },
+                ),
+                patch(
+                    "publish.inspect",
+                    side_effect=[
+                        index(arches=("amd64",)),
+                        index(arches=("arm64",)),
+                        index(),
+                    ],
+                ),
+                patch(
+                    "ci.subprocess.run",
+                    side_effect=[
+                        subprocess.CompletedProcess([], 0, "", ""),
+                        subprocess.CompletedProcess([], 1, "", "429 Too Many Requests"),
+                        subprocess.CompletedProcess([], 0, "", ""),
+                    ],
+                ) as execute,
+                patch("ci.time.sleep"),
+                patch("publish.summary"),
+            ):
+                self.assertEqual(publish.main(), 0)
+            self.assertEqual(
+                [call.args[0][0] for call in execute.call_args_list], ["docker", "cosign", "cosign"]
+            )
+
     def test_tags_preserve_existing_public_contract(self) -> None:
         self.assertEqual(
             publish.tags("ubuntu", "0.0.42", "ubuntu", "t3code"),
@@ -417,6 +672,14 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertEqual(jobs["publish"]["needs"], ["plan", "build"])
         self.assertFalse(jobs["build"]["strategy"]["fail-fast"])
         self.assertEqual(len(jobs["publish"]["strategy"]["matrix"]["include"]), 2)
+        self.assertNotIn("variants != '[]'", jobs["publish"]["if"])
+        download = next(
+            step
+            for step in jobs["publish"]["steps"]
+            if step.get("uses", "").startswith("actions/download-artifact@")
+        )
+        self.assertEqual(download["if"], "needs.plan.outputs.variants != '[]'")
+        self.assertIn("matrix.registry == 'dockerhub'", jobs["publish"]["env"]["RECOVER"])
         self.assertEqual(workflow["permissions"], {})
         self.assertNotIn("packages", jobs["plan"]["permissions"])
         for job in jobs.values():
