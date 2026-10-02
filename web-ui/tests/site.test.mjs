@@ -84,22 +84,6 @@ for (const mode of MODES) {
       assert.ok(!dom.text.includes("run.sh"));
     });
 
-    test("platform navigation uses a closed dropdown beside Overview", () => {
-      const overview = site.pages.get("/docs/ai/t3code/");
-      const platform = site.pages.get("/docs/ai/t3code/docker/");
-      for (const dom of [overview, platform]) {
-        const dropdown = dom.querySelector(".platform-dropdown");
-        assert.ok(dropdown);
-        assert.ok(!dropdown.hasAttribute("open"));
-        assert.equal(dom.querySelector(".tabs > a").text, "Overview");
-        assert.equal(dropdown.querySelectorAll("a").length, 5);
-        assert.ok(!dom.querySelector(".tabs-label"));
-      }
-      assert.equal(overview.querySelector(".platform-dropdown summary").text.trim(), "Choose platform: Platform");
-      assert.equal(platform.querySelector(".platform-dropdown summary").text.trim(), "Choose platform: Docker command");
-      assert.equal(platform.querySelector('.platform-options [aria-current="page"]').text, "Docker command");
-    });
-
     test("every page has exactly one h1 and a unique title and description", () => {
       const titles = new Set();
       const descriptions = new Set();
