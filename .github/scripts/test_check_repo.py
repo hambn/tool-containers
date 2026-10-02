@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
-"""Regression tests for check-repo.py's document rules.
+"""Document contract fixtures also exercised by web-ui/tests/fixtures.test.mjs."""
 
-Runs the cases in web-ui/tests/fixtures/documents.yaml, which the web UI's
-validator must pass identically (web-ui/tests/fixtures.test.mjs).
-"""
+from __future__ import annotations
 
-import importlib.util
 import json
-import pathlib
 import unittest
+from pathlib import Path
+from typing import Any
 
 import yaml
 
-HERE = pathlib.Path(__file__).resolve().parent
-FIXTURES = HERE.parents[1] / "web-ui/tests/fixtures/documents.yaml"
+import document_rules
+from repository_check import strip_jsonc
 
-spec = importlib.util.spec_from_file_location("check_repo", HERE / "check-repo.py")
-check_repo = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(check_repo)
+FIXTURES = Path(__file__).resolve().parents[2] / "web-ui/tests/fixtures/documents.yaml"
 
 
-def case_documents(base: dict[str, str], case: dict) -> dict[str, str]:
+def case_documents(base: dict[str, str], case: dict[str, Any]) -> dict[str, str]:
     """The base tree with the case's whole-file changes, then its replacements, applied."""
     documents = dict(base)
     for path, text in (case.get("files") or {}).items():
@@ -44,40 +40,47 @@ class SharedDocumentCases(unittest.TestCase):
         self.assertEqual(len(names), len(set(names)), "case names must be unique")
         for case in fixtures["cases"]:
             with self.subTest(case=case["name"]):
-                problems = check_repo.check_documents(case_documents(fixtures["base"], case))
-                self.assertEqual(sorted({path for path, _ in problems}), sorted(case["invalid"]), problems)
+                problems = document_rules.check_documents(case_documents(fixtures["base"], case))
+                self.assertEqual(
+                    sorted({path for path, _ in problems}), sorted(case["invalid"]), problems
+                )
 
 
 class DocumentRules(unittest.TestCase):
     def test_duplicate_keys_name_the_key(self) -> None:
-        data, _, error = check_repo.split_frontmatter("---\ntitle: a\ntitle: b\n---\n")
+        _, _, error = document_rules.split_frontmatter("---\ntitle: a\ntitle: b\n---\n")
         self.assertIn("duplicate key 'title'", error)
 
     def test_booleans_are_not_orders(self) -> None:
-        meta, problems = check_repo.validate_frontmatter(
-            {"name": "ai", "title": "AI", "description": "x" * 120, "order": True}, "category", "ai")
+        meta, problems = document_rules.validate_frontmatter(
+            {"name": "ai", "title": "AI", "description": "x" * 120, "order": True}, "category", "ai"
+        )
         self.assertEqual(meta.get("order"), None)
         self.assertTrue(any(problem.startswith("order:") for problem in problems), problems)
 
     def test_tools_section_reports_each_bad_line(self) -> None:
         body = "# AI\n\n## Tools\n\n- [a](./a/) — Fine.\nstray text\n- [b](./b/) - wrong dash\n"
-        problems = check_repo.tools_section_problems(body, ["a", "b"])
+        problems = document_rules.tools_section_problems(body, ["a", "b"])
         self.assertEqual(len([p for p in problems if "is not a" in p]), 2, problems)
         self.assertTrue(any("expected a, b, got a" in p for p in problems), problems)
 
     def test_tools_section_ends_at_the_next_section(self) -> None:
         body = "## Tools\n\n- [a](./a/) — Fine.\n\n## Tags\n\nAnything goes here.\n"
-        self.assertEqual(check_repo.tools_section_problems(body, ["a"]), [])
+        self.assertEqual(document_rules.tools_section_problems(body, ["a"]), [])
 
 
 class JsoncRules(unittest.TestCase):
     def test_comments_are_dropped_outside_strings(self) -> None:
         text = '{\n  // line\n  "a": "http://x/*y*/", /* block */\n  "b": "q\\"//"\n}\n'
-        self.assertEqual(json.loads(check_repo.strip_jsonc(text)), {"a": "http://x/*y*/", "b": 'q"//'})
+        self.assertEqual(json.loads(strip_jsonc(text)), {"a": "http://x/*y*/", "b": 'q"//'})
+
+    def test_comments_do_not_join_adjacent_tokens(self) -> None:
+        with self.assertRaises(ValueError):
+            json.loads(strip_jsonc('{"a": 1/* comment */2}'))
 
     def test_unterminated_block_comment_fails(self) -> None:
         with self.assertRaises(ValueError):
-            check_repo.strip_jsonc('{"a": 1 /* open\n}')
+            strip_jsonc('{"a": 1 /* open\n}')
 
 
 if __name__ == "__main__":

@@ -16,9 +16,10 @@ together.
 
 ## Tags
 
-Tags are chosen per tool: each tool workflow passes a `tags` script (Bash that prints
-one variant's tags, one per line, from `VARIANT` and `VERSION`) to
-`.github/workflows/tool-image.yml`, whose publish job applies them to every registry.
+Each tool workflow passes `latest-variant` and an optional `version-prefix` to
+`.github/workflows/tool-image.yml`. Its `publish.py` script always tags the variant,
+adds `latest` to `latest-variant`, and adds `<prefix>-<version>` to that same variant
+when `version-prefix` is set. The publish matrix applies these rules to every registry.
 Tools may differ; the current rules are:
 
 - **Base images (core, devbox):** the variant names, plus `latest` on the largest
@@ -48,7 +49,11 @@ push, delete, or repoint them. Mention them only in a short deprecation note.
   vendor}` and, for a `ghcr.io/hambn` parent, `org.opencontainers.image.base.digest`.
 - Dockerfiles set `io.github.hambn.containers.tool.<name>.version` for each pinned tool.
 
-Labels are informational, with two exceptions in CI planning: the variant, distro, and
+CI also writes `io.github.hambn.containers.os-refresh` with the effective refresh date
+for this tool, or an empty value when it has no OS package refresh. Planning retains
+that date so later builds cannot reuse a pre-refresh package layer.
+
+The other labels are informational, except for the variant, distro, and
 tier labels from the bake file, and `org.opencontainers.image.base.digest` on the
 published image, which decides whether a scheduled or upstream-triggered run rebuilds a
 variant. The source of truth is each tool's `Dockerfile` and `docker-bake.hcl`.

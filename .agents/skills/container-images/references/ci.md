@@ -1,87 +1,121 @@
 # Image CI and automation
 
-Inspect the live workflow before changing it; this guide states the contracts it must
-keep.
+Inspect the workflow and its Python scripts before editing. Keep the plan → native
+build matrix → registry publish matrix → dependent dispatch graph.
 
 | File | Role |
 |---|---|
-| `.github/workflows/<category>-<tool>.yml` | one per tool (`base-core.yml`, `ai-codex.yml`, …): triggers and inputs only |
-| `.github/workflows/tool-image.yml` | reusable pipeline: plan → build per variant and architecture → publish per registry |
-| `.github/workflows/pr.yml` | pull-request gate (metadata, dependency review, static validation) and `lint` job |
-| `.github/renovate.json5` | `ARG` pins in `tools/**/Dockerfile` and GitHub Actions |
+| `.github/workflows/<category>-<tool>.yml` | tool triggers and reusable-workflow inputs |
+| `.github/workflows/tool-image.yml` | job graph, actions, permissions, environments and matrices |
+| `.github/scripts/plan.py` | parent resolution, variant selection and matrix outputs |
+| `.github/scripts/build.py` | parent builds, saved build options, tests, scans and digest exports |
+| `.github/scripts/publish.py` | architecture-pair validation, tags and cosign signing |
+| `.github/scripts/dependents.py` | outdated-only dispatches after publication |
+| `.github/scripts/image_common.py` | image references, bake targets and layer/cache policy |
+| `.github/scripts/ci.py` | subprocesses, verified downloads and Actions file commands |
+| `.github/workflows/pr.yml` | repository gate and lint jobs |
+| `.github/scripts/lint.py` | verified lint tools and Python/shell/workflow checks |
+| `.github/renovate.json5` | tool pins, builder pins and Actions updates |
 | `tools/trivyignore.yaml` | reviewed vulnerability exceptions |
-
-There is no Dependabot configuration.
 
 ## Per-tool workflows
 
-Every tool workflow has the same shape; copy a sibling and change only the name, paths,
-upstream workflow, cron minute, concurrency group, and `with:` inputs:
+Copy a sibling and change its name, paths, cron minute, concurrency group and inputs:
 
 - `tool`: the tool directory; its name is the image repository.
-- `tags`: Bash printing one variant's tags from `VARIANT` and `VERSION`; each tool owns
-  its rules ([tags](registries-and-tags.md)).
-- `version-arg`: the Dockerfile `ARG` holding the upstream version, for tools that have
-  one; it becomes `VERSION` and the image version label.
+- `latest-variant`: the variant that owns `latest`.
+- `version-prefix`: when present, that variant also gets `<prefix>-<version>`.
+- `version-arg`: the Dockerfile `ARG` supplying the version label and version tag.
+- `dependents`: workflow filenames dispatched after publication.
 
-Triggers: `pull_request` and `push` to main on the tool directory,
-`tools/trivyignore.yaml`, its own workflow, and `tool-image.yml`; a daily `schedule`; and
-`workflow_dispatch` with an `outdated-only` input. A parent's run dispatches its
-`dependents` with `outdated-only` after publishing (devbox after core, agents after
-devbox, omnigent and t3code after agentbloat). `workflow_run` is not used; zizmor
-rejects it.
-`check-repo.py` requires a matching workflow that calls `tool-image.yml` for every tool.
+The tag rules remain owned by each caller ([tags](registries-and-tags.md)). Do not
+pass executable Bash as a reusable-workflow input.
 
-## tool-image.yml
+Triggers cover the tool directory, `tools/trivyignore.yaml`, its workflow,
+`tool-image.yml` and the image job scripts on pull requests and pushes to main. The
+job scripts are those `tool-image.yml` runs plus the local modules they import;
+`check-repo.py` requires exactly that list, so repository checks and tests never
+rebuild images. Keep the daily schedule and `workflow_dispatch` with `outdated-only`. A parent's run
+requests outdated-only builds after publishing. Do not use `workflow_run`.
 
-1. **Plan.** Reads the tool's `docker-bake.hcl` (`docker buildx bake --print`) and the
-   version from the `version-arg`, or the commit date and SHA. A `BASE_IMAGE` under
-   `ghcr.io/hambn` is pinned to its current digest. Pull requests, pushes, and manual
-   runs build every variant; `schedule` and `outdated-only` dispatches build only variants
-   whose published image carries an older `org.opencontainers.image.base.digest` (or is
-   not published yet), and rescan the rest, rebuilding any with fixable HIGH/CRITICAL OS-package vulnerabilities, passing
-   `OS_REFRESH=<today>` as a build arg so the OS layers reinstall; no refresh pull
-   request is opened. When a parent is not yet published for both amd64 and arm64,
-   each build job builds the missing chain from source (exported as OCI layouts and
-   passed as the named context `parent`); outdated-only runs wait for the parent's
-   workflow instead.
-2. **Build.** One job per variant and architecture on native runners (`ubuntu-24.04`
-   for amd64, `ubuntu-24.04-arm` for arm64); `fail-fast` is off. Each job bakes the
-   variant with the pinned parent, repository labels, and the registry cache
-   `ghcr.io/hambn/buildcache:<image>-<variant>-<arch>`, then runs the
-   [tests](testing.md) and Trivy. The full Trivy report goes to code scanning as SARIF;
-   the gate fails only on fixable HIGH/CRITICAL OS-package vulnerabilities and on
-   secrets outside vendored directories (`/usr/local/lib/node_modules`,
-   `/usr/local/go`, `/opt`). Vulnerabilities in upstream binaries are fixed by upstream
-   releases through Renovate. On main it then pushes by digest with SBOM and
-   provenance, and writes the cache; pull requests write no cache, and fork pull
-   requests cannot log in to GHCR.
-3. **Publish.** Main only, a matrix with one job per registry (GHCR, Docker Hub),
-   each covering every variant that passed on both architectures even if another
-   variant failed. Each job creates the multi-arch indexes from the per-arch GHCR
-   digests, applies the tool's tags, and
-   signs with cosign. The GHCR job prunes untagged versions
-   (`.github/scripts/ghcr-cleanup.py`); the Docker Hub job syncs the README
-   (`.github/scripts/hub-readme.py`; the token needs Read, Write, Delete scope). Add
-   a registry by adding a matrix entry.
+## Plan
 
-## pr.yml
+Read bake targets with `docker buildx bake --print`. Pin published repository parents
+at one multi-arch digest for the entire matrix. Inspect both amd64 and arm64 configs
+when deciding whether a child follows that parent. An authentication, rate-limit or
+network error must fail planning rather than become an unpublished-parent fallback.
 
-The single `Pull request gate` covers PR metadata policy, dependency review, and the
-static repository validator (`.github/scripts/check-repo.py`). The `lint` job runs tools
-that cannot be verified by the static validator locally (for example hadolint,
-shellcheck, actionlint) and is the authority for their findings.
+Pull requests, pushes and ordinary manual runs build all variants. Scheduled and
+outdated-only runs select unpublished variants, moved parents, or fixable
+HIGH/CRITICAL OS vulnerabilities on either architecture. Retain the latest recorded
+`OS_REFRESH` date, and advance it to today for a vulnerability refresh. A later parent
+or source update must not restore an older package layer.
 
-## Security and reliability
+If a repository parent is not published for both architectures, ordinary runs build
+its source chain oldest first through OCI named contexts. Pin its first published
+ancestor. Outdated-only runs wait for the parent's workflow. Reject parent cycles and
+ambiguous source/target matches.
 
-- Pin every third-party action to a full commit SHA with a version comment; Renovate
-  updates them.
-- Deny token permissions at workflow scope and grant each job only what it needs.
-  Registry-push jobs bind to the registry-named environment; never echo credentials or
-  pass them as build args.
-- Use non-canceling concurrency for publishing, finite job timeouts, an explicit runner
-  image, and `persist-credentials: false` on checkout.
-- Fail closed: a planning failure stops publication, and a build, test, scan, or
-  tag-safety failure stops publication of the affected targets.
-- Add an exception to `tools/trivyignore.yaml` only with a reason and expiry; prefer bumping a
-  pin or `OS_REFRESH`.
+## Build and layer reuse
+
+Build one variant and architecture per native runner (`ubuntu-24.04` or
+`ubuntu-24.04-arm`), with `fail-fast: false`. The workflow pins Buildx by version and
+BuildKit by image digest; Renovate updates them through the CI pin managers.
+
+Keep these settings together in `image_common.py` and `build.py`:
+
+- Retain the fixed `SOURCE_DATE_EPOCH` used by published images. Pass it explicitly to
+  every target, including source parents. Changing it rewrites tar headers in otherwise
+  unchanged layers and can force users to download them again.
+- Export layers with `rewrite-timestamp=true`, gzip and `force-compression=false`.
+  Reuse existing compressed blobs instead of recompressing inherited layers.
+- Read the primary cache `ghcr.io/hambn/buildcache:<image>-<variant>-<arch>`, plus the
+  same tool's same-distro sibling caches for shared download/npm stages. Keep writes
+  isolated to the primary variant/architecture tag.
+- Save the resolved build options once. The tested Docker export and the attested
+  registry export must use those same inputs; changing the revision/created labels
+  must not change the timestamp argument.
+- Export `mode=max` registry cache only after structure, smoke and Trivy checks pass,
+  and only on main outside pull requests. A failed cache export fails the build rather
+  than silently losing the next run's cache. Source-parent fallback builds import
+  cache but do not publish untested parents or overwrite their caches.
+- Compare the exported runtime layer diff IDs with the tested image before writing a
+  digest artifact. A mismatch cannot be published by the next job.
+
+Keep Dockerfile layers independent as described in [Dockerfiles](images/dockerfile.md).
+Scripts cannot make an unpinned npm dependency tree or mutable package repository
+reproducible after a cold build.
+
+The [structure and smoke tests](testing.md) run against the loaded image. Trivy writes
+all vulnerability severities/package types to SARIF; the gate fails on fixable
+HIGH/CRITICAL OS packages and on secrets outside `/usr/local/lib/node_modules`,
+`/usr/local/go` and `/opt`. Upstream binary vulnerabilities are reported and updated
+through Renovate. SARIF uploads run on main and cannot override the scan gate. Fork
+pull requests do not log in to GHCR; no pull request writes image or cache data.
+
+## Publish and maintenance
+
+One matrix entry per registry, GHCR and Docker Hub, joins the per-arch GHCR digests,
+applies the caller's tags, and signs the result. Publish complete architecture pairs
+even if another variant failed; report skipped/failed variants and fail that registry
+job after processing the rest. Digest artifacts and tag names must be validated.
+
+The GHCR job runs `ghcr_cleanup.py`, which preserves tagged and recent indexes and
+their children, and OCI subject manifests. It resolves cosign fallback tags against
+their subjects. Finish all registry reads before deleting anything, and stop on
+errors. Docker Hub uses `hub_readme.py` to strip frontmatter and resolve links, then
+syncs the description with a token that has Read, Write and Delete scope.
+
+## Validation and security
+
+`check-repo.py` is the CLI for `repository_check.py`; document rules are in
+`document_rules.py`. The repository gate discovers every `test_*.py` in
+`.github/scripts/`, including job, cache and cleanup regressions. Python lint and
+format checks use `.github/ruff.toml` and the Ruff pin in
+`.github/requirements-lint.txt`; PyYAML remains in `.github/requirements.txt`.
+
+Pin third-party actions to full SHAs with version comments. Deny permissions at
+workflow scope and grant only each job's needs. Keep publication in its registry
+secret environment, non-canceling main concurrency and finite job timeouts. Do not
+print credentials or pass them as build args. Static validation does not prove image
+runtime behavior; the per-tool workflows build, test and scan every variant on PRs.

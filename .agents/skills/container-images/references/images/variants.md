@@ -17,7 +17,7 @@ devbox `browser`. Agents have no `lite` variant.
 - Variant names describe capability, not an interchangeable base; add a new tier or
   distro only for a demonstrated use case, and add it to the bake matrix, tests, README
   Images list, and platform docs together.
-- Exactly one variant per repository owns `latest`, set by the `tags` script of the
+- Exactly one variant per repository owns `latest`, set by `latest-variant` in the
   tool's workflow ([tags](../registries-and-tags.md)).
 - Renaming or removing a variant is a public API change: keep the old tags frozen, note
   the deprecation in the README, and update every platform doc that referenced it.

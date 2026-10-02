@@ -5,7 +5,6 @@ import unittest
 
 from validate_pr_metadata import validate
 
-
 VALID_BODY = """## Summary
 
 - Explain the change.
@@ -49,8 +48,7 @@ class PullRequestMetadataTests(unittest.TestCase):
 """
                 errors = validate("docs: explain policy", body, "hambn")
                 self.assertIn(
-                    "PR body sections must contain meaningful details: "
-                    "## Summary, ## Validation",
+                    "PR body sections must contain meaningful details: ## Summary, ## Validation",
                     errors,
                 )
 

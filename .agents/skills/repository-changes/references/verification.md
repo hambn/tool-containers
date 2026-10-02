@@ -25,8 +25,12 @@ them locally when installed; otherwise say they are left to CI.
   directory and inspect args and labels. Building and running images is CI's job (the
   tool's `<category>-<tool>.yml` workflow builds, tests, and scans every variant); do it
   locally only when the user authorizes it.
-- **Image CI:** after changing `tool-image.yml` or a tool workflow, inspect it against the
-  contracts in the `$container-images` CI guide; actionlint runs in the `lint` job.
+- **Image CI and Python:** inspect workflows and `.github/scripts/` against the
+  `$container-images` CI guide. The wrapper discovers every `test_*.py` there. Render
+  changed bake options with `--print`; do not build images for a static check. When
+  Ruff is installed, run `ruff check --no-cache --config .github/ruff.toml .github/scripts`
+  and `ruff format --check --no-cache --config .github/ruff.toml .github/scripts`.
+  Python lint and actionlint also run in the `lint` job.
 - **Platform docs:** render or lint the affected format and inspect secrets,
   mounts, image references, and offline behavior.
 - **GitHub Actions:** inspect events, path filters, permissions, secrets, concurrency,

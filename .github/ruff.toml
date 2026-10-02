@@ -1,0 +1,8 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "C4", "SIM"]
+
+[lint.isort]
+known-first-party = ["ci", "build", "dependents", "document_rules", "ghcr_cleanup", "hub_readme", "image_common", "plan", "publish", "repository_check", "validate_pr_metadata"]

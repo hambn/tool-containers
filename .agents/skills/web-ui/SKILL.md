@@ -69,7 +69,7 @@ The site automatically showcases the repository's markdown as pages — nothing 
     frontmatter, Markdown, and links — at once, each naming its file. Only then does it
     write, into a sibling staging directory that replaces `dist/` by rename, so a
     failed build leaves the previous `dist/` intact.
-  - `check-repo.py` holds the same rules; the shared cases in
+  - `document_rules.py` holds the same rules; the shared cases in
     `tests/fixtures/documents.yaml` run against both.
   - Never default around a failure or keep metadata tables in UI code.
 - Search is fully static. A content-addressed JSON index is loaded lazily by the dialog
