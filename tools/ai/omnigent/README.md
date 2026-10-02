@@ -66,7 +66,7 @@ Omnigent's terminal wrappers use, come from the [devbox full tier](../../base/de
 - **Orchestrate agents over a local checkout** with [Docker](./docs/docker/), including
   hosts that load the image from a saved tar.
 - **Repeatable local orchestration sessions** with
-  [Docker Compose](./docs/docker-compose/), with an air-gapped Compose file.
+  [Docker compose](./docs/docker-compose/), with an air-gapped Compose file.
 - **Rootless agent orchestration on a workstation** with [Podman](./docs/podman/).
 
 ## Sources

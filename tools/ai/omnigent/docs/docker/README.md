@@ -1,68 +1,39 @@
 ---
-name: Docker
-description: Run Omnigent in Docker on the current directory with your model API key, or from a saved image tarball on a host that cannot pull images.
+name: Docker command
+description: Run Omnigent on your current checkout with an exported model provider key, using direct Docker commands for a session or a specific agent.
 usecase: Orchestrate agents over a local checkout
-keywords: [agent harness, air-gapped, docker save]
+keywords: [agent harness, anthropic api key, terminal session]
 ---
 
-# Run Omnigent with Docker
+# Run Omnigent with Docker command
 
-[`run.sh`](./run.sh) runs [Omnigent](../../README.md) on the current directory, passing
-any arguments to `omnigent`. [`airgapped.run.sh`](./airgapped.run.sh) does the same
-from a saved image on a host that cannot pull.
+Run [Omnigent](../../README.md) with the current directory mounted at `/workspace`. Choose one example and copy its command.
 
 ## Prerequisites
 
 - Docker Engine 23 or later.
-- A model credential, such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 
-## Run Omnigent
+Export `ANTHROPIC_API_KEY` in your host shell. For another provider, replace the environment flag with its variable, such as `-e OPENAI_API_KEY`. Omnigent offers the credentials it finds on first run. These examples use the terminal session.
 
-On first run, Omnigent offers the model credentials it finds in the environment.
-`run.sh` passes none, so add `-e ANTHROPIC_API_KEY` or `-e OPENAI_API_KEY` to its
-`docker run` line, then:
+## Start a session
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-./run.sh                 # pick a model and start a session
-./run.sh claude          # start a session in one agent, here Claude Code
+docker run -it --rm \
+  -e ANTHROPIC_API_KEY \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/omnigent:ubuntu-browser
 ```
 
-Omnigent keeps its settings and history in `/home/sysadmin/.omnigent`, which is
-removed with the container. Its web UI listens on port 6767 inside the container;
-`run.sh` publishes no ports, so use the terminal session.
-
-## Run without registry access
-
-On a machine that can pull, save the image:
+## Start Claude Code
 
 ```bash
-docker save ghcr.io/hambn/omnigent:ubuntu-browser -o omnigent.tar
+docker run -it --rm \
+  -e ANTHROPIC_API_KEY \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/omnigent:ubuntu-browser claude
 ```
 
-Copy the tar to the offline host and pass its path first; the remaining arguments go to
-`omnigent`:
+## Workspace and state
 
-```bash
-./airgapped.run.sh omnigent.tar
-```
-
-The script loads the tar and runs `OMNIGENT_IMAGE` with `--pull=never`. The agents
-still need network access to their model providers.
-
-## Variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `OMNIGENT_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/omnigent:ubuntu-browser`; set `ghcr.io/hambn/omnigent@sha256:<digest>` to pin one build. |
-
-## Workspace
-
-The current directory is mounted at `/workspace`, the image's working directory.
-Omnigent and the agents it starts run as `sysadmin` (UID 1000), so new files belong to
-UID 1000 on the host.
-
-## Files
-
-- [`run.sh`](./run.sh) pulls the image if needed and runs `omnigent` with your arguments.
-- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.
+The container runs as `sysadmin`, UID 1000, so files it creates in `/workspace` belong to UID 1000 on the host.
+Changes in the mounted directory stay on the host. `--rm` removes container settings and logins when the command exits. Replace the image tag with a digest to pin one build.

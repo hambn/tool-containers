@@ -93,6 +93,9 @@ that introduces the default image, that a digest pins the moving tag. Keep comma
 copy-pasteable and consistent with the Dockerfile and tool README; technical
 conventions live in `$container-images`.
 
+For plain Docker docs, put one direct command in each fenced example and omit launcher
+scripts. A README-only Docker directory does not need a Files section.
+
 Link each runnable file with a relative link such as `./run.sh` instead of embedding its
 contents: the web-ui renders sibling files inline, so embedded copies duplicate and
 drift. Short command lines to type are fine. Example image references use moving
@@ -150,7 +153,7 @@ Platform doc (`tools/<category>/<tool>/docs/<platform>/README.md`):
 
 | Key | Required | Rule |
 |---|---|---|
-| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker, `docker-compose` → Docker Compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm, `github-actions` → GitHub Actions, `gitlab-ci` → GitLab CI, `devcontainer` → Dev Container; any other directory fails |
+| `name` | yes | Fixed by directory, which also sets platform order: `docker` → Docker command, `docker-compose` → Docker compose, `podman` → Podman, `kubernetes` → Kubernetes, `helm` → Helm, `github-actions` → GitHub Actions, `gitlab-ci` → GitLab CI, `devcontainer` → Dev Container; any other directory fails |
 | `description` | yes | Plain string, 110–160 characters, unique across all documents |
 | `usecase` | yes | Plain string of at most 80 characters, unique within the tool, matching its Use cases scenario name |
 | `keywords` | no | Flow list of 2–6 unique plain strings |

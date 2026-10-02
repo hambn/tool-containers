@@ -44,7 +44,7 @@ base:
     The demo lead.
   tools/ai/demo/docs/docker/README.md: |
     ---
-    name: Docker
+    name: Docker command
     description: Run the demo fixture image with Docker on a local checkout, mounting the workspace and passing the provider key from the host.
     usecase: Interactive coding on a local checkout
     ---
@@ -287,7 +287,7 @@ cases:
 
   # --- platforms --------------------------------------------------------------------
   - name: platform name is fixed by its directory
-    edit: { tools/ai/demo/docs/docker/README.md: [["name: Docker", "name: docker"]] }
+    edit: { tools/ai/demo/docs/docker/README.md: [["name: Docker command", "name: docker"]] }
     invalid: [tools/ai/demo/docs/docker/README.md]
   - name: usecase is at most 80 characters
     edit: { tools/ai/demo/docs/docker/README.md: [["usecase: Interactive coding on a local checkout", "usecase: Interactive coding on a local checkout with every provider key and workspace mounted"]] }

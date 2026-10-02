@@ -90,7 +90,7 @@ from the [devbox full tier](../../base/devbox/#full); the `*-browser` variants a
 
 - **Interactive multi-agent workspace** with [Docker](./docs/docker/).
 - **Repeatable local multi-agent workspace** with
-  [Docker Compose](./docs/docker-compose/).
+  [Docker compose](./docs/docker-compose/).
 - **Rootless multi-agent workstation** with [Podman](./docs/podman/).
 - **Long-lived cluster workspace** from plain manifests with
   [Kubernetes](./docs/kubernetes/) or from a Helm chart with [Helm](./docs/helm/).

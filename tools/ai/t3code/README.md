@@ -81,7 +81,7 @@ client. The headless Chromium in `ubuntu-browser` is for command-line tools.
 
 - **Local GUI over a checkout** with [Docker](./docs/docker/), including hosts that
   load the image from a saved tar.
-- **Persistent local instance** with [Docker Compose](./docs/docker-compose/), with an
+- **Persistent local instance** with [Docker compose](./docs/docker-compose/), with an
   air-gapped Compose file.
 - **Rootless local instance** with [Podman](./docs/podman/).
 - **Shared cluster instance** from plain manifests with [Kubernetes](./docs/kubernetes/)

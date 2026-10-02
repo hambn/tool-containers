@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Open an agentbloat Zsh shell with every agent CLI as a Docker Compose service on a host directory, with an air-gapped Compose file.
+name: Docker compose
+description: Open an agentbloat Zsh shell with every agent CLI as a Docker compose service on a host directory, with an air-gapped Compose file.
 usecase: Repeatable local multi-agent workspace
 keywords: [coding agents, zsh, air-gapped]
 ---
 
-# Run agentbloat with Docker Compose
+# Run agentbloat with Docker compose
 
 The `agentbloat` service opens a Zsh login shell in [agentbloat](../../README.md) with
 the directory in `WORKSPACE` mounted at `/workspace`. [`compose.sh`](./compose.sh)

@@ -1,78 +1,69 @@
 ---
-name: Docker
-description: Review the current checkout with the Open Code Review CLI in Docker, or run it from a saved image tarball on a host with no registry access.
+name: Docker command
+description: Review a checkout with Open Code Review in Docker, using a named settings volume to keep provider configuration between direct commands.
 usecase: Review the current checkout
-keywords: [ocr review, llm provider, air-gapped]
+keywords: [ocr review, llm provider, persistent configuration]
 ---
 
-# Run Open Code Review with Docker
+# Run Open Code Review with Docker command
 
-[`run.sh`](./run.sh) runs [Open Code Review](../../README.md) on the current directory,
-passing any arguments to `ocr`. [`airgapped.run.sh`](./airgapped.run.sh) does the same
-from a saved image on a host that cannot pull.
+Run [Open Code Review](../../README.md) against the current checkout. Each command mounts the checkout at `/workspace` and keeps provider settings in a named volume.
 
 ## Prerequisites
 
 - Docker Engine 23 or later.
-- An API key for an LLM provider `ocr` supports, such as `ANTHROPIC_API_KEY` or
-  `OPENAI_API_KEY`.
+- A Git checkout and an exported `ANTHROPIC_API_KEY` for the examples below.
+
+## Configure the provider
+
+```bash
+docker run --rm \
+  -v ocr-config:/home/sysadmin/.opencodereview \
+  ghcr.io/hambn/open-code-review:ubuntu-browser config set provider anthropic
+```
+
+## Configure the model
+
+Replace `<model>` with the model you want to use:
+
+```bash
+docker run --rm \
+  -v ocr-config:/home/sysadmin/.opencodereview \
+  ghcr.io/hambn/open-code-review:ubuntu-browser config set model "<model>"
+```
 
 ## Review your changes
 
-`ocr` needs a provider and model before it can review. It saves them in
-`/home/sysadmin/.opencodereview/config.json`, which `--rm` deletes when the container
-exits, so configure and review in the same container. Start a shell in the image with
-your key and the checkout:
+After configuring the provider and model, review staged, unstaged, and untracked changes:
 
 ```bash
-docker run -it --rm -e ANTHROPIC_API_KEY -v "$PWD:/workspace" \
-  --entrypoint zsh ghcr.io/hambn/open-code-review:ubuntu-browser
+docker run --rm \
+  -e ANTHROPIC_API_KEY \
+  -v "$PWD:/workspace" \
+  -v ocr-config:/home/sysadmin/.opencodereview \
+  ghcr.io/hambn/open-code-review:ubuntu-browser review
 ```
 
-Then, inside it:
+## Review a branch
 
 ```bash
-ocr config set provider anthropic
-ocr config set model <model>
-ocr review                      # staged, unstaged, and untracked changes
-ocr review --from main --to HEAD
+docker run --rm \
+  -e ANTHROPIC_API_KEY \
+  -v "$PWD:/workspace" \
+  -v ocr-config:/home/sysadmin/.opencodereview \
+  ghcr.io/hambn/open-code-review:ubuntu-browser review --from main --to HEAD
 ```
 
-`./run.sh <args>` suits commands that need no saved settings, such as `./run.sh --help`.
-See the upstream [configuration reference](https://github.com/alibaba/open-code-review/blob/main/pages/src/content/docs/en/configuration.md)
-for other providers and their variables.
+## Workspace and state
 
-## Run without registry access
+`ocr` runs as `sysadmin`, UID 1000. The current directory must be a Git repository. The `ocr-config` volume keeps provider settings between runs; API keys come from the host environment. Replace the image tag with a digest to pin one build.
 
-On a machine that can pull, save the image:
+For other providers and their variables, see the upstream [configuration reference](https://github.com/alibaba/open-code-review/blob/main/pages/src/content/docs/en/configuration.md).
+
+## Cleanup
+
+Remove saved provider settings when you no longer need them:
 
 ```bash
-docker save ghcr.io/hambn/open-code-review:ubuntu-browser -o open-code-review.tar
+docker volume rm ocr-config
 ```
-
-Copy the tar to the offline host and pass its path first; the remaining arguments go to
-`ocr`:
-
-```bash
-./airgapped.run.sh open-code-review.tar --help
-```
-
-The script loads the tar and runs `OPEN_CODE_REVIEW_IMAGE` with `--pull=never`. After
-it has loaded the image once, start a shell as shown above with `--pull=never` added.
-A review still needs network access to your LLM provider.
-
-## Variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `OPEN_CODE_REVIEW_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/open-code-review:ubuntu-browser`; set `ghcr.io/hambn/open-code-review@sha256:<digest>` to pin one build. |
-
-## Workspace
-
-The current directory is mounted at `/workspace`, the image's working directory. `ocr`
-runs as `sysadmin` (UID 1000); the checkout must be a Git repository for `ocr review`.
-
-## Files
-
-- [`run.sh`](./run.sh) pulls the image if needed and runs `ocr` with your arguments.
-- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.

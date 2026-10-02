@@ -64,7 +64,7 @@ Git, Node.js, Python, Go, the Docker CLI, and the other devbox tools come from t
 
 - **Interactive coding on a local checkout** with [Docker](./docs/docker/), including
   hosts that load the image from a saved tar.
-- **Repeatable local sessions** with [Docker Compose](./docs/docker-compose/), with an
+- **Repeatable local sessions** with [Docker compose](./docs/docker-compose/), with an
   air-gapped Compose file.
 - **Rootless sessions on a workstation** with [Podman](./docs/podman/).
 - **Code review in CI** on GitHub pull requests with

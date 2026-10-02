@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Run Omnigent as a Docker Compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
+name: Docker compose
+description: Run Omnigent as a Docker compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
 usecase: Repeatable local orchestration sessions
 keywords: [agent harness, air-gapped]
 ---
 
-# Run Omnigent with Docker Compose
+# Run Omnigent with Docker compose
 
 The `omnigent` service runs [Omnigent](../../README.md) on the directory in
 `WORKSPACE`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path,

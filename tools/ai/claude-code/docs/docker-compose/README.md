@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Run Claude Code as a Docker Compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
+name: Docker compose
+description: Run Claude Code as a Docker compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
 usecase: Repeatable local sessions
 keywords: [anthropic api key, air-gapped]
 ---
 
-# Run Claude Code with Docker Compose
+# Run Claude Code with Docker compose
 
 The `claude` service runs [Claude Code](../../README.md) on the directory in
 `WORKSPACE`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path,

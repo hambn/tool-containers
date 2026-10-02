@@ -42,7 +42,7 @@ export function sourceRoute(source) {
 }
 
 // Tabs and catalog columns are narrow; the full platform name stays in headings.
-const PLATFORM_LABELS = { "docker-compose": "Compose", "github-actions": "Actions" };
+const PLATFORM_LABELS = { "github-actions": "Actions" };
 export const platformLabel = (platform) => PLATFORM_LABELS[platform.slug] ?? platform.meta.name;
 
 // Image references name their registry host; the frontmatter contract allows only these.

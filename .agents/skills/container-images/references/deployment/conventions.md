@@ -1,14 +1,14 @@
 # Platform doc conventions
 
 Each supported platform lives at `tools/<category>/<tool>/docs/<platform>/` with a
-README plus runnable files. Add only platforms that serve the tool's real use cases.
+README and any platform-specific runnable files. Plain Docker docs use inline commands. Add only platforms that serve the tool's real use cases.
 The `references/deployment/` path is this skill's grouping; image projects always use
 `docs/`.
 
 | Platform | Guide |
 |---|---|
-| Plain Docker | [docker.md](docker.md) |
-| Docker Compose | [docker-compose.md](docker-compose.md) |
+| Docker command | [docker.md](docker.md) |
+| Docker compose | [docker-compose.md](docker-compose.md) |
 | Rootless Podman | [podman.md](podman.md) |
 | Raw Kubernetes | [kubernetes.md](kubernetes.md) |
 | Helm | [helm.md](helm.md) |

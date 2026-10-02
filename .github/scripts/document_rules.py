@@ -15,8 +15,8 @@ CATEGORY_README = re.compile(r"tools/([^/]+)/README\.md")
 TOOL_README = re.compile(r"tools/([^/]+)/([^/]+)/README\.md")
 PLATFORM_README = re.compile(r"tools/([^/]+)/([^/]+)/docs/([^/]+)/README\.md")
 PLATFORM_NAMES = {
-    "docker": "Docker",
-    "docker-compose": "Docker Compose",
+    "docker": "Docker command",
+    "docker-compose": "Docker compose",
     "podman": "Podman",
     "kubernetes": "Kubernetes",
     "helm": "Helm",
