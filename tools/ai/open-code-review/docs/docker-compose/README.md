@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Run the Open Code Review CLI as a Docker Compose service on a host checkout you choose, with a second Compose file for hosts that cannot pull.
+name: Docker compose
+description: Run the Open Code Review CLI as a Docker compose service on a host checkout you choose, with a second Compose file for hosts that cannot pull.
 usecase: Repeatable local reviews
 keywords: [ocr review, llm provider, air-gapped]
 ---
 
-# Run Open Code Review with Docker Compose
+# Run Open Code Review with Docker compose
 
 The `open-code-review` service runs [Open Code Review](../../README.md) on the directory
 in `WORKSPACE`. [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute

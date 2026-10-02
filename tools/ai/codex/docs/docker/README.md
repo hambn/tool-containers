@@ -1,69 +1,39 @@
 ---
-name: Docker
-description: Run the Codex CLI in Docker on the current directory with your OpenAI API key, or from a saved image tarball on a host with no registry access.
+name: Docker command
+description: Start Codex CLI on your checkout with an exported OpenAI API key, or run a single task using a copyable Docker command.
 usecase: Interactive coding on a local checkout
-keywords: [openai api key, air-gapped, docker save]
+keywords: [openai api key, interactive session, one-shot task]
 ---
 
-# Run Codex CLI with Docker
+# Run Codex CLI with Docker command
 
-[`run.sh`](./run.sh) starts [Codex CLI](../../README.md) on the current directory,
-passing any arguments to `codex`. [`airgapped.run.sh`](./airgapped.run.sh) does the
-same from a saved image on a host that cannot pull.
+Run [Codex CLI](../../README.md) with the current directory mounted at `/workspace`. Choose one example and copy its command.
 
 ## Prerequisites
 
 - Docker Engine 23 or later.
-- An OpenAI API key in `OPENAI_API_KEY`.
 
-## Run Codex
+Export `OPENAI_API_KEY` for the interactive example, or `CODEX_API_KEY` for the one-task example. Choose the API key option on the interactive sign-in screen.
 
-```bash
-export OPENAI_API_KEY=sk-...
-./run.sh                                   # interactive session
-./run.sh exec "summarize this repository"  # one-shot task
-```
-
-The interactive session opens Codex's sign-in screen with your key already detected;
-choose the API key option to continue. Codex saves the login in
-`/home/sysadmin/.codex` inside the container, and `--rm` deletes it when you exit, so
-you confirm it again on each run.
-
-`codex exec` does not read `OPENAI_API_KEY`. It reads `CODEX_API_KEY`, which the
-scripts do not forward, so for non-interactive runs add `-e CODEX_API_KEY` to the
-`docker run` line and export the key under that name.
-
-## Run without registry access
-
-On a machine that can pull, save the image:
+## Start an interactive session
 
 ```bash
-docker save ghcr.io/hambn/codex:ubuntu-browser -o codex.tar
+docker run -it --rm \
+  -e OPENAI_API_KEY \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/codex:ubuntu-browser
 ```
 
-Copy `codex.tar` to the offline host and run it from there. The first argument is the
-tar path; the rest go to `codex`:
+## Run one task
 
 ```bash
-./airgapped.run.sh codex.tar
+docker run --rm \
+  -e CODEX_API_KEY \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/codex:ubuntu-browser exec "summarize this repository"
 ```
 
-The script loads the tar and runs `CODEX_IMAGE` with `--pull=never`, so set
-`CODEX_IMAGE` if you saved a different tag.
+## Workspace and state
 
-## Variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `OPENAI_API_KEY` | yes | Forwarded to the container and offered at the Codex sign-in screen. |
-| `CODEX_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/codex:ubuntu-browser`; set `ghcr.io/hambn/codex@sha256:<digest>` to pin one build. |
-
-## Workspace
-
-The current directory is mounted at `/workspace`, the image's working directory. Codex
-runs as `sysadmin` (UID 1000), so new files belong to UID 1000 on the host.
-
-## Files
-
-- [`run.sh`](./run.sh) pulls the image if needed and runs it.
-- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.
+The container runs as `sysadmin`, UID 1000, so files it creates in `/workspace` belong to UID 1000 on the host.
+Changes in the mounted directory stay on the host. `--rm` removes container settings and logins when the command exits. Replace the image tag with a digest to pin one build.

@@ -1,62 +1,38 @@
 ---
-name: Docker
-description: Run the Pi terminal coding agent in Docker on the current directory, or load a saved image tarball on a host with no registry access.
+name: Docker command
+description: Start the Pi coding agent in Docker on your current checkout, signing in interactively or passing an exported model provider API key.
 usecase: Interactive coding on a local checkout
-keywords: [terminal coding agent, air-gapped, docker save]
+keywords: [terminal coding agent, provider login, api key]
 ---
 
-# Run Pi Coding Agent with Docker
+# Run Pi Coding Agent with Docker command
 
-[`run.sh`](./run.sh) starts [Pi](../../README.md) on the current directory, passing any
-arguments to `pi`. [`airgapped.run.sh`](./airgapped.run.sh) does the same from a saved
-image on a host that cannot pull.
+Run [Pi Coding Agent](../../README.md) with the current directory mounted at `/workspace`. Choose one example and copy its command.
 
 ## Prerequisites
 
 - Docker Engine 23 or later.
-- An account or API key for a model provider Pi supports.
 
-## Run Pi
+Run `/login` inside Pi to connect your provider account. For the API key example, export `ANTHROPIC_API_KEY` in your host shell first.
 
-```bash
-./run.sh
-```
-
-The scripts pass no credentials. Inside Pi, run `/login` to connect a subscription or
-API key; Pi saves it in the container, and `--rm` deletes it when you exit. To use an
-environment key instead, add `-e ANTHROPIC_API_KEY` (or `-e OPENAI_API_KEY`,
-`-e GEMINI_API_KEY`) to the `docker run` line in [`run.sh`](./run.sh) and export it.
-
-## Run without registry access
-
-On a machine that can pull, save the image:
+## Sign in interactively
 
 ```bash
-docker save ghcr.io/hambn/pi-agent:ubuntu-browser -o pi-agent.tar
+docker run -it --rm \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/pi-agent:ubuntu-browser
 ```
 
-Copy the tar to the offline host and pass its path first; the remaining arguments go to
-`pi`:
+## Use an Anthropic API key
 
 ```bash
-./airgapped.run.sh pi-agent.tar
+docker run -it --rm \
+  -e ANTHROPIC_API_KEY \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/pi-agent:ubuntu-browser
 ```
 
-The script loads the tar and runs `PI_AGENT_IMAGE` with `--pull=never`, so set that
-variable if you saved a different tag.
+## Workspace and state
 
-## Variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `PI_AGENT_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/pi-agent:ubuntu-browser`; set `ghcr.io/hambn/pi-agent@sha256:<digest>` to pin one build. |
-
-## Workspace
-
-The current directory is mounted at `/workspace`, the image's working directory. Pi runs
-as `sysadmin` (UID 1000), so new files belong to UID 1000 on the host.
-
-## Files
-
-- [`run.sh`](./run.sh) pulls the image if needed and runs it.
-- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.
+The container runs as `sysadmin`, UID 1000, so files it creates in `/workspace` belong to UID 1000 on the host.
+Changes in the mounted directory stay on the host. `--rm` removes container settings and logins when the command exits. Replace the image tag with a digest to pin one build.

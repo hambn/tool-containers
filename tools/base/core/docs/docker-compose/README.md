@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
+name: Docker compose
 description: Run the hardened core base as a locked-down Compose shell service with a read-only root, a tmpfs /tmp, and every capability dropped.
 usecase: Locked-down read-only shell service
 keywords: [read-only root, tmpfs, dropped capabilities, nonroot]
 ---
 
-# Run core with Docker Compose
+# Run core with Docker compose
 
 The `shell` service runs [core](../../README.md) with a read-only root filesystem, a
 tmpfs at `/tmp`, no capabilities, and `no-new-privileges`. [`compose.sh`](./compose.sh)

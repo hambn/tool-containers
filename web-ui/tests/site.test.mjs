@@ -71,6 +71,19 @@ for (const mode of MODES) {
       assert.deepEqual([...site.pages.keys()].sort(), expected.sort());
     });
 
+    test("Docker pages show direct commands and full platform labels", () => {
+      const dom = site.pages.get("/docs/ai/t3code/docker/");
+      assert.equal(dom.querySelector("h1").text, "Run T3 Code with Docker command");
+      const labels = dom.querySelectorAll("a").map((link) => link.text.trim());
+      assert.ok(labels.includes("Docker command"));
+      assert.ok(labels.includes("Docker compose"));
+      const commands = dom.querySelectorAll("pre").map((code) => parse(code.innerHTML).text);
+      assert.ok(commands.some((code) => code.includes("-p 127.0.0.1:3773:3773")));
+      assert.ok(commands.some((code) => code.includes("-p 3773:3773")));
+      assert.ok(!dom.text.includes("airgapped.run.sh"));
+      assert.ok(!dom.text.includes("run.sh"));
+    });
+
     test("every page has exactly one h1 and a unique title and description", () => {
       const titles = new Set();
       const descriptions = new Set();

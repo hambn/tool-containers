@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Run the Codex CLI as a Docker Compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
+name: Docker compose
+description: Run the Codex CLI as a Docker compose service on a host directory you choose, with a second Compose file for hosts that cannot pull images.
 usecase: Repeatable local sessions
 keywords: [openai api key, air-gapped]
 ---
 
-# Run Codex CLI with Docker Compose
+# Run Codex CLI with Docker compose
 
 The `codex` service runs [Codex CLI](../../README.md) on the directory in `WORKSPACE`.
 [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path, because

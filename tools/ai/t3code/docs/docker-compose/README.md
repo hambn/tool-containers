@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Serve the T3 Code web GUI on 127.0.0.1:3773 as a Docker Compose service that keeps its state until you remove it, with an air-gapped Compose file.
+name: Docker compose
+description: Serve the T3 Code web GUI on 127.0.0.1:3773 as a Docker compose service that keeps its state until you remove it, with an air-gapped Compose file.
 usecase: Persistent local instance
 keywords: [web gui, port 3773, air-gapped]
 ---
 
-# Run T3 Code with Docker Compose
+# Run T3 Code with Docker compose
 
 The `t3code` service serves [T3 Code](../../README.md) on `http://127.0.0.1:3773` with
 the directory in `WORKSPACE` mounted at `/workspace`. [`compose.sh`](./compose.sh)

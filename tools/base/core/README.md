@@ -56,7 +56,7 @@ each upstream base by digest and holds the date that forces an OS package refres
 
 - **Throwaway shell or base for your own image** with [Docker](./docs/docker/): run curl
   and bash in a disposable container, or build `FROM ghcr.io/hambn/core:wolfi`.
-- **Locked-down read-only shell service** with [Docker Compose](./docs/docker-compose/).
+- **Locked-down read-only shell service** with [Docker compose](./docs/docker-compose/).
 
 ## Sources
 

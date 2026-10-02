@@ -135,7 +135,7 @@ The Alpine images use OpenRC and install no Docker daemon.
 
 - **Interactive development shell on a checkout** with [Docker](docs/docker/),
   optionally using the host Docker daemon.
-- **Reusable shell with a persistent home** with [Docker Compose](docs/docker-compose/).
+- **Reusable shell with a persistent home** with [Docker compose](docs/docker-compose/).
 - **Rootless development shell or Quadlet service** with [Podman](docs/podman/).
 - **Disposable cluster development pod** with [Kubernetes](docs/kubernetes/).
 - **Long-running cluster pod with a persistent workspace** with [Helm](docs/helm/).

@@ -11,8 +11,8 @@ import { parse as parseYaml } from "yaml";
 
 /** Platform directories and their fixed display names, in reading order. */
 export const PLATFORMS = new Map([
-  ["docker", "Docker"],
-  ["docker-compose", "Docker Compose"],
+  ["docker", "Docker command"],
+  ["docker-compose", "Docker compose"],
   ["podman", "Podman"],
   ["kubernetes", "Kubernetes"],
   ["helm", "Helm"],

@@ -1,77 +1,101 @@
 ---
-name: Docker
-description: Serve the T3 Code web GUI on 127.0.0.1:3773 in Docker with the current directory as its workspace, or from a saved image tarball offline.
+name: Docker command
+description: Serve T3 Code on your current checkout with copyable Docker commands for localhost access, all host interfaces, or persistent application state.
 usecase: Local GUI over a checkout
-keywords: [web gui, port 3773, air-gapped]
+keywords: [web gui, port 3773, localhost, persistent state]
 ---
 
-# Run T3 Code with Docker
+# Run T3 Code with Docker command
 
-[`run.sh`](./run.sh) serves [T3 Code](../../README.md) on `http://127.0.0.1:3773` with
-the current directory mounted at `/workspace`. [`airgapped.run.sh`](./airgapped.run.sh)
-does the same from a saved image on a host that cannot pull.
+Serve [T3 Code](../../README.md) with the current directory mounted at `/workspace`. Choose one command for the access and storage you need.
 
 ## Prerequisites
 
 - Docker Engine 23 or later.
 
-## Run T3 Code
+## Listen on localhost
+
+Open T3 Code at `http://127.0.0.1:3773` from the host:
 
 ```bash
-./run.sh
+docker run --rm \
+  --name t3code-instance \
+  -p 127.0.0.1:3773:3773 \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/t3code:ubuntu-browser
 ```
 
-The server prints a `Token:` line when it is ready. Open
-`http://127.0.0.1:3773/pair#token=<token>` to pair your browser, then add
-`/workspace` as a project and sign in to an agent from the UI. The printed pairing URL
-uses the container's IP address, which the host may not reach. Press Ctrl-C to stop
-the server; the container, T3 Code's state, and the agent logins are removed with it.
+## Listen on all host interfaces
 
-The token expires after five minutes. To pair later, run
-`docker exec <container> t3 auth pairing create --base-url http://127.0.0.1:3773`
-with the container ID from `docker ps`, and open the `Pair URL` it prints.
-
-To let agents run Docker commands, set `T3CODE_DOCKER_SOCKET` to the host socket.
-`run.sh` mounts it at `/var/run/docker.sock` and adds its group:
+Publish port 3773 on all host interfaces, including `0.0.0.0`, to allow access from other machines that can reach the host:
 
 ```bash
-T3CODE_DOCKER_SOCKET=/var/run/docker.sock ./run.sh
+docker run --rm \
+  --name t3code-instance \
+  -p 3773:3773 \
+  -v "$PWD:/workspace" \
+  ghcr.io/hambn/t3code:ubuntu-browser
 ```
 
-Access to the socket gives the container root on the host.
+## Keep application state
 
-## Run without registry access
-
-On a machine that can pull, save the image:
+Run in the background with a named home volume to keep T3 Code state and agent logins across container removal:
 
 ```bash
-docker save ghcr.io/hambn/t3code:ubuntu-browser -o t3code.tar
+docker run -d \
+  --name t3code-instance \
+  -p 127.0.0.1:3773:3773 \
+  -v "$PWD:/workspace" \
+  -v t3code-home:/home/sysadmin \
+  ghcr.io/hambn/t3code:ubuntu-browser
 ```
 
-Copy the tar to the offline host and pass its path:
+View the server output:
 
 ```bash
-./airgapped.run.sh t3code.tar
+docker logs t3code-instance
 ```
 
-The script loads the tar and runs `T3CODE_IMAGE` with `--pull=never`. It does not
-support `T3CODE_DOCKER_SOCKET`.
+## Pair your browser
 
-## Variables
+The server prints a `Token:` line. Open `http://127.0.0.1:3773/pair#token=<token>`, then add `/workspace` as a project and sign in to an agent from the UI. For access from another machine, replace `127.0.0.1` with the host address.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `T3CODE_IMAGE` | no | Image both scripts run. Defaults to `ghcr.io/hambn/t3code:ubuntu-browser`; set `ghcr.io/hambn/t3code@sha256:<digest>` to pin one build. |
-| `T3CODE_DOCKER_SOCKET` | no | Host Docker socket for `run.sh` to mount at `/var/run/docker.sock`. |
+The token expires after five minutes. Create another pairing URL:
 
-## Workspace
+```bash
+docker exec t3code-instance t3 auth pairing create --base-url http://127.0.0.1:3773
+```
 
-The current directory is mounted at `/workspace`. T3 Code and its agents run as
-`sysadmin` (UID 1000), so new files belong to UID 1000 on the host. The port is bound
-to `127.0.0.1`; put an authenticating reverse proxy in front before you expose it
-further.
+The startup pairing URL may use the container IP, so use the host address when opening it.
 
-## Files
+## Use the host Docker daemon
 
-- [`run.sh`](./run.sh) pulls the image if needed and serves T3 Code on port 3773.
-- [`airgapped.run.sh`](./airgapped.run.sh) loads a saved tar and runs it without pulling.
+On Linux, mount the host socket and add its group to let agents run Docker commands. Socket access gives the container root-equivalent access to the host.
+
+```bash
+docker run --rm \
+  --name t3code-instance \
+  -p 127.0.0.1:3773:3773 \
+  -v "$PWD:/workspace" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  ghcr.io/hambn/t3code:ubuntu-browser
+```
+
+## Workspace and cleanup
+
+T3 Code and its agents run as `sysadmin`, UID 1000. Files they create in `/workspace` belong to UID 1000 on the host. Replace the image tag with a digest to pin one build.
+
+Run one example at a time because they share a container name and port. Stop a foreground example with Ctrl-C. Its `--rm` flag removes the container and its settings and logins; workspace files remain on the host.
+
+Remove the background instance before starting another example:
+
+```bash
+docker rm -f t3code-instance
+```
+
+The `t3code-home` volume keeps its state until you remove it:
+
+```bash
+docker volume rm t3code-home
+```

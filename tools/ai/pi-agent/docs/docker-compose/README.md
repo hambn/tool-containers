@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Run the Pi terminal coding agent as a Docker Compose service on a host directory you choose, with a Compose file for hosts that cannot pull.
+name: Docker compose
+description: Run the Pi terminal coding agent as a Docker compose service on a host directory you choose, with a Compose file for hosts that cannot pull.
 usecase: Repeatable local sessions
 keywords: [terminal coding agent, air-gapped]
 ---
 
-# Run Pi Coding Agent with Docker Compose
+# Run Pi Coding Agent with Docker compose
 
 The `pi-agent` service runs [Pi](../../README.md) on the directory in `WORKSPACE`.
 [`compose.sh`](./compose.sh) checks that `WORKSPACE` is an absolute path, because

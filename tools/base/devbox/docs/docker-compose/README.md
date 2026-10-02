@@ -1,11 +1,11 @@
 ---
-name: Docker Compose
-description: Run devbox as a reusable Docker Compose service with the workspace bind-mounted and a persistent home volume for sysadmin.
+name: Docker compose
+description: Run devbox as a reusable Docker compose service with the workspace bind-mounted and a persistent home volume for sysadmin.
 usecase: Reusable shell with a persistent home
 keywords: [persistent home, named volume, zsh]
 ---
 
-# Run devbox with Docker Compose
+# Run devbox with Docker compose
 
 The `devbox` service runs [devbox](../../README.md) with your workspace mounted and a
 named volume for `/home/sysadmin`, so shell history, tool caches, and `~/.kube` survive

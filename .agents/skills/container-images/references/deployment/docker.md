@@ -1,35 +1,22 @@
-# Docker run recipes
+# Docker command recipes
 
-Use executable Bash scripts for connected and air-gapped plain Docker use:
+Put copyable commands directly in `docs/docker/README.md`. Do not add `run.sh`,
+`airgapped.run.sh`, or other launcher scripts for plain Docker recipes. Each fenced
+example should contain one command so a reader can copy the example they need.
 
-| File | Purpose |
-|---|---|
-| `run.sh` | pull and run the published image |
-| `airgapped.run.sh` | load a saved tar and run without pulling |
-| `README.md` | prerequisites, commands, variables, Files section, and cleanup |
+- Use the platform name `Docker command`; keep the directory slug `docker`.
+- Mount `"$PWD:/workspace"` and select the working directory when the image needs it.
+- Use `-it --rm` for interactive tools and `--rm` for one-shot tasks.
+- Use a published moving tag from `ghcr.io/hambn/<tool>` and explain digest pinning once.
+- Pass credentials from exported host variables with `-e`; never include secret values.
+- Show separate examples for materially different needs, such as interactive and
+  one-shot use, localhost and all-interface ports, or persistent application state.
+- For web services, show localhost access first. Explain which interfaces each port
+  mapping publishes and how to stop or remove named containers before reusing a name.
+- Add socket mounts only in a separate example, with the required group and an
+  explanation of host access. Do not use privileged mode.
+- Keep commands consistent with image entrypoints, users, ports, and storage paths.
 
-## Script rules
-
-- Start with `#!/usr/bin/env bash` and `set -euo pipefail`.
-- Assert required variables before invoking Docker; never provide fake secret defaults.
-- Mount `"$PWD:/workspace"`. Use `-it --rm` for interactive tools and pass `"$@"`
-  through after the image.
-- Read the image from `<TOOL>_IMAGE` (for example `CODEX_IMAGE`), defaulting to a
-  moving variant tag such as `ghcr.io/hambn/<tool>:ubuntu-browser`, so users can pin a
-  digest without editing the script.
-- Add only required capabilities, devices, ports, and environment variables. Do not use
-  privileged mode as a shortcut.
-- Keep the scripts executable and shell-quote all user paths and arguments.
-
-## Air-gapped flow
-
-On a connected host, pull and save the exact image:
-
-```sh
-docker save ghcr.io/hambn/<tool>:<tag> -o <tool>.tar
-```
-
-The offline script accepts the tar path as its first argument, defaulting to
-`<tool>.tar`, calls `docker load -i`, and runs with `--pull=never`. Separate the tar-path
-argument from arguments passed to the tool, and document how the local loaded tag is
-selected.
+README structure is owned by `$documentation`. Runnable sibling files are optional
+for Docker docs; a README alone is sufficient. Offline examples, when needed, use
+separate `docker save`, `docker load`, and `docker run --pull=never` commands.
